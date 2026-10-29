@@ -67,15 +67,17 @@ Edits to detached exports do not become authoritative through that compatibility
 rational value rather than numerator or denominator size. It also leaves small fractional
 contributions vulnerable to loss under naive floating accumulation.
 
-Use one scalar Neumaier implementation for Rust total-weight and mentions reductions, preserving
-each operation's contribution order and multiplicity. This deliberately replaces `math.fsum` in
-those paths; it does not change grouped-weight, score-row, or positional-scoring reductions. SIMD
-and parallel summation are outside the current implementation.
+Share a scalar Neumaier accumulator across Rust total-weight, mentions, and grouped-weight
+reductions, preserving each operation's contribution order and multiplicity. Grouping maintains
+one sum and correction per group, processes weights in source-row order, and finalizes each group
+once. This replaces `math.fsum` for totals and mentions and weighted `np.bincount` for grouping.
+Score-row and positional-scoring reductions retain their separate contracts. SIMD and parallel
+summation are outside the current implementation.
 
 Check Neumaier against exact sums of the binary input values, separating accumulation error from
 the final rounding to float64. Include empty inputs, mixed magnitudes, input-order variations, and
 values near total-weight caps and election thresholds. Compare with the Python reference to
-identify changed decisions without treating bitwise agreement with `math.fsum` as a requirement.
+identify changed decisions without requiring bitwise agreement with the replaced reductions.
 The comparison tolerance remains a decision rule rather than an accuracy guarantee for summation.
 
 Preserve scalar types, traversal order, and rounding boundaries in differential fixtures. For

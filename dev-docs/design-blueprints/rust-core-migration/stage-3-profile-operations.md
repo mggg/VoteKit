@@ -183,9 +183,16 @@ reconstruct provenance without matching exported profiles.
 
 Keep row multiplicity until an explicit grouping call. Group by decoded ranking meaning or by
 codes from a reconciled table; never compare codes from different tables directly. Preserve group
-order, weight reduction behavior, voter-set union, index reset, and the warning/type change when
+order, voter-set union, index reset, and the warning/type change when
 grouping a cleaned profile. The current matrix contract uses first-appearance group order and
 canonical set meanings; historical pandas ordering and code assignments are not required.
+
+Float grouping uses one scalar Neumaier accumulator per group, with contributions in source-row
+order and each corrected total finalized after its last contribution. This deliberately replaces
+the Python reference's weighted `np.bincount` reduction under
+[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md). Exact grouping retains rational sums.
+Check the revised float totals and any affected election decisions separately from group
+membership, order, and metadata parity.
 
 Python grouping and concatenation already belong to the matrix modules. Port those operations
 behind the same interface rather than reintroducing a DataFrame route. During an incremental port,

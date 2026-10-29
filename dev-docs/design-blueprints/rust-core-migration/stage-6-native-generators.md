@@ -158,9 +158,88 @@ Voter count and bloc apportionment belong to each generation call, not to comple
 identity. Combined and by-bloc entry points share the model implementation and captured inputs. A
 public prepared-sampler object and implicit global caches remain deferred.
 
-Start from the preparation and reuse behavior of the Python/NumPy implementation. Conditional
-caches, fused preparation, and mixed-radix traversal remain implementation choices within that
-sampling contract.
+Start from the preparation and reuse behavior of the Python/NumPy implementation. Rust can
+organize the work differently while retaining the same completion weights and conditional
+probabilities. The following layout provides a starting point for that port without fixing the
+eventual table representation.
+
+### Name-BT preparation (possible optimization)
+
+Preparation produces two quantities for each remaining-candidate subset: a completion total that
+helps prepare larger subsets and a conditional CDF that the sampler uses to choose the next
+candidate. The current Python implementation computes both through batched NumPy operations. The
+Rust migration offers an opportunity to combine some of that work as it visits each subset's
+members while leaving the underlying recurrence and sampling distribution unchanged.
+
+#### Current NumPy preparation
+
+For a subset `U` with `k` remaining candidates and candidate supports `s_i`, choosing `i`
+contributes `(k - 1) * log(s_i) + log Z(U without i)`. This combines the support factor for
+placing `i` first with the total weight of its possible continuations. The implementation stores
+these log contributions in candidate-column order, assigning negative infinity to absent
+candidates so they contribute zero weight.
+
+Suppose the columns are A, B, C, and D and the remaining subset is `{A, B, D}`, encoded as
+`0b1011`. If the combined weights of the suffixes beginning with those candidates are
+`(27, 16, 0, 5)`, the log contributions are `(log(27), log(16), -infinity, log(5))`. Applying
+`np.logaddexp.reduce` gives the log completion total, `log(48)`, without forming the unnormalized
+weights explicitly. Subtracting this total from each contribution and exponentiating then gives
+the conditional probabilities:
+
+```text
+Candidate:     A      B      C      D
+Probability:  27/48  16/48   0     5/48
+CDF:          27/48  43/48  43/48   1
+```
+
+The CDF comes from `np.cumsum` in candidate order. C repeats B's threshold because an absent
+candidate occupies no probability interval. A final division by the cumulative row's last entry
+ensures that the endpoint is one despite floating-point accumulation error; it has no effect in
+the exact arithmetic shown above. Although C contributes nothing, its column still participates in
+the array operations, including exponentiation and cumulative addition.
+
+#### Proposed Rust preparation
+
+The Rust version could compute the completion total with max-shifted log-sum-exp. Subtracting the
+largest log contribution before exponentiation makes the largest resulting weight one and keeps
+every exponential argument nonpositive. This avoids forming the original products although
+contributions that are extremely small relative to the maximum can still underflow.
+
+Finding that maximum does not require a separate scan: as the first traversal visits the subset's
+set bits in ascending candidate order, it can compute each log contribution and updates a running
+maximum. A second traversal can then exponentiate the shifted contributions and add each weight
+directly to a scalar Neumaier accumulator. The two traversals combine contribution calculation
+with maximum selection, then exponentiation with compensated summation, reducing the total number
+of operations.
+
+In the example, the maximum is `log(27)`. Subtracting it before exponentiation produces
+`(1, 16/27, 0, 5/27)`, whose compensated sum approximates `48/27`. Restoring the scale gives the
+log completion total: `log(27) + log(48/27) = log(48)` in exact arithmetic. That total is stored
+for use when preparing larger subsets.
+
+The CDF can then be built directly from the shifted weights because their common scale cancels
+during normalization. Ordinary cumulative addition gives `(1, 43/27, 43/27, 48/27)`, and dividing
+by the last entry recovers `(27/48, 43/48, 43/48, 1)`.
+
+A dense CDF lets the sampler retain its existing candidate-column indexing. Keeping that layout
+also means initializing absent weights and writing every column, so the optimization reduces
+arithmetic without changing the table's exponential growth. For `m` candidates, preparation still
+takes `O(m * 2**m)` work and the retained float64 table occupies `8 * m * 2**m` bytes, excluding
+preparation buffers.
+
+### Sampling loops and further refinements
+
+Retain linear CDF scanning as the initial Rust lookup and reuse the PL sampler's candidate-order
+buffer where it already supports within-slate assembly. Binary CDF search, a special two-slate
+threshold branch, and direct PL output writes are alternatives to revisit if the workload or
+surrounding implementation changes; they are not prerequisites for this port. Preserve the rule
+that a draw selects the first strictly larger threshold, including across repeated thresholds.
+
+Narrower checked candidate IDs, compact CDF rows, and grouping sampled batches are possible later
+refinements to memory use. Their value depends on the additional indexing, conversion, and
+aggregation work they introduce. Parallel sampling is a separate option once deterministic stream
+assignment and output ordering are established. None of these choices needs to block direct Rust
+ownership or the preparation layout above.
 
 Shared-prefix count sampling is separate algorithm work unless the Python implementation already
 provides it. Preserve the existing MCMC option and its burn-in and retained-sample semantics; a
@@ -228,6 +307,12 @@ calculations. Test multiple-zero cases against the Python implementation's expli
 rather than the undefined unmodified model. Different RNG algorithms need not produce identical
 Python and Rust samples; verify each implementation's seeded behavior and their common
 distribution separately.
+
+When changing preparation traversal, compare completion totals and conditional rows before
+comparing sampled output. Include subsets with many absent candidates, singleton subsets, and
+extreme support ratios. A traversal-only optimization should retain seeded output when its
+floating-point calculations and RNG consumption are unchanged; check that directly rather than
+relying only on frequency tests.
 
 Verify captured-input independence, repeated batches, deterministic seeds, parent RNG state,
 grouping, by-bloc composition, MCMC retention, and refusal before large allocations. Generated
