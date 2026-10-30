@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from dataclasses import replace
 from fractions import Fraction
 from functools import partial
+from math import fsum
 from typing import Optional, Sequence, TypeVar, cast
 
 import numpy as np
@@ -691,11 +692,9 @@ def _subtract_grouped_weights(
     """
     Group the base profile rows and subtract the weight of matching rows in subtracted_weights.
 
-    The exhausted groups are dropped from the grouped rankings array and grouped shared data.
-    The group_ids are numbered in first-appeaerance order where the base profile ballots come first
-    followed by the subtracted profile's ballots. Base profile's group IDs will always be a subset
-    or subtracted profile's group IDs. Subtracted profile's non-matching group IDs will be greater
-    in value than any of base profile's group IDs.
+    Group IDs follow first-appearance order with base rows preceding subtracted rows. Base groups
+    occupy IDs ``0..k-1``; subtractand-only groups have IDs at least ``k``. Only base groups can
+    survive, and their voter sets come solely from the base profile.
 
     Args:
         base_data (ProfileVoterWeightData): Shared data of the base profile.
@@ -723,7 +722,19 @@ def _subtract_grouped_weights(
         subtracted_group_ids[matched_groups],
         subtracted_weights[matched_groups],
     )
-    remaining_group_weights = np.subtract(grouped_base_data.weights, weights_to_subtract)
+    if grouped_base_data.weight_kind is WeightKind.FRACTION:
+        remaining_group_weights = np.subtract(grouped_base_data.weights, weights_to_subtract)
+    else:
+        # use compensated summation for floating point weights
+        remaining_group_weights = grouped_base_data.weights.copy()
+
+        signed_weights = np.concatenate((base_data.weights, -subtracted_weights))
+        signed_weights = signed_weights[np.argsort(group_ids, kind="stable")]
+
+        group_offsets = np.concatenate(([0], np.cumsum(np.bincount(group_ids))))
+        for group in np.flatnonzero(weights_to_subtract):
+            start, end = group_offsets[group : group + 2]
+            remaining_group_weights[group] = fsum(signed_weights[start:end])
 
     # Floating-point subtraction can leave a residue of an exhausted ballot. Drop with tolerance.
     zero_tolerance = 0 if grouped_base_data.weight_kind is WeightKind.FRACTION else TOL_EPSILON
@@ -838,12 +849,15 @@ def _subtract_score_profiles(
 
     # Concatenation aligns score columns by candidate, leaving unscored entries as NaN, which
     # grouping treats as equal.
+    comparison_matrices = [
+        replace(matrix, candidates=matrix.score_columns) for matrix in (base_matrix, other_matrix)
+    ]
     candidates = tuple(
         sort_candidates_pseudo_lexicographically(
-            set(base_matrix.candidates).union(other_matrix.candidates)
+            set(base_matrix.score_columns).union(other_matrix.score_columns)
         )
     )
-    combined = _concatenate_score_matrices([base_matrix, other_matrix], candidates)
+    combined = _concatenate_score_matrices(comparison_matrices, candidates)
     first_rows, group_ids = combined._group_score_rows()
 
     rows, data = _subtract_grouped_weights(

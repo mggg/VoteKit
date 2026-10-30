@@ -1,5 +1,6 @@
 from fractions import Fraction
 
+import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
@@ -180,6 +181,26 @@ def test_subtract_score_profiles_matches_unscored_candidates():
     result = base_profile - subtracted_profile
     weights = {tuple(sorted(ballot.scores.items())): ballot.weight for ballot in result.ballots}
     assert weights == {(("A", 2),): 2, (("A", 2), ("B", 1)): 1}
+
+
+def test_subtract_score_profiles_zero_score_does_not_match_unscored_candidate():
+    base_profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 2}, weight=3),
+            ScoreBallot(scores={"A": 2, "B": 1}, weight=1),
+        ],
+        candidates=["A", "B"],
+    )
+    # Built ScoreProfile from df to keep 0 score, ScoreBallot will drop it
+    subtracted_df = pd.DataFrame(
+        {"A": [2.0], "C": [0.0], "Weight": [1.0], "Voter Set": [frozenset()]}
+    )
+    subtracted_df.index.name = "Ballot Index"
+    subtracted_profile = ScoreProfile(df=subtracted_df, candidates=["A", "C"])
+    result = base_profile - subtracted_profile
+    weights = {tuple(sorted(ballot.scores.items())): ballot.weight for ballot in result.ballots}
+    assert weights == {(("A", 2),): 3, (("A", 2), ("B", 1)): 1}
+    assert result.candidates == base_profile.candidates
 
 
 def test_subtract_profiles_mixed_types_raises():
