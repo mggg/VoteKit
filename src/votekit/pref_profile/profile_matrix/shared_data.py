@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import copy as shallow_copy
 from dataclasses import dataclass
 from enum import Enum
 from fractions import Fraction
 from math import fsum
-from typing import Any, Self, Sequence, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import pandas as pd
@@ -298,7 +299,11 @@ class ProfileVoterWeightData:
         else:
             weights = cast(
                 NDArray[np.float64],
-                np.bincount(group_ids, weights=self.weights, minlength=len(first_rows_idx)),
+                np.bincount(
+                    group_ids,
+                    weights=cast(NDArray[np.float64], self.weights),
+                    minlength=len(first_rows_idx),
+                ),
             )
 
         voter_sets = None

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import cast
 
 from votekit.ballot import RankBallot
 from votekit.elections import ElectionState
@@ -9,7 +8,7 @@ from votekit.pref_profile import RankProfile
 BASE_DIR = Path(__file__).resolve().parents[3]
 CSV_DIR = BASE_DIR / "data/csv"
 
-albany_profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
+albany_profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
 
 # all of these states except the last come from the official tabulation:
 # https://alamedacountyca.gov/rovresults/rcv/248/rcvresults.htm?race=Albany%2F001-CityCouncil
@@ -200,14 +199,15 @@ def test_albany_state_list():
             albany_elec.election_states[i], albany_states[i], precision=1e-3
         )
     for i in [0, 1, 2, 3]:
-        assert albany_elec._data.play_by_play[i]["threshold"] == albany_quotas[i]
+        assert albany_elec._data.play_by_play[i].get("threshold") == albany_quotas[i]
 
 
 def test_albany_not_same_as_wigm():
     elec = AlbanySTV(albany_not_same_as_wigm_profile, n_seats=2)
     play_by_play = elec._data.play_by_play
     assert all(
-        play_by_play[i]["threshold"] == not_same_as_wigm_quotas[i] for i in range(len(play_by_play))
+        play_by_play[i].get("threshold") == not_same_as_wigm_quotas[i]
+        for i in range(len(play_by_play))
     )
     assert elec.get_elected() == (frozenset({"A"}), frozenset({"C"}))
 
@@ -216,7 +216,7 @@ def test_three_winners_with_sharp_quotas():
     elec = AlbanySTV(three_winners_with_sharp_quotas_profile, n_seats=3)
     play_by_play = elec._data.play_by_play
     assert all(
-        play_by_play[i]["threshold"] == three_winners_with_sharp_quotas_quotas[i]
+        play_by_play[i].get("threshold") == three_winners_with_sharp_quotas_quotas[i]
         for i in [0, 1, 2, 3, 4]
     )
     assert all(

@@ -82,10 +82,11 @@ tasks:
       - uv run ruff check src tests scripts
 
   typecheck:
-    desc: Run type checks using Ty
+    desc: Run type checks using ty, then Pyright
     silent: true
     cmds:
       - uv run ty check src tests scripts
+      - uv run pyright src tests scripts
 
   all-checks:
     desc: Run all checks (formatting, linting, type checking)

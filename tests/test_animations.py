@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Mapping
 from fractions import Fraction
 from pathlib import Path
-from typing import Literal, Optional, cast
+from typing import Literal, cast
 
 import numpy as np
 import pytest
@@ -204,14 +204,14 @@ def images_match(img1_path: Path, img2_path: Path, tolerance: int = 2) -> bool:
     diff = np.abs(arr1 - arr2)
     mean_diff = np.mean(diff)
 
-    return mean_diff <= tolerance
+    return bool(mean_diff <= tolerance)
 
 
 def run_animation_snapshot_test(
     election: STV,
     tmp_path: Path,
     baseline_subdir: str,
-    stv_animation_args: Optional[dict] = None,
+    stv_animation_args: dict | None = None,
 ):
     """
     Helper to render an STV animation, extract frames, and compare to baselines.
@@ -220,7 +220,7 @@ def run_animation_snapshot_test(
         election (STV): An STV election result to animate.
         tmp_path (Path): Pytest tmp_path fixture for temporary files.
         baseline_subdir (str): Subdirectory name under snapshots/animations/ for baseline images.
-        stv_animation_args(Optional[dict]): Arguments to be passed to the
+        stv_animation_args(dict | None): Arguments to be passed to the
             STVAnimation initialization.
     """
     if stv_animation_args is None:

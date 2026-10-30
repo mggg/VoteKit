@@ -17,10 +17,8 @@ from pprint import pformat
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Self,
     SupportsIndex,
-    Union,
     cast,
     overload,
 )
@@ -62,7 +60,7 @@ class _CandListProxy(MutableSequence[Candidate]):
 
     __slots__ = ("__owner", "__key")
 
-    def __init__(self, owner: "SlateCandMap", key: str):
+    def __init__(self, owner: SlateCandMap, key: str):
         self.__owner = owner
         self.__key = key
 
@@ -75,9 +73,7 @@ class _CandListProxy(MutableSequence[Candidate]):
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[Candidate]: ...
 
-    def __getitem__(
-        self, index: Union[SupportsIndex, slice]
-    ) -> Union[Candidate, MutableSequence[Candidate]]:
+    def __getitem__(self, index: SupportsIndex | slice) -> Candidate | MutableSequence[Candidate]:
         data = self.__owner._data[self.__key]
         if isinstance(index, slice):
             return data[index]
@@ -91,18 +87,19 @@ class _CandListProxy(MutableSequence[Candidate]):
 
     def __setitem__(
         self,
-        index: Union[SupportsIndex, slice],
-        value: Union[Candidate, Iterable[Candidate]],
+        index: SupportsIndex | slice,
+        value: Candidate | Iterable[Candidate],
     ) -> None:
         new = list(self.__owner._data[self.__key])
-        if isinstance(index, slice):  # pragma: no cover
+        if isinstance(index, slice):
             if isinstance(value, (Candidate, bytes)) or not isinstance(value, Iterable):
                 raise TypeError("Slice assignment requires an iterable of str and/or int")
+            values = list(value)
             _validate_candidate_names(
-                list(value),
+                values,
                 SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
-            new[index] = [x for x in value]
+            new[index] = values
         else:
             _validate_candidate_names(
                 [value]
@@ -110,6 +107,8 @@ class _CandListProxy(MutableSequence[Candidate]):
                 else value,
                 SourceWithAttribute(self.__owner._parent, "slate_to_candidates"),
             )
+            if not isinstance(value, Candidate):
+                raise TypeError("Index assignment requires a str or int candidate")
             new[operator.index(index)] = value
         self.__owner[self.__key] = new
 
@@ -119,7 +118,7 @@ class _CandListProxy(MutableSequence[Candidate]):
     @overload
     def __delitem__(self, index: slice) -> None: ...
 
-    def __delitem__(self, index: Union[SupportsIndex, slice]) -> None:
+    def __delitem__(self, index: SupportsIndex | slice) -> None:
         new = list(self.__owner._data[self.__key])
         if isinstance(index, slice):
             del new[index]
@@ -186,7 +185,7 @@ class _CandListProxy(MutableSequence[Candidate]):
         new = sort_candidates_pseudo_lexicographically(self._current())
         self.__owner[self.__key] = new
 
-    def __eq__(self, other: Union[Sequence[str], Any]):
+    def __eq__(self, other: Sequence[str] | Any):
         if not isinstance(other, Sequence):
             return False
         if len(self) != len(other):
@@ -212,7 +211,7 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
 
     Args:
         parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[Mapping[str, Sequence[Candidate]]]): Initial mapping of slate names to
+        init (Mapping[str, Sequence[Candidate]] | None): Initial mapping of slate names to
             sequences of candidate names. If None, defaults to an empty mapping.
             Candidates can be strings, integers, or mix of both.
     """
@@ -222,7 +221,7 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
     def __init__(
         self,
         parent: BlocSlateConfig,
-        init: Optional[Mapping[str, Sequence[Candidate]]] = None,
+        init: Mapping[str, Sequence[Candidate]] | None = None,
     ) -> None:
         try:
             self.__parent = weakref.proxy(parent)
@@ -359,16 +358,16 @@ class SlateCandMap(MutableMapping[str, Sequence[Candidate]]):
                 raise TypeError("Slate values must be sequences of candidate names.")
             self[k] = cast(Sequence[Candidate], v)  # route through __setitem__
 
-    def __or__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
+    def __or__(self, other: Mapping[str, Sequence[Candidate]]) -> SlateCandMap:
         new = SlateCandMap(self.__parent, self._data)
         new.update(other)
         return new
 
-    def __ror__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
+    def __ror__(self, other: Mapping[str, Sequence[Candidate]]) -> SlateCandMap:
         full_map = dict(other) | self._data.copy()
         return SlateCandMap(self.__parent, full_map)
 
-    def __ior__(self, other: Mapping[str, Sequence[Candidate]]) -> "SlateCandMap":
+    def __ior__(self, other: Mapping[str, Sequence[Candidate]]) -> SlateCandMap:
         self.update(other)
         return self
 
@@ -409,7 +408,7 @@ class BlocProportions(MutableMapping[str, float]):
 
     Args:
         parent (BlocSlateConfig): The owning BlocSlateConfig.
-        init (Optional[BlocProportionMapping]): Initial mapping of bloc names to their
+        init (BlocProportionMapping | None): Initial mapping of bloc names to their
             proportions in the electorate. If None, defaults to an empty mapping.
     """
 
@@ -418,7 +417,7 @@ class BlocProportions(MutableMapping[str, float]):
     def __init__(
         self,
         parent: BlocSlateConfig,
-        init: Optional[BlocProportionMapping] = None,
+        init: BlocProportionMapping | None = None,
     ) -> None:
         self.__parent = weakref.proxy(parent)
         self.__data: dict[str, float] = {}

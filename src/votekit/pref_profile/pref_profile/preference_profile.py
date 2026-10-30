@@ -5,10 +5,11 @@ import pickle
 import re
 import urllib.request
 import warnings
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Self, Sequence, Union, cast, overload
+from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast, overload
 
 import numpy as np
 import pandas as pd
@@ -25,7 +26,13 @@ if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile.score_profile import ScoreProfile
 
 
-def _infer_profile_type(ballots: Sequence[Ballot], df: pd.DataFrame) -> type[PreferenceProfile]:
+MatrixT = TypeVar("MatrixT", bound=ProfileMatrix | None)
+BallotT = TypeVar("BallotT", bound=Ballot)
+
+
+def _infer_profile_type(
+    ballots: Sequence[Ballot], df: pd.DataFrame
+) -> type[RankProfile] | type[ScoreProfile] | type[PreferenceProfile[None, Ballot]]:
     """
     Select the profile type for a direct PreferenceProfile construction.
 
@@ -38,7 +45,9 @@ def _infer_profile_type(ballots: Sequence[Ballot], df: pd.DataFrame) -> type[Pre
         df (pd.DataFrame): Input dataframe, or a default empty dataframe when absent.
 
     Returns:
-        type[PreferenceProfile]: The class to allocate and initialize.
+        type[RankProfile] | type[ScoreProfile] | type[PreferenceProfile[None, Ballot]]:
+            The class to allocate and initialize. Empty ballots with no dataframe select the
+            base profile, whose matrix is None.
 
     Raises:
         ProfileError: The ballot sequence does not consist entirely of rank or score ballots.
@@ -66,7 +75,7 @@ def _infer_profile_type(ballots: Sequence[Ballot], df: pd.DataFrame) -> type[Pre
     )
 
 
-class PreferenceProfile:
+class PreferenceProfile(Generic[MatrixT, BallotT]):
     """
     PreferenceProfile class, contains ballots and candidates for a given election.
     This is a frozen class, so you need to create a new PreferenceProfile any time
@@ -77,26 +86,36 @@ class PreferenceProfile:
     RankProfile, ScoreProfile, or their subclasses preserve the requested type and reject
     incompatible ballot types. Total ballot weight must not exceed 2**50.
 
+    MatrixT and BallotT identify the matrix and ballot types. RankProfile specializes them as
+    RankMatrix and RankBallot; ScoreProfile uses ScoreMatrix and ScoreBallot. Both concrete
+    profiles have a matrix even when empty. The empty base profile uses None and Ballot.
+
     Args:
-        ballots (Sequence[Ballot], optional): Tuple of ``Ballot`` objects. Defaults to empty tuple.
-        candidates (tuple[Candidate], optional): Tuple of candidates.
+        ballots (Sequence[Ballot], optional): Ballots to store. Defaults to empty tuple.
+        candidates (Sequence[Candidate], optional): Declared candidates.
             Candidate can be a str or int. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
             Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
-            many candidates are allowed to be ranked in an election. Defaults to longest observed
-            ballot.
+            many candidates are allowed to be ranked in an election. Defaults to 0, which infers
+            the length from ranked ballots. A nonempty ranked dataframe requires an explicit
+            nonzero length. Ignored for score profiles.
         df (pd.DataFrame, optional): Input ballot dataframe. Defaults to an empty dataframe.
+        candidates_cast (Sequence[Candidate], optional): Candidates cast for an empty base profile.
+            Defaults to empty tuple. Concrete profiles compute this from their ballots or dataframe.
+        include_zero_score (bool, optional): Unused compatibility argument for empty base profiles.
+            Defaults to False.
 
-    Parameters:
-        ballots (Sequence[Ballot]): Tuple of ``Ballot`` objects.
-        candidates (tuple[Candidate]): Tuple of candidates.
+    Attributes:
+        ballots (tuple[BallotT, ...]): Cached ballots in source order on concrete profiles.
+            Access on an empty base profile raises NotImplementedError.
+        candidates (tuple[Candidate, ...]): Tuple of candidates.
             Candidates can be strings, integers, or mix of both.
-        max_ranking_length (int): The length of the longest allowable ballot, i.e., how
-            many candidates are allowed to be ranked in an election.
+        max_ranking_length (int | None): The length of the longest allowable ballot, i.e., how
+            many candidates are allowed to be ranked in an election. None for score profiles.
         df (pandas.DataFrame): Detached dataframe export of the ballots. Each access creates
             a new dataframe; editing it does not change the profile.
-        candidates_cast (tuple[Candidate]): Tuple of candidates who appear on any ballot with
+        candidates_cast (tuple[Candidate, ...]): Tuple of candidates who appear on any ballot with
             positive weight, either in the ranking or in the score dictionary.
             Candidates can be strings, integers, or mix of both.
         total_ballot_wt (Numeric): Sum of ballot weights.
@@ -114,7 +133,29 @@ class PreferenceProfile:
     """
 
     _is_frozen: bool = False
-    _matrix: ProfileMatrix | None = None
+    _matrix: MatrixT
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        df: pd.DataFrame,
+        ballots: Sequence[Ballot] = tuple(),
+        candidates: Sequence[Candidate] = tuple(),
+        max_ranking_length: int = 0,
+        **kwargs,
+    ) -> RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]: ...
+
+    @overload
+    def __new__(
+        cls,
+        *,
+        ballots: tuple[()] = tuple(),
+        candidates: Sequence[Candidate] = tuple(),
+        max_ranking_length: int = 0,
+        candidates_cast: Sequence[Candidate] = tuple(),
+        include_zero_score: bool = False,
+    ) -> PreferenceProfile[None, Ballot]: ...
 
     @overload
     def __new__(
@@ -123,9 +164,8 @@ class PreferenceProfile:
         ballots: Sequence[RankBallot],
         candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: int = 0,
-        df: pd.DataFrame = pd.DataFrame(),
-        **kwargs,
-    ) -> RankProfile: ...
+        include_zero_score: None = None,
+    ) -> RankProfile | PreferenceProfile[None, Ballot]: ...
 
     @overload
     def __new__(
@@ -134,20 +174,17 @@ class PreferenceProfile:
         ballots: Sequence[ScoreBallot],
         candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: int = 0,
-        df: pd.DataFrame = pd.DataFrame(),
-        **kwargs,
-    ) -> ScoreProfile: ...
+    ) -> ScoreProfile | PreferenceProfile[None, Ballot]: ...
 
     @overload
     def __new__(
         cls,
         *,
-        ballots: Sequence[Ballot] = tuple(),
+        ballots: Sequence[Ballot],
         candidates: Sequence[Candidate] = tuple(),
         max_ranking_length: int = 0,
-        df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
-    ) -> Self: ...
+    ) -> RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]: ...
 
     def __new__(
         cls,
@@ -157,7 +194,7 @@ class PreferenceProfile:
         max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
-    ) -> PreferenceProfile:
+    ) -> Self | RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]:
         if not df.equals(pd.DataFrame()) and len(ballots) != 0:
             raise ProfileError(
                 "Cannot pass a dataframe and a ballot list to profile init method. Must pick one."
@@ -170,15 +207,16 @@ class PreferenceProfile:
         return object.__new__(profile_type)
 
     def __init__(
-        self,
+        self: PreferenceProfile[None, Ballot],
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates_cast: Sequence[Candidate] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: Optional[int] = None,
+        max_ranking_length: int = 0,
         df: pd.DataFrame = pd.DataFrame(),
-        include_zero_score: Optional[bool] = None,
+        include_zero_score: bool = False,
     ):
+        self._matrix = None
         self.candidates_cast = _normalize_unique_candidates(
             candidates_cast, f"{type(self).__name__}.candidates_cast"
         )
@@ -324,13 +362,33 @@ class PreferenceProfile:
 
     __repr__ = __str__
 
-    def group_ballots(self) -> Self:
+    def group_ballots(self) -> PreferenceProfile[MatrixT, BallotT]:
+        """
+        Combine equal ballots into a new profile with the same matrix and ballot types.
+
+        Returns:
+            PreferenceProfile[MatrixT, BallotT]: Grouped profile. Concrete implementations need
+                not preserve the subclass; cleaned profiles return ordinary rank or score profiles.
+
+        Raises:
+            NotImplementedError: The base profile does not implement ballot grouping.
+        """
         raise NotImplementedError
 
-    def copy(self) -> Self:
+    def copy(self) -> PreferenceProfile[MatrixT, BallotT]:
+        """
+        Copy a profile while preserving its matrix and ballot types.
+
+        Returns:
+            PreferenceProfile[MatrixT, BallotT]: New profile. Concrete implementations determine
+                storage sharing and whether the subclass is preserved.
+
+        Raises:
+            NotImplementedError: The base profile does not implement copying.
+        """
         raise NotImplementedError
 
-    def get_ballot(self, row: int) -> Ballot:
+    def get_ballot(self, row: int) -> BallotT:
         """
         Materialize one ballot without constructing or caching the full ballot tuple.
 
@@ -339,7 +397,7 @@ class PreferenceProfile:
                 Source dataframe labels do not affect positional lookup.
 
         Returns:
-            Ballot: Ballot with the stored weight and voters, including zero-weight rows.
+            BallotT: Ballot with the stored weight and voters, including zero-weight rows.
                 The concrete profile determines the ballot type.
 
         Raises:
@@ -348,12 +406,12 @@ class PreferenceProfile:
         """
         raise NotImplementedError
 
-    def iter_ballots(self) -> Iterator[Ballot]:
+    def iter_ballots(self) -> Iterator[BallotT]:
         """
         Iterate over ballots without materializing or caching the full ballot tuple.
 
         Returns:
-            Iterator[Ballot]: Fresh ballots in source row order, including zero-weight rows.
+            Iterator[BallotT]: Fresh ballots in source row order, including zero-weight rows.
                 An existing ballot cache is not used. The concrete profile determines the
                 ballot type.
 
@@ -362,13 +420,13 @@ class PreferenceProfile:
         """
         raise NotImplementedError
 
-    @property
-    def ballots(self) -> tuple[Ballot, ...]:
+    @cached_property
+    def ballots(self) -> tuple[BallotT, ...]:
         """
         Materialize and cache all ballots in source row order.
 
         Returns:
-            tuple[Ballot, ...]: Ballots with stored weights and voters, including zero-weight
+            tuple[BallotT, ...]: Ballots with stored weights and voters, including zero-weight
                 rows. The concrete profile determines the ballot type.
 
         Raises:
@@ -376,12 +434,12 @@ class PreferenceProfile:
         """
         raise NotImplementedError
 
-    def to_pickle(self, fpath: Union[str, PathLike, Path]):
+    def to_pickle(self, fpath: str | PathLike | Path):
         """
         Saves profile to pickle file.
 
         Args:
-            fpath (Union[str, os.PathLike, pathlib.Path]): File path to save profile to.
+            fpath (str | os.PathLike | pathlib.Path): File path to save profile to.
 
         Raises:
             ValueError: File path must be provided.
@@ -392,12 +450,12 @@ class PreferenceProfile:
             pickle.dump(self, f)
 
     @classmethod
-    def from_pickle(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+    def from_pickle(cls, fpath: str | PathLike | Path) -> PreferenceProfile:
         """
         Reads profile from pickle file.
 
         Args:
-            fpath (Union[str, os.PathLike, pathlib.Path]): File path to profile. Can be a url.
+            fpath (str | os.PathLike | pathlib.Path): File path to profile. Can be a url.
         """
         fpath = str(fpath)
         if not os.path.isfile(fpath):

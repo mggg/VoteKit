@@ -3,7 +3,7 @@ from typing import assert_type
 import pandas as pd
 import pytest
 
-from votekit.ballot import RankBallot, ScoreBallot
+from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.pref_profile import (
     CleanedRankProfile,
     CleanedScoreProfile,
@@ -12,6 +12,7 @@ from votekit.pref_profile import (
     RankProfile,
     ScoreProfile,
 )
+from votekit.pref_profile.profile_matrix import RankMatrix, ScoreMatrix
 
 
 def test_pp_factory_to_rank_profile():
@@ -171,6 +172,59 @@ def test_explicit_profile_constructor_return_types():
     assert_type(DerivedScoreProfile(), DerivedScoreProfile)
     assert_type(DerivedRankProfile(ballots=[RankBallot()]), DerivedRankProfile)
     assert_type(DerivedScoreProfile(ballots=[ScoreBallot()]), DerivedScoreProfile)
+
+
+def test_generic_profile_matrix_and_ballot_types():
+    rank_profile: PreferenceProfile[RankMatrix, RankBallot] = RankProfile(ballots=[RankBallot()])
+    score_profile: PreferenceProfile[ScoreMatrix, ScoreBallot] = ScoreProfile(
+        ballots=[ScoreBallot()]
+    )
+
+    assert_type(rank_profile._matrix, RankMatrix)
+    assert_type(score_profile._matrix, ScoreMatrix)
+    assert_type(rank_profile.ballots, tuple[RankBallot, ...])
+    assert_type(score_profile.ballots, tuple[ScoreBallot, ...])
+    assert_type(rank_profile.get_ballot(0), RankBallot)
+    assert_type(score_profile.get_ballot(0), ScoreBallot)
+    assert isinstance(rank_profile._matrix, RankMatrix)
+    assert isinstance(score_profile._matrix, ScoreMatrix)
+
+    with pytest.raises(AttributeError, match="Cannot modify frozen instance"):
+        rank_profile._matrix = rank_profile._matrix
+
+
+def test_factory_return_types_include_empty_profiles():
+    empty = assert_type(PreferenceProfile(), PreferenceProfile[None, Ballot])
+    assert_type(empty._matrix, None)
+    assert empty._matrix is None
+    assert empty.num_ballots == empty.total_ballot_wt == 0
+
+    rank_ballots: list[RankBallot] = []
+    score_ballots: list[ScoreBallot] = []
+    empty_rank = assert_type(
+        PreferenceProfile(ballots=rank_ballots), RankProfile | PreferenceProfile[None, Ballot]
+    )
+    empty_score = assert_type(
+        PreferenceProfile(ballots=score_ballots), ScoreProfile | PreferenceProfile[None, Ballot]
+    )
+    assert empty_rank._matrix is empty_score._matrix is None
+
+    from_df = assert_type(
+        PreferenceProfile(
+            df=ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})]).to_df(), candidates=("A",)
+        ),
+        RankProfile | ScoreProfile | PreferenceProfile[None, Ballot],
+    )
+    assert isinstance(from_df, ScoreProfile)
+
+
+def test_zero_ranking_length_infers_length_for_factory_and_explicit_profile():
+    ballots = [RankBallot(ranking=["A", "B"])]
+    explicit = RankProfile(ballots=ballots, max_ranking_length=0)
+    inferred = PreferenceProfile(ballots=ballots, max_ranking_length=0)
+
+    assert explicit.max_ranking_length == inferred.max_ranking_length == 2
+    assert explicit.ballots == inferred.ballots == tuple(ballots)
 
 
 @pytest.mark.parametrize(

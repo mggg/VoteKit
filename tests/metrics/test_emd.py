@@ -284,7 +284,7 @@ def make_random_profile(n_voters: int, cand_list: list[str]) -> RankProfile:
         ballot_list.append(
             RankBallot(
                 ranking=tuple(ranking),
-                weight=wt,
+                weight=int(wt),
             )
         )
 

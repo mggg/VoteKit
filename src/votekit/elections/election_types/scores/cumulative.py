@@ -1,5 +1,3 @@
-from typing import Optional
-
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_types.scores.limited import Limited
 from votekit.pref_profile import ScoreProfile
@@ -26,9 +24,9 @@ class Cumulative(Limited):
         self,
         profile: ScoreProfile,
         n_seats: int | None = None,
-        tiebreak: Optional[str] = None,
+        tiebreak: str | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
