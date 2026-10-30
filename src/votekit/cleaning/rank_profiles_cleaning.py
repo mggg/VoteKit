@@ -474,6 +474,8 @@ def truncate_at_cand_rank_profile(
     if isinstance(truncated, Candidate):
         truncated = [truncated]
 
+    _validate_candidate_names(truncated, "truncated")
+
     candidates = (
         profile.candidates
         if retain_original_candidate_list

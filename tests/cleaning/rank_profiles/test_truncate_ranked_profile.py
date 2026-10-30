@@ -106,3 +106,8 @@ def test_truncate_at_cand_rank_profile_reduce_max_ranking_length(profile_with_ti
     )
     assert profile_with_ties.max_ranking_length == 3
     assert cleaned_profile.max_ranking_length == 2
+
+
+def test_truncate_at_cand_rank_profile_rejects_invalid_truncated_candidate(profile):
+    with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in truncated"):
+        truncate_at_cand_rank_profile(truncated=True, profile=profile)
