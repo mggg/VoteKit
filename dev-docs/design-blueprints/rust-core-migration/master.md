@@ -126,7 +126,7 @@ flowchart TD
     INTERFACE["STAGE 1: Python matrix interfaces<br/>and operation implementations"]
     PYOPS["STAGE 1: consumer wiring<br/>and compatibility fixtures"]
     CONFIG["STAGE 6: owned generation inputs"]
-    BT["EXISTING PYTHON / NUMPY BT<br/>Preparation and sampling reference"]
+    BT["PREREQUISITE: PYTHON / NUMPY BT<br/>Preparation and sampling reference"]
 
     INTERFACE --> PYOPS
     INTERFACE -.-> MATRIX

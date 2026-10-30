@@ -23,7 +23,7 @@ versions and satisfy the distribution obligations of GMP and its bindings. Suppo
 require no compiler on the user's machine; source builds require the documented Rust and C
 toolchains.
 
-The initial target is CPython 3.11–3.13 on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
+Target VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
 Windows x86_64, with the final release matrix and minimum toolchain confirmed during
 implementation. Support for each target requires installed-wheel tests outside the checkout that
 exercise construction, computation, and replay. Source builds receive equivalent verification

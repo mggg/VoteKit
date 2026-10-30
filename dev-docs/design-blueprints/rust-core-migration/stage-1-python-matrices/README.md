@@ -228,8 +228,8 @@ implementations when they can be reviewed independently.
 Start with an operation that has a concrete caller and include only its missing matrix support.
 Then follow that category's flow into the consumer. Ordinary STV can adopt individual helpers as
 they land. Check indirect consumers with the helper they use: equality with grouping, plots with
-scoring, and MDS with distances. Keep FastSTV untouched; Rust workspaces and new generator
-algorithms remain in later stages.
+scoring, and MDS with distances. Keep FastSTV untouched; Rust workspaces and generator ports
+remain in later stages.
 
 Use the source and test links in each guide to scope its implementation chunks. Apply the
 [completion checklist](#compatibility-and-completion-checks) throughout, then finish with a

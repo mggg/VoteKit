@@ -163,10 +163,10 @@ width. Removing repeated candidates is row-dependent: a candidate seen earlier i
 the meaning of a later set. Track seen candidates per row because a single global replacement
 table cannot capture that dependency.
 
-Classify source rows by their public labels before applying the requested filters, then return
-provenance with the numeric result. This preserves the combined removal/condensation functions'
-treatment of trailing empty positions as equivalent. It also allows already empty rows to appear
-in both unchanged and no-ranking categories, as the existing contract permits.
+Classify source rows by position before filtering. Return row maps and classification masks so
+Python can restore labels and provenance. This preserves the combined removal/condensation
+functions' treatment of trailing empty positions as equivalent, and allows already empty rows to
+appear in both unchanged and no-ranking categories, as the existing contract permits.
 
 For scored cleaning, candidate removal changes the value columns and candidate metadata with the
 same retention rules as the baseline. Preserve all-missing, all-zero, and zero-weight cases and
@@ -281,8 +281,8 @@ checks for inputs both versions accept. Invalid private adapter payloads must fa
 or allocation based on their codes.
 
 Run the affected scoring, cleaning, metric, and election tests. Confirm that successful numeric
-paths do not populate public `.df` or `.ballots` caches while error reporting and callbacks retain
-their required materialization behavior.
+paths neither export a full DataFrame nor populate the `.ballots` cache while error reporting and
+callbacks retain their required materialization behavior.
 
 ## Intended outcome
 

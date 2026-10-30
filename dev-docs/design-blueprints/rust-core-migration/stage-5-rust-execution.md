@@ -115,10 +115,9 @@ metadata, extras, `py.typed`, and generator JSON data. Include Rust sources and 
 source distributions. Record GMP and binding dependencies, licenses, linkage, bundled-library
 requirements, and source-build prerequisites.
 
-The initial release target is CPython 3.11–3.13 on Linux glibc x86_64/aarch64, macOS x86_64/arm64,
-and Windows x86_64. Reconfirm that matrix and the minimum Rust toolchain during implementation.
-PyPy, free-threaded Python, WASM, and a separate pure-Python distribution are outside the initial
-scope.
+Target VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
+Windows x86_64. Reconfirm that matrix and the minimum Rust toolchain during implementation. PyPy,
+free-threaded Python, WASM, and a separate pure-Python distribution are outside the initial scope.
 
 Supported wheels require no compiler on the user's machine although development and source builds
 use the documented toolchain. To verify that distinction, install each release target's wheel

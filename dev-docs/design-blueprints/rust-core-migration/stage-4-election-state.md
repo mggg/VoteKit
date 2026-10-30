@@ -23,7 +23,7 @@ flowchart TD
     subgraph SETUP["Profile ingestion and count setup"]
         INPUT["PYTHON: normalize and encode input<br/>Retain labels, voters, and provenance"]
         MATRIX["RUST: validate and own profile storage"]
-        PROFILE["PYTHON: construct RankProfile<br/>User calls STV(profile, seats, rules)"]
+        PROFILE["PYTHON: construct RankProfile<br/>User calls STV(profile, ...)"]
         POLICIES["PYTHON: resolve eligibility, policies, and callbacks"]
         WORKSPACE["RUST: create private count workspace<br/>Share immutable rankings"]
         INITIALIZE["RUST: calculate quota, allocate ballots,<br/>and compute initial tallies"]
@@ -76,6 +76,7 @@ flowchart TD
     end
 
     subgraph HISTORY["Retained transitions and public history"]
+        INITIAL_HISTORY["PYTHON: publish immutable round-zero summary<br/>RUST: retain original input"]
         RECORD["RUST: retain completed transition<br/>Callback effects, row changes, and terminal status"]
         LOG["RETAINED HISTORY<br/>Original input, transitions, and matching summaries"]
         SUMMARY["PYTHON: immutable completed-round summary"]
@@ -99,7 +100,8 @@ flowchart TD
     end
 
     START --> INPUT
-    INITIALIZE --> FILLED
+    INITIALIZE -->|"Rust → Python: initial summary"| INITIAL_HISTORY --> FILLED
+    INITIAL_HISTORY --> LOG
     TIE -->|Yes| CONTEXT
     VALIDATE --> ACTION
     ADVANCE --> RECORD
@@ -111,7 +113,7 @@ flowchart TD
     LOG -.-> REBUILD
     LOG -.-> WRAP
     RESULTS --> REQUEST
-    class INPUT,PROFILE,POLICIES,CALLBACK,SUMMARY,RESULTS,INDEX,WRAP python;
+    class INPUT,PROFILE,POLICIES,CALLBACK,INITIAL_HISTORY,SUMMARY,RESULTS,INDEX,WRAP python;
     class MATRIX,WORKSPACE,INITIALIZE,ALL,ELECT_SELECT,ELIM_SELECT,ELECT,ELIMINATE,SURPLUS,ADVANCE,DONE,CONTEXT,RULE,RELEASE,VALIDATE,RECORD,REBUILD,ROUND rust;
     class START,REQUEST start;
     classDef python fill:#e8f0ff,stroke:#356ac3,color:#111;
@@ -398,8 +400,8 @@ to the same executed round.
 
 Numerical state contains Rust values while binding owners may retain the Python labels and
 summaries needed at the interface. Keep those references outside detached work and provide GC
-traversal and clearing where cycles are possible. Call-scoped callbacks avoid retaining references
-to a live election.
+traversal and clearing where cycles are possible. Even call-scoped callbacks can retain references
+to a live election through closures.
 
 Before invoking Python, release incompatible Rust borrows and supply the required context
 directly. Callbacks may query completed rounds. Recursive advancement and queries requiring a
@@ -428,8 +430,7 @@ count.
 This separation of assembly from publication changes the current mutable interface, requiring an
 audit of internal and supported subclass construction hooks. TopTwo and Alaska, for example,
 currently renumber states from other elections and must instead construct replacements. FastSTV
-also needs verification against the shared history interface, with its counting algorithm left
-unchanged.
+uses the separate `NumpySTVBase` history implementation and remains outside this change.
 
 Legacy custom algorithms retain their existing reconstruction behavior, including possible
 callback repetition. Extending deterministic replay to them requires retained outputs or

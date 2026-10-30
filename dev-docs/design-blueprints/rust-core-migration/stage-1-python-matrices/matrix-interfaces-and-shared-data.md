@@ -138,9 +138,10 @@ must preserve source labels according to its selection contract even if its new 
 Total-weight validation and the public total should ultimately use the same reduction. At present,
 `_validate_total_ballot_weight()` uses `math.fsum` while
 `PreferenceProfile._find_total_ballot_wt()` uses `np.sum`. NumPy uses partial pairwise summation
-in this float reduction, not a running correction as Kahan or Neumaier does. Keep this work
-distinct from the selected Rust scalar Neumaier implementation in ADR 0005. Exact totals remain
-exact, and empty-input behavior must be specified with the return-type contract.
+in this float reduction, not a running correction as Kahan or Neumaier does. Route both Python
+operations through `math.fsum` and check for changed decisions near election thresholds. Keep this
+work distinct from the selected Rust scalar Neumaier implementation in ADR 0005. Exact totals
+remain exact, and empty-input behavior must be specified with the return-type contract.
 
 **Changes in callers**
 
