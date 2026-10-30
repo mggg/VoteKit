@@ -11,7 +11,7 @@ numerical changes from regressions in ties, threshold decisions, and exact resul
 Weights use either float64 or an all-Fraction representation. Any Fraction input selects exact
 storage for the vector, allowing accompanying integers and integral floats because they convert
 exactly, but rejecting non-integral floats. Without Fractions, inputs must convert losslessly to
-float64, and empty input uses floating storage. Booleans, negative values, and nonfinite weights
+float64, and empty input uses float storage. Booleans, negative values, and nonfinite weights
 are invalid in either representation; other floating dtypes require explicit caller conversion.
 
 Total ballot weight is capped at `2**50`, including after addition or weight replacement. The cap
