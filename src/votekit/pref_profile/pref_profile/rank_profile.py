@@ -31,7 +31,7 @@ from votekit.pref_profile.pref_profile._candidate_names import (
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import END_OF_RANKING_SET, RankMatrix
-from votekit.pref_profile.utils import _sum_rank_profiles
+from votekit.pref_profile.utils import _subtract_rank_profiles, _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
     _validate_candidate_names,
@@ -525,6 +525,19 @@ class RankProfile(PreferenceProfile):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         return _sum_rank_profiles([self, other])
+
+    def __sub__(self, other) -> RankProfile:
+        """
+        Remove the ballots of another profile, matched by identical rankings.
+
+        See ``subtract_profiles``: the result is grouped, and ballots whose weight is exhausted
+        are removed. Voter sets of this profile are retained.
+
+        Raises:
+            ValueError: A subtracted weight cannot be represented exactly in this profile's
+                weights.
+        """
+        return _subtract_rank_profiles(self, other)
 
     def group_ballots(self) -> RankProfile:
         """
