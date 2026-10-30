@@ -407,8 +407,9 @@ def _truncate_ranking_row_at_cand(
     placeholders so that the ranking keeps its original ranking length.
 
     Args:
-        truncated (Candidate | list[Candidate]): Candidate or list of candidates or markers at
-            which to truncate.
+        truncated (Candidate | list[Candidate]): Candidate or list of candidates at
+            which to truncate. Must already have passed candidate-name validation; this helper does
+            not validate identifiers.
         ranking_tup (tuple[frozenset, ...]): Ranking to truncate.
 
     Returns:
