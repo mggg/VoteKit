@@ -693,7 +693,7 @@ def _subtract_grouped_weights(
     Group the base profile rows and subtract the weight of matching rows in subtracted_weights.
 
     Group IDs follow first-appearance order with base rows preceding subtracted rows. Base groups
-    occupy IDs ``0..k-1``; subtractand-only groups have IDs at least ``k``. Only base groups can
+    occupy IDs ``0..k-1``; subtracted-only groups have IDs at least ``k``. Only base groups can
     survive, and their voter sets come solely from the base profile.
 
     Args:
