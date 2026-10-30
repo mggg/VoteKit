@@ -27,9 +27,10 @@ checked bounds.
 
 Score storage in Rust uses float64, accepting other numeric dtypes only when conversion preserves
 their values. Scores remain nonnegative, with canonicalized zeros, NaN for missing entries, and
-support for positive infinity. Conversion preserves these meanings without retaining NaN payload
-bits or original pandas dtypes. Weights follow the separate contract in
-[ADR 0005](0005-profile-numeric-contracts.md).
+support for positive infinity. Infinity is retained for compatibility with the existing constructor
+and its tests; rejecting it would be a separate behavior change. Conversion preserves these meanings
+without retaining NaN payload bits or original pandas dtypes. Weights follow the separate contract
+in [ADR 0005](0005-profile-numeric-contracts.md).
 
 Although stored column order may differ from declared candidate order, `get_scores`, score bounds,
 and score totals interpret rows within the declared universe and order. Storage may also retain

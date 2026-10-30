@@ -101,9 +101,10 @@ The following work develops those responsibilities and can be divided to suit th
    invalidation flags.
 2. Implement recipe lifetime and independent copying, preserving malformed direct table edits for
    validation to report.
-3. Construct private immutable generation inputs with owned nested data. The prototype's
-   `_prepare_generation_inputs()` and `_GenerationInputs` provide a starting point, not a public
-   API.
+3. Construct private immutable generation inputs from an owned, validated configuration copy.
+   Capture ordered candidates, slates, blocs, and their numeric parameters without retaining
+   mutable tables or collection wrappers. This is implementation work, not an existing repository
+   interface.
 4. Capture once per public call. Combined and by-bloc implementations receive the same validated
    inputs rather than recapturing the mutable configuration through nested calls.
 5. Test failed updates, retained collection references, intermediate-state warnings, independent

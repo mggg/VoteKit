@@ -17,8 +17,10 @@ construction establishes their alignment with the matrix rows.
 Public constructors validate and copy caller-owned buffers so subsequent edits cannot alter the
 profile. Once ownership is established, internal constructors can move or share validated Rust
 allocations, checking only the fields affected by a transformation. Copies and transformations
-therefore share unchanged immutable storage while derived caches remain attached to the matrix
-from which they were computed.
+therefore share unchanged immutable storage. Cached results may also be shared when their inputs
+remain unchanged. For example, `ScoreMatrix._declared_score_columns` is an eagerly computed lookup
+that depends on candidate and column order. Replacing weights can preserve that lookup but must
+invalidate any cached total weight or positive-weight candidate membership.
 
 Elections share immutable profile storage but own their changing weights, cursors, candidate
 activity, row order, and transitions. Independent counts cannot alter one another's state.
@@ -38,7 +40,8 @@ overhead. It would, however, leave generators and exact arithmetic to reconcile 
 storage with their Rust results. This is particularly important for avoiding the round-trip
 
 ```mermaid
-Python Fractions -> Rust GMP Rationals -> Python Fractions
+flowchart LR
+    INPUT["Python Fractions"] --> COMPUTE["Rust GMP rationals"] --> OUTPUT["Python Fractions"]
 ```
 
 Rust ownership gives these operations a common representation.

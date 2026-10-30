@@ -24,9 +24,7 @@ to realize them. Keep the blueprint aligned with what is learned during implemen
 learning calls an architectural decision into question, revisit its rationale in the ADR as well.
 
 The [matrix migration blueprint](design-blueprints/rust-core-migration/master.md) covers the
-remaining Python integration and the transition to Rust-owned storage. The
-[example migration](design-blueprints/example-rust-core-migration/master.md) is a structural and
-stylistic reference from another package.
+remaining Python integration and the transition to Rust-owned storage.
 
 The repository [coding style guide](../STYLE-GUIDE.md) covers Python and Rust implementation
 conventions, including types, ownership, and documentation.

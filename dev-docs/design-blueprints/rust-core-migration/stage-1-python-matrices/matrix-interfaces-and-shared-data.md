@@ -27,6 +27,10 @@ Sources: [profile_matrix/](../../../../src/votekit/pref_profile/profile_matrix/)
       `rank_matrix.py`; this is caller wiring, not a request to implement them again. The consumer
       guides distinguish direct substitutions from operations that still need a matrix
       implementation.
+- [ ] **Matrix + callers:** Develop a per-row length query for `ballot_lengths()` and separate
+      candidate coverage where a caller needs it. A `lengths` property is a possible interface,
+      not an existing method; define what it counts before replacing caller logic. Follow the
+      [ranked length and coverage layout](#ranked-length-and-coverage-implementation-layout).
 - [ ] **Callers:** Reuse `ScoreMatrix.get_scores()`, `score_bounds_by_ballot()`, and
       `sum_scores_by_ballot()`. These already exist in `score_matrix.py`; `GeneralRating` already
       uses the bounds and totals. Preserve declared candidate order, column mapping, missing
@@ -50,6 +54,29 @@ Sources: [profile_matrix/](../../../../src/votekit/pref_profile/profile_matrix/)
 - [ ] **Matrix + callers:** Establish consistent column ordering across construction,
       transformations, and exports. Centralize schema ordering and make any change to callback
       tuple order explicit; follow the column-order layout below.
+
+## Ranked length and coverage: implementation layout
+
+A length query could serve more callers than separate `is_complete` and `is_short` predicates, but
+ranking positions and candidate coverage are different quantities. `ballot_lengths()` counts
+positions before the end sentinel, including explicit empty positions. A tie occupies one such
+position. Candidate coverage instead counts distinct members of the relevant candidate universe;
+repeated appearances do not add coverage, and undeclared candidates must not make a ballot appear
+complete.
+
+For example, with declared candidates A, B, and C, the row `({A, B}, {}, {A}, ~)` has three
+ranking positions but covers only two candidates. Summing candidate-set sizes also yields three,
+so neither that sum nor position count establishes completeness. Equality with the size of the
+universe is meaningful only for the distinct-candidate coverage count.
+
+| Owner                                  | Work                                                                                                                                                                                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rank_matrix.py`                       | Provide position counts for the existing `ballot_lengths()` consumer. Explore a separate coverage query when a caller needs it, with an explicit universe and treatment of repeated candidates. These are concrete ranked operations, not common protocol requirements. |
+| `common_utils.py`: `ballot_lengths()`  | Aggregate row weights by position count while preserving its current rejection of rows with no ranking positions.                                                                                                                                                       |
+| Completeness or short-ballot consumers | Choose the query that matches their domain. `BallotGraph.from_profile()` currently operates on decoded singleton rankings and completes length `n-1` ballots; retain its tie checks and completion rules rather than substituting a coverage predicate blindly.         |
+
+The interface name can be settled alongside its first caller. If `lengths` is retained, document
+its unit as ranking positions and keep candidate coverage distinguishable at the call site.
 
 ## Column order: implementation layout
 
@@ -109,11 +136,11 @@ not `-1`. Retain explicit labels without assuming they are integers or unique. A
 must preserve source labels according to its selection contract even if its new positions differ.
 
 Total-weight validation and the public total should ultimately use the same reduction. At present,
-`_validate_total_ballot_weight()` uses compensated float summation while
-`PreferenceProfile._find_total_ballot_wt()` uses `np.sum`. The `np.sum` method uses pairwise
-compensated arithmetic, but is not as accurate as `fsum`. Keep this work distinct from the
-selected Rust scalar Neumaier implementation in ADR 0005. Exact totals remain exact, and
-empty-input behavior must be specified with the return-type contract.
+`_validate_total_ballot_weight()` uses `math.fsum` while
+`PreferenceProfile._find_total_ballot_wt()` uses `np.sum`. NumPy uses partial pairwise summation
+in this float reduction, not a running correction as Kahan or Neumaier does. Keep this work
+distinct from the selected Rust scalar Neumaier implementation in ADR 0005. Exact totals remain
+exact, and empty-input behavior must be specified with the return-type contract.
 
 **Changes in callers**
 
