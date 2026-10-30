@@ -17,14 +17,20 @@ invalid in either representation; other floating dtypes require explicit caller 
 Total ballot weight is capped at `2**50`, including after addition or weight replacement. The cap
 leaves headroom below float64's consecutive-integer limit but does not prevent the loss of small
 fractional contributions through naive accumulation. Rust uses scalar Neumaier compensated
-summation for total float weight and float mentions. Each reduction retains a running sum and its
-correction in the operation's existing contribution order, returning their sum when complete.
-Empty reductions return zero. Exact totals remain rational and obey the same value cap.
+summation for total float weight, float mentions, and grouped float weights.
 
-This replaces the Python reference's `math.fsum` for those two operations. Neumaier reduces
-accumulation error but does not guarantee correct rounding or bitwise agreement with `math.fsum`.
-The same scalar algorithm applies on Windows, Linux, and macOS. SIMD implementations and parallel
-reductions are outside this implementation's scope.
+Each accumulator retains a running sum and a correction, both initialized to zero. Contributions
+arrive in the operation's existing order. Each addition updates the running sum and accumulates
+the rounding correction; the result is their sum after the final contribution, with no
+intermediate decimal rounding. Empty reductions return zero. Grouping maintains one accumulator
+per group and feeds it weights in source-row order. Group output retains first-appearance order
+and its existing voter and index semantics. Exact reductions continue to use rational arithmetic.
+
+For total weight and mentions, Neumaier replaces the Python reference's `math.fsum`. For grouped
+weights, it replaces weighted `np.bincount` accumulation. These are deliberate numerical changes:
+Neumaier reduces accumulation error but guarantees neither correct rounding nor bitwise agreement
+with either reference. The same scalar algorithm applies on Windows, Linux, and macOS. SIMD
+implementations and parallel reductions are outside this implementation's scope.
 
 GMP provides exact arithmetic for the Rust implementation, preserving arbitrary-size rational
 values and public Python Fraction results. Explicit rational-to-float conversion follows Python's
@@ -41,14 +47,14 @@ Accumulation and rounding follow these operation-specific rules:
 | Operation                             | Arithmetic contract                                                                            |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Total float weight and float mentions | Scalar Neumaier summation in the existing contribution order                                   |
-| Grouped float weights                 | Weighted `np.bincount`, with source-order contributions to each bucket                         |
+| Grouped float weights                 | Scalar Neumaier summation per group, with contributions in source-row order                    |
 | Score totals per ballot               | Float64 `np.nansum` over declared columns; all-missing rows total zero                         |
 | General positional scoring            | NumPy float64 rounding of each weighted allocation to ten places before accumulation           |
 | No-ties positional scoring            | Weighted `np.bincount` over row-major contributions, then NumPy float64 rounding to ten places |
 | Exact operations                      | Rational arithmetic and exact comparisons without float intermediates                          |
 
 NumPy scalar rounding is part of this reference; substituting Python float rounding can change the
-result. The Neumaier decision does not replace the other reductions listed above. Comparison
+result. The Neumaier decision does not change score-row or positional-scoring reductions. Comparison
 tolerance is not an accumulation-error bound, and even a correctly rounded float64 result can
 differ from the exact sum by more than `TOL_EPSILON`. Changes to reduction order or rounding
 require explicit validation of election decisions. Numerical closeness alone does not establish

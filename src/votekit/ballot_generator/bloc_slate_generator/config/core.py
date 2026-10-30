@@ -12,6 +12,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 from numpy.random import Generator
+from numpy.typing import NDArray
 
 from votekit.ballot_generator.bloc_slate_generator.config.collections import (
     BlocProportions,
@@ -1078,6 +1079,38 @@ class BlocSlateConfig:
                 allow_zero_support=self.allow_zero_support_candidates,
             )
             for bloc in self.blocs
+        }
+
+    def get_combined_candidate_support_arrays_by_bloc(
+        self, candidates: Sequence[Candidate]
+    ) -> dict[str, NDArray[np.float64]]:
+        """
+        Export each bloc's combined candidate supports in the requested candidate order.
+
+        Combined supports include the bloc's cohesion weights across slates. The supplied order
+        aligns the arrays with a sampler's candidate IDs rather than relying on dictionary order.
+        Selecting a subset preserves its original supports without renormalizing them, and
+        zero-support candidates retain their positions.
+
+        Args:
+            candidates (Sequence[Candidate]): Candidate identities in output-array order.
+
+        Returns:
+            dict[str, NDArray[np.float64]]: Snapshot of combined supports, keyed in configuration
+                bloc order, with array entries in the requested candidate order. Each array owns
+                its storage and may be modified independently of the configuration.
+
+        Raises:
+            KeyError: A requested candidate or required configuration entry is missing.
+            TypeError: Preference or cohesion values have invalid types.
+            ValueError: Preference intervals or cohesion weights are invalid.
+        """
+        intervals = self.get_combined_preference_intervals_by_bloc()
+        return {
+            bloc: np.array(
+                [interval.interval[candidate] for candidate in candidates], dtype=np.float64
+            )
+            for bloc, interval in intervals.items()
         }
 
     def normalize_preference_intervals(self) -> None:

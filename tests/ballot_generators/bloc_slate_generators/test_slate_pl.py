@@ -1,11 +1,14 @@
 from collections import Counter
 from collections.abc import Sequence
+from typing import cast
 
+import numpy as np
 import pytest
 
 from votekit.ballot import RankBallot
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce import (
+    _iter_slate_sequence_batches,
     slate_pl_profile_generator,
     slate_pl_profiles_by_bloc_generator,
 )
@@ -14,6 +17,69 @@ from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 
 PROB_THRESHOLD = 0.01
+
+
+@pytest.mark.parametrize("scale", [1.0, 1e-320])
+def test_slate_pl_accumulates_waiting_times_within_each_slate(scale):
+    class FixedDraws:
+        def standard_exponential(self, size):
+            assert size == (2, 3)
+            return np.array([[1.0, 1.0, 1.5], [3.0, 0.5, 1.0]])
+
+    sequences = np.concatenate(
+        list(
+            _iter_slate_sequence_batches(
+                np.array([2, 1]),
+                np.array([scale, scale]),
+                n_voters=2,
+                rng=cast(np.random.Generator, FixedDraws()),
+            )
+        )
+    )
+
+    np.testing.assert_array_equal(sequences, [[0, 1, 0], [1, 0, 0]])
+
+
+@pytest.mark.parametrize("cohesion", [(0.5, 0.5), (0.6, 0.4)])
+def test_slate_pl_retains_cohesion_until_exhaustion(cohesion):
+    sequences = np.concatenate(
+        list(
+            _iter_slate_sequence_batches(
+                np.array([2, 1]), np.array(cohesion), n_voters=30_001, rng=np.random.default_rng(42)
+            )
+        )
+    )
+    observed = Counter(map(tuple, sequences))
+    expected = {
+        (0, 0, 1): cohesion[0] ** 2,
+        (0, 1, 0): cohesion[0] * cohesion[1],
+        (1, 0, 0): cohesion[1],
+    }
+
+    assert set(observed) == set(expected)
+    for sequence, probability in expected.items():
+        assert observed[sequence] / len(sequences) == pytest.approx(probability, abs=0.01)
+
+
+@pytest.mark.parametrize("n_slates", [1, 20])
+@pytest.mark.parametrize("n_voters", [0, 17])
+def test_slate_pl_preserves_counts_across_batches(monkeypatch, n_slates, n_voters):
+    monkeypatch.setattr(
+        "votekit.ballot_generator.bloc_slate_generator.slate_plackett_luce.BATCH_SIZE", 7
+    )
+    counts = np.arange(1, n_slates + 1)
+    batches = list(
+        _iter_slate_sequence_batches(
+            counts, np.ones(n_slates), n_voters=n_voters, rng=np.random.default_rng(42)
+        )
+    )
+    sequences = np.concatenate(batches) if batches else np.empty((0, int(counts.sum())), dtype=int)
+    expected = np.repeat(np.arange(n_slates), counts)
+
+    assert sequences.shape == (n_voters, int(counts.sum()))
+    np.testing.assert_array_equal(
+        np.sort(sequences, axis=1), np.broadcast_to(expected, sequences.shape)
+    )
 
 
 def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[Candidate], ...]:

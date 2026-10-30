@@ -4,166 +4,70 @@ Generate ranked preference profiles using the name-Plackett-Luce model.
 The main API functions in this module are:
 
 - `name_pl_profile_generator`: Generates a single preference profile using the name-Plackett-Luce
-    model.
+  model.
 - `name_pl_profiles_by_bloc_generator`: Generates preference profiles by bloc using the
-    name-Plackett-Luce model.
+  name-Plackett-Luce model.
 """
 
-import apportionment.methods as apportion
-import numpy as np
-import pandas as pd
-from numpy.random import Generator
+from __future__ import annotations
 
-from votekit._df_schema import (
-    BALLOT_INDEX_NAME,
-    RANKING_COLUMN_PREFIX,
-    VOTER_SET_COLUMN,
-    WEIGHT_COLUMN,
+import numpy as np
+from numpy.typing import NDArray
+
+from votekit.ballot_generator.bloc_slate_generator._profile_construction import (
+    _apportion_bloc_rows,
+    _build_profile_from_rankings,
+)
+from votekit.ballot_generator.bloc_slate_generator._sampling import (
+    BATCH_SIZE,
+    _fill_pl_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
 from votekit.pref_profile import RankProfile
-
-# ===========================================================
-# ================= Interior Work Functions =================
-# ===========================================================
-
-
-def _inner_name_plackett_luce(
-    config: BlocSlateConfig,
-    *,
-    ballot_length: int | None = None,
-    numpy_rng: Generator | None = None,
-) -> dict[str, RankProfile]:
-    """
-    Inner function to generate preference profiles by bloc using the name-Plackett-Luce model.
-
-    The Plackett-Luce model samples without replacement from each preference interval
-    for each bloc of voters.
-
-    Args:
-        config (BlocSlateConfig): Configuration object containing all necessary parameters for
-            working with a bloc-slate ballot generator.
-        ballot_length (int | None): Number of ranking positions allowed per ballot. If None,
-            this is set to the total number of candidates in the configuration. Defaults to None.
-        numpy_rng (Generator, optional): NumPy random number generator. Pass a seeded instance
-            for reproducible results. Defaults to None for non-deterministic results.
-
-    Returns:
-        dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
-            ``RankProfile`` objects.
-    """
-    n_candidates = len(config.candidates)
-    if ballot_length is None:
-        ballot_length = n_candidates
-
-    bloc_lst = config.blocs
-
-    bloc_counts = apportion.compute(
-        "huntington", list(config.bloc_proportions.values()), config.n_voters
-    )
-    if not isinstance(bloc_counts, list):
-        if not isinstance(bloc_counts, int):
-            raise TypeError(f"Unexpected type from apportionment got {type(bloc_counts)}")
-
-        bloc_counts = [bloc_counts]
-
-    ballots_per_bloc = {bloc: bloc_counts[i] for i, bloc in enumerate(bloc_lst)}
-
-    pp_by_bloc = {b: RankProfile() for b in bloc_lst}
-    pref_interval_by_bloc_dict = config.get_combined_preference_intervals_by_bloc()
-    rng = np.random.default_rng() if numpy_rng is None else numpy_rng
-
-    for bloc in config.blocs:
-        n_ballots = ballots_per_bloc[bloc]
-        ballot_pool = np.full((n_ballots, ballot_length), frozenset("~"))
-        cands = list(pref_interval_by_bloc_dict[bloc].interval.keys())
-        pref_interval_values = [pref_interval_by_bloc_dict[bloc].interval[c] for c in cands]
-        for i in range(n_ballots):
-            chosen_indices = list(
-                rng.choice(
-                    len(cands),
-                    ballot_length,
-                    p=pref_interval_values,
-                    replace=False,
-                )
-            )
-            non_zero_ranking = [cands[cand_idx] for cand_idx in chosen_indices]
-            ranking = [frozenset({cand}) for cand in non_zero_ranking]
-            ballot_pool[i] = np.array(ranking)
-
-        df = pd.DataFrame(ballot_pool)
-        df.index.name = BALLOT_INDEX_NAME
-        df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
-        df[WEIGHT_COLUMN] = 1
-        df.insert(
-            len(df.columns),
-            VOTER_SET_COLUMN,
-            pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
-        )
-        pp = RankProfile(
-            candidates=config.candidates,
-            df=df,
-            max_ranking_length=ballot_length,
-        )
-        pp_by_bloc[bloc] = pp
-
-    return pp_by_bloc
-
+from votekit.types import Candidate
 
 # =================================================
 # ================= API Functions =================
 # =================================================
 
-# NOTE: The 'ballot_length' parameter has been commented out
-# since we don't have good analogues in any of the other Bloc-Slate
-# generators. When we add this feature, we can just restore the functionality.
-
 
 def name_pl_profile_generator(
     config: BlocSlateConfig,
     *,
-    # ballot_length: int | None = None,
     group_ballots: bool = True,
     rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generates a merged preference profile using the name-Plackett-Luce model.
 
-    The Plackett-Luce model samples without replacement from each preference interval
-    for each bloc of voters. These profiles are then merged into a single profile.
+    Each next candidate is selected in proportion to its support among the candidates still
+    unranked, using the combined preference interval for the voter's bloc. When zero support is
+    enabled, zero-support candidates follow all positive-support candidates in an independent
+    uniform order. Identical complete rankings are grouped only after both parts are sampled.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        group_ballots (bool): If True, group identical ballots in the returned profile and set the
+            weight accordingly. Defaults to True.
+        rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None. An integer
+            seed produces the same output for identical inputs. Seeded samples differ from the
+            dataframe implementation.
 
     Returns:
         RankProfile: Merged ``RankProfile`` object generated by the model.
     """
     config.is_valid(raise_errors=True)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(rng_seed)
+    rankings, _ = _sample_name_pl_rankings(config, candidates, rng)
 
-    # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
-    rng = np.random.default_rng(seed=rng_seed)
-    pp_by_bloc = _inner_name_plackett_luce(config, numpy_rng=rng)
-
-    pp = RankProfile(ballots=tuple())
-    for profile in pp_by_bloc.values():
-        pp += profile
-
-    if group_ballots:
-        pp = pp.group_ballots()
-
-    return pp
+    return _build_profile_from_rankings(rankings, candidates, group_ballots=group_ballots)
 
 
 def name_pl_profiles_by_bloc_generator(
     config: BlocSlateConfig,
     *,
-    # ballot_length: int | None = None,
     group_ballots: bool = True,
     rng_seed: int | None = None,
 ) -> dict[str, RankProfile]:
@@ -171,30 +75,70 @@ def name_pl_profiles_by_bloc_generator(
     Generates a dictionary mapping bloc names to preference profiles by bloc using the
     name-Plackett-Luce model.
 
-    The Plackett-Luce model samples without replacement from each preference interval
-    for each bloc of voters.
+    Use the distribution and zero-support policy described by ``name_pl_profile_generator``. The
+    combined and per-bloc functions sample the same rankings for a given seed. Grouping combines
+    identical complete rankings within each bloc.
 
     Args:
         config (BlocSlateConfig): Configuration object containing all necessary parameters for
             working with a bloc-slate ballot generator.
-        group_ballots (bool): If True, group identical ballots in the returned profile and
-            set the weight accordingly. Defaults to True.
-        rng_seed (int, optional)): Seed for random number generator. An integer seed produces the
-            same output given identical inputs; By default, seed is None which gives
-            non-deterministic results.
+        group_ballots (bool): If True, group identical ballots in the returned profile and set the
+            weight accordingly. Defaults to True.
+        rng_seed (int | None, optional): Seed for NumPy's generator. Defaults to None. An integer
+            seed produces the same output for identical inputs. Seeded samples differ from the
+            dataframe implementation.
 
     Returns:
         dict[str, RankProfile]: Dictionary whose keys are bloc strings and values are
             ``RankProfile`` objects generated by the model for each bloc.
     """
     config.is_valid(raise_errors=True)
+    candidates = tuple(config.candidates)
+    rng = np.random.default_rng(rng_seed)
+    rankings, bloc_rows = _sample_name_pl_rankings(config, candidates, rng)
 
-    # pp_by_bloc = _inner_name_plackett_luce(config, ballot_length=ballot_length)
-    rng = np.random.default_rng(seed=rng_seed)
-    pp_by_bloc = _inner_name_plackett_luce(config, numpy_rng=rng)
+    return {
+        bloc: _build_profile_from_rankings(rankings[rows], candidates, group_ballots=group_ballots)
+        for bloc, rows in bloc_rows.items()
+    }
 
-    if group_ballots:
-        for bloc, profile in pp_by_bloc.items():
-            pp_by_bloc[bloc] = profile.group_ballots()
 
-    return pp_by_bloc
+# ===========================================================
+# ================= Interior Work Functions =================
+# ===========================================================
+
+
+def _sample_name_pl_rankings(
+    config: BlocSlateConfig,
+    candidates: tuple[Candidate, ...],
+    rng: np.random.Generator,
+) -> tuple[NDArray[np.intp], dict[str, slice]]:
+    """
+    Sample complete PL rankings into consecutive rows for each apportioned bloc.
+
+    Each bloc uses its combined preference interval over the declared candidate universe. Batches
+    bound the temporary sampling arrays, and the returned row slices allow either public API to
+    construct its profiles from the same samples. Zero-support candidates follow the
+    positive-support ordering according to the shared sampler's tail policy.
+
+    Args:
+        config (BlocSlateConfig): Validated bloc proportions, supports, and voter count.
+        candidates (tuple[Candidate, ...]): Candidate identities in matrix-ID order.
+        rng (np.random.Generator): Stream advanced in bloc order, then batch order.
+
+    Returns:
+        tuple[NDArray[np.intp], dict[str, slice]]: Complete candidate-ID rankings and bloc rows.
+    """
+    bloc_rows = _apportion_bloc_rows(config)
+    supports_by_bloc = config.get_combined_candidate_support_arrays_by_bloc(candidates)
+    candidate_ids = np.arange(len(candidates))
+    rankings = np.empty((config.n_voters, len(candidates)), dtype=int)
+
+    for bloc, rows in bloc_rows.items():
+        supports = supports_by_bloc[bloc]
+
+        for start in range(rows.start, rows.stop, BATCH_SIZE):
+            stop = min(start + BATCH_SIZE, rows.stop)
+            _fill_pl_rankings(candidate_ids, supports, out=rankings[start:stop], rng=rng)
+
+    return rankings, bloc_rows

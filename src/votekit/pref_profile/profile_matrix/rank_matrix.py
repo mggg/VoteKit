@@ -25,8 +25,8 @@ from votekit.utils import sort_candidates_pseudo_lexicographically
 END_OF_RANKING_SET: frozenset[str] = frozenset({"~"})
 
 # NOTE: Reserved candidate set IDs. Real candidate sets are numbered from 0 in order
-# of first appearance, so ``cand_sets[cand_set_id - EMPTY_SET_ID]`` is the set for any ID.
-# This access pattern makes the dense array representation easier to think about.
+# of first appearance, so ``cand_sets[cand_set_id - EMPTY_SET_ID]`` is the set for any ID. This
+# access pattern makes the dense array representation easier to think about.
 EMPTY_SET_ID = -2
 END_OF_RANKING_ID = -1
 
@@ -37,24 +37,24 @@ class RankMatrix:
     Store ranked ballots as candidate-set IDs with their decoding table.
 
     Construction copies rankings into a read-only, index-sized integer array, freezes candidate
-    sets, and retains column and candidate metadata as tuples. The validated shared-data block
-    is reused. Candidate names are not normalized here.
+    sets, and retains column and candidate metadata as tuples. The validated shared-data block is
+    reused. Candidate names are not normalized here.
 
     Args:
         voter_weight_data (_ProfileVoterWeightData): Shared data with one entry per ballot.
-        rankings (NDArray): Two-dimensional integer array of candidate-set IDs, with one row
-            per ballot and one column per ranking position. Tilde ends a ranking, so only tilde
-            may follow it. Empty candidate sets are allowed before that sentinel. Empty dimensions
-            are supported.
+        rankings (NDArray): Two-dimensional integer array of candidate-set IDs, with one row per
+            ballot and one column per ranking position. Tilde ends a ranking, so only tilde may
+            follow it. Empty candidate sets are allowed before that sentinel. Empty dimensions are
+            supported.
         cand_sets (tuple[frozenset[Candidate], ...]): Dense decoding table: slot 0 is the empty
-            set (ID -2), slot 1 is the tilde set (ID -1), and slot ``cand_set_id + 2`` stores
-            each real set. Entries must be unique. Mutable set entries are accepted and frozen
-            during construction.
+            set (ID -2), slot 1 is the tilde set (ID -1), and slot ``cand_set_id + 2`` stores each
+            real set. Entries must be unique. Mutable set entries are accepted and frozen during
+            construction.
         ranking_columns (tuple[str, ...]): Ranking_i labels with unique, increasing numeric
             suffixes. Their count must match the ranking array's column count.
         candidates (tuple[Candidate, ...]): Profile candidate universe, including declared
-            candidates no ballot ranks. Candidates occurring only on zero-weight ballots or
-            in unused table entries may be absent from this tuple.
+            candidates no ballot ranks. Candidates occurring only on zero-weight ballots or in
+            unused table entries may be absent from this tuple.
     """
 
     voter_weight_data: ProfileVoterWeightData
@@ -138,7 +138,8 @@ class RankMatrix:
         Check that ranking labels have unique numeric suffixes in increasing order.
 
         Raises:
-            ValueError: A label is malformed or its numeric suffix does not follow the previous one.
+            ValueError: A label is malformed or its numeric suffix does not follow the previous
+                one.
         """
         ranking_col_re = rf"{re.escape(RANKING_COLUMN_PREFIX)}\d+"
         previous_rank = -1
@@ -163,9 +164,9 @@ class RankMatrix:
 
         Raises:
             TypeError: A real set contains a candidate other than a string or non-boolean integer.
-            ValueError: Sets are repeated, reserved entries are incorrect, a real set is empty
-                or contains tilde, or a positive-weight ballot references a candidate outside
-                the profile universe.
+            ValueError: Sets are repeated, reserved entries are incorrect, a real set is empty or
+                contains tilde, or a positive-weight ballot references a candidate outside the
+                profile universe.
         """
         if len(candidate_sets) < 2 or candidate_sets[:2] != (frozenset(), END_OF_RANKING_SET):
             raise ValueError("Candidate sets must begin with the reserved empty and tilde sets.")
@@ -194,6 +195,55 @@ class RankMatrix:
                     "Rankings on positive-weight ballots contain candidates outside "
                     "the declared candidates."
                 )
+
+    @classmethod
+    def from_candidate_ids(
+        cls,
+        *,
+        rankings: NDArray,
+        candidates: Sequence[Candidate],
+        voter_weight_data: ProfileVoterWeightData,
+    ) -> Self:
+        """
+        Construct singleton rankings whose candidate IDs follow the supplied candidate order.
+
+        Build the reserved empty and tilde entries followed by one singleton set per candidate.
+        Candidate index i is therefore also candidate-set ID i. Ranking columns follow the array
+        width, which may differ from the size of the candidate universe. Construction validates
+        and copies the rankings while reusing the validated shared-data block.
+
+        Args:
+            rankings (NDArray): Two-dimensional integer array of candidate indices. EMPTY_SET_ID
+                (-2) denotes an explicit empty position; END_OF_RANKING_ID (-1) ends a ranking and
+                may only be followed by that same sentinel. Empty dimensions are supported.
+            candidates (Sequence[Candidate]): Unique candidate identities in ID order. Names must
+                already be normalized. Tied candidate sets require the general constructor.
+            voter_weight_data (ProfileVoterWeightData): Shared data with one entry per ballot.
+
+        Returns:
+            Self: Matrix with owned rankings, singleton candidate sets, and Ranking_1 onward
+                labels.
+
+        Raises:
+            TypeError: Rankings are not a NumPy array or candidate identities have invalid types.
+            ValueError: Ranking dimensions, dtype, IDs, row count, sentinel placement, or
+                candidate identities are invalid.
+        """
+        if not isinstance(rankings, np.ndarray):
+            raise TypeError(f"rankings must be a numpy array, not {type(rankings)}.")
+        if rankings.ndim != 2:
+            raise ValueError(f"rankings must be a 2D array, not {rankings.ndim}D: {rankings.shape}")
+
+        candidates = tuple(candidates)
+        return cls(
+            voter_weight_data=voter_weight_data,
+            rankings=rankings,
+            cand_sets=(EMPTY_VOTER_SET, END_OF_RANKING_SET, *(frozenset({c}) for c in candidates)),
+            ranking_columns=tuple(
+                f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(rankings.shape[1])
+            ),
+            candidates=candidates,
+        )
 
     @classmethod
     def from_df(cls, df: pd.DataFrame, candidates: Sequence[Candidate]) -> Self:
@@ -273,9 +323,9 @@ class RankMatrix:
         Look up a candidate set by its matrix-local ID, including the two reserved IDs.
 
         Args:
-            cand_set_id (int): Valid ID from EMPTY_SET_ID through ``len(cand_sets) - 3``.
-                IDs must come from this matrix; another matrix may assign them differently.
-                This accessor assumes a validated ID and does not perform a separate range check.
+            cand_set_id (int): Valid ID from EMPTY_SET_ID through ``len(cand_sets) - 3``. IDs must
+                come from this matrix; another matrix may assign them differently. This accessor
+                assumes a validated ID and does not perform a separate range check.
 
         Returns:
             frozenset[Candidate]: Stored candidate set; ID -2 returns the empty set and ID -1
@@ -312,8 +362,8 @@ class RankMatrix:
         Identify rows ranking at least one candidate, excluding empty sets and tilde padding.
 
         Returns:
-            NDArray[np.bool_]: One flag per source row, including zero-weight rows. Rows containing
-                only empty sets or padding, and rows with no columns, are false.
+            NDArray[np.bool_]: One flag per source row, including zero-weight rows. Rows
+                containing only empty sets or padding, and rows with no columns, are false.
         """
         return np.any(self.rankings >= 0, axis=1)
 
@@ -336,8 +386,8 @@ class RankMatrix:
             row (int): Positional row index, with negative indices counted from the end.
 
         Returns:
-            tuple[frozenset[Candidate], ...]: Ranking sets in stored order. An entirely padded
-                row returns an empty tuple. The immutable candidate sets may be shared.
+            tuple[frozenset[Candidate], ...]: Ranking sets in stored order. An entirely padded row
+                returns an empty tuple. The immutable candidate sets may be shared.
 
         Raises:
             IndexError: The row is outside the matrix.
@@ -380,13 +430,13 @@ class RankMatrix:
 
         Args:
             rows (NDArray[np.intp] | None, optional): Positional row indices in output order.
-                Repeated and negative indices are supported. Defaults to None for all rows.
-                Source ballot labels are preserved, including implicit labels.
+                Repeated and negative indices are supported. Defaults to None for all rows. Source
+                ballot labels are preserved, including implicit labels.
 
         Returns:
             pd.DataFrame: Ranking columns in stored order, followed by Voter Set and Weight.
-                Payload arrays are independent; candidate and voter frozensets can be shared.
-                The index is named Ballot Index and uses retained labels when present; its label
+                Payload arrays are independent; candidate and voter frozensets can be shared. The
+                index is named Ballot Index and uses retained labels when present; its label
                 storage is independent of the matrix.
         """
         lookup = np.empty(len(self.cand_sets), dtype=object)
@@ -419,8 +469,8 @@ class RankMatrix:
         Return a copy of the matrix with independent arrays and tuples.
 
         Args:
-            shallow (bool, optional): If True, return a shallow copy with shared arrays and tuples.
-                Defaults to False.
+            shallow (bool, optional): If True, return a shallow copy with shared arrays and
+                tuples. Defaults to False.
 
         Returns:
             RankMatrix: New matrix with the same data.
@@ -469,57 +519,18 @@ class RankMatrix:
 
         return matrix
 
-    def _group_ranking_rows(self) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
-        """
-        Identify equal rankings, ordering groups by their first source row.
-
-        Candidate sets have unique IDs, so ranking rows can be compared directly.
-        Empty positions and tilde padding remain distinct.
-
-        Returns:
-            tuple[NDArray[np.intp], NDArray[np.intp]]: Representative source rows and the
-                group assigned to each source row. Both arrays are empty for an empty matrix.
-        """
-        if not len(self):
-            return np.empty(0, dtype=np.intp), np.empty(0, dtype=np.intp)
-
-        if not self.rankings.shape[1]:
-            return np.array([0], dtype=np.intp), np.zeros(len(self), dtype=np.intp)
-
-        rows = np.ascontiguousarray(self.rankings)  # each row continuous in memory
-
-        row_dtype = np.dtype(
-            (np.void, rows.dtype.itemsize * rows.shape[1])
-        )  # size of each row in bytes
-
-        # view interprets each row is a single void element (fixed size block of raw bytes) so
-        # that we may use it as a key for np.unique.
-        row_keys = rows.view(row_dtype).reshape(-1)
-
-        _, first_rows_idx, group_ids = np.unique(
-            row_keys,
-            return_index=True,
-            return_inverse=True,
-        )
-
-        group_order = np.argsort(first_rows_idx)
-        reordered_ids = np.empty(len(group_order), dtype=np.intp)
-        reordered_ids[group_order] = np.arange(len(group_order))
-
-        return first_rows_idx[group_order], reordered_ids[group_ids]
-
     def group_ballots(self) -> RankMatrix:
         """
         Combine equal rankings in first-appearance order without dataframe conversion.
 
         Returns:
-            RankMatrix: Grouped matrix with owned, read-only arrays. An empty result uses
-                float64 weights. Immutable candidate and voter sets may be shared.
+            RankMatrix: Grouped matrix with owned, read-only arrays. An empty result uses float64
+                weights. Immutable candidate and voter sets may be shared.
 
         Raises:
             ProfileError: A grouped floating-point weight overflows to a nonfinite value.
         """
-        first_rows_idx, group_ids = self._group_ranking_rows()
+        first_rows_idx, group_ids = _group_ranking_rows(self.rankings)
         grouped_data = self.voter_weight_data.group_rows(first_rows_idx, group_ids)
 
         return RankMatrix(
@@ -529,6 +540,49 @@ class RankMatrix:
             ranking_columns=self.ranking_columns,
             candidates=self.candidates,
         )
+
+
+def _group_ranking_rows(rankings: NDArray[np.intp]) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
+    """
+    Identify equal rankings, ordering groups by their first source row.
+
+    Candidate-set IDs must already be canonical, so equal sets have equal IDs. Empty positions and
+    tilde padding remain distinct.
+
+    Args:
+        rankings (NDArray[np.intp]): Two-dimensional canonical ranking IDs, left unchanged.
+
+    Returns:
+        tuple[NDArray[np.intp], NDArray[np.intp]]: Representative source rows and the group
+            assigned to each source row. Both arrays are empty for an empty matrix.
+    """
+    if not len(rankings):
+        return np.empty(0, dtype=np.intp), np.empty(0, dtype=np.intp)
+
+    if not rankings.shape[1]:
+        return np.array([0], dtype=np.intp), np.zeros(len(rankings), dtype=np.intp)
+
+    rows = np.ascontiguousarray(rankings)  # each row continuous in memory
+
+    row_dtype = np.dtype(
+        (np.void, rows.dtype.itemsize * rows.shape[1])
+    )  # size of each row in bytes
+
+    # view interprets each row is a single void element (fixed size block of raw bytes) so that we
+    # may use it as a key for np.unique.
+    row_keys = rows.view(row_dtype).reshape(-1)
+
+    _, first_rows_idx, group_ids = np.unique(
+        row_keys,
+        return_index=True,
+        return_inverse=True,
+    )
+
+    group_order = np.argsort(first_rows_idx)
+    reordered_ids = np.empty(len(group_order), dtype=np.intp)
+    reordered_ids[group_order] = np.arange(len(group_order))
+
+    return first_rows_idx[group_order], reordered_ids[group_ids]
 
 
 def _concatenate_rank_matrices(

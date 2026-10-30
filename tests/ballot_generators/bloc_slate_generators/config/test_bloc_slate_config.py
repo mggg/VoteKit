@@ -2107,6 +2107,38 @@ def test_raises_valueerror_when_slate_values_do_not_sum_to_one(valid_config):
         cfg.get_preference_interval_for_bloc_and_slate(bloc_name="bloc_1", slate_name="slate_1")
 
 
+def test_combined_support_arrays_preserve_order_zeros_and_independent_storage(valid_mixed_config):
+    config = BlocSlateConfig(**valid_mixed_config, n_voters=100, allow_zero_support_candidates=True)
+    config.preference_df.loc["bloc_1", ["A", 1]] = [1.0, 0.0]
+    candidates = (2, 1, "A", "X")
+
+    supports = config.get_combined_candidate_support_arrays_by_bloc(candidates)
+
+    assert tuple(supports) == tuple(config.blocs)
+    np.testing.assert_allclose(supports["bloc_1"], [0.09, 0.0, 0.9, 0.01])
+    np.testing.assert_allclose(supports["bloc_2"], [0.4, 0.1, 0.1, 0.4])
+    for values in supports.values():
+        assert values.dtype == np.float64
+        assert values.flags.owndata
+        assert values.flags.writeable
+
+    selected = config.get_combined_candidate_support_arrays_by_bloc(("A", 2))
+    np.testing.assert_allclose(selected["bloc_1"], [0.9, 0.09])
+
+    supports["bloc_1"][2] = 99.0
+    assert config.preference_df.loc["bloc_1", "A"] == 1.0
+    config.preference_df.loc["bloc_2", ["A", 1]] = [0.25, 0.75]
+    np.testing.assert_allclose(supports["bloc_2"], [0.4, 0.1, 0.1, 0.4])
+    np.testing.assert_allclose(selected["bloc_1"], [0.9, 0.09])
+
+
+def test_combined_support_arrays_reject_unknown_candidates(valid_config):
+    config = BlocSlateConfig(**valid_config, n_voters=100)
+
+    with pytest.raises(KeyError, match="missing"):
+        config.get_combined_candidate_support_arrays_by_bloc(("A", "missing"))
+
+
 def test_get_combined_preference_interval_by_bloc():
     slate_to_candidates = {"slate_1": ["A", "B"], "slate_2": ["X", "Y"]}
     preference_mapping = {
