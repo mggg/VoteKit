@@ -7,7 +7,13 @@ from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
 )
-from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, END_OF_RANKING_ID, RankMatrix
+from votekit.pref_profile.pref_profile import _normalize_ranking_set
+from votekit.pref_profile.profile_matrix import (
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+    RankMatrix,
+)
 from votekit.types import Candidate, CandidateList
 from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
@@ -49,6 +55,7 @@ def _iterate_and_clean_ranking_tuples(
     # Cleaning depends only on the ranking, so clean each distinct ranking once.
     first_rows_idx, group_ids = matrix._group_ranking_rows()
     cleaned_groups = np.empty((len(first_rows_idx), num_positions), dtype=np.intp)
+    cleaned_candidates: set[Candidate] = set()
 
     for group, ranking in enumerate(lookup[matrix.rankings[first_rows_idx] - EMPTY_SET_ID]):
         cleaned_ranking = clean_ranking_func(tuple(ranking))
@@ -57,10 +64,18 @@ def _iterate_and_clean_ranking_tuples(
                 f"Cleaned rankings must have {num_positions} positions, one per ranking column. "
                 f"Got {len(cleaned_ranking)}: {cleaned_ranking}"
             )
-        cleaned_groups[group] = [
-            cand_set_to_id.setdefault(cand_set, len(cand_set_to_id) + EMPTY_SET_ID)
-            for cand_set in cleaned_ranking
-        ]
+
+        for rank_position, candidate_set in enumerate(cleaned_ranking):
+            normalized_cand_set = _normalize_ranking_set(candidate_set, "cleaned rankings")
+            if normalized_cand_set != END_OF_RANKING_SET:
+                cleaned_candidates.update(normalized_cand_set)
+
+            cleaned_groups[group, rank_position] = cand_set_to_id.setdefault(
+                normalized_cand_set, len(cand_set_to_id) + EMPTY_SET_ID
+            )
+
+    # check the string/integer collisions across all rankings
+    _validate_candidate_names(cleaned_candidates, "cleaned rankings")
 
     cleaned_rankings = cleaned_groups[group_ids]
 

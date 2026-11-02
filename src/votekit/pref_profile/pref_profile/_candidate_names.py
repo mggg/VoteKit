@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from votekit.exceptions import ProfileError
+from votekit.pref_profile.profile_matrix.rank_matrix import END_OF_RANKING_SET
 from votekit.types import Candidate
 from votekit.utils import _validate_candidate_names
 
@@ -45,3 +46,39 @@ def _normalize_unique_candidates(
         )
 
     return normalized_candidates
+
+
+def _normalize_ranking_set(
+    candidate_set: set[Candidate] | frozenset[Candidate], context: str
+) -> frozenset[Candidate]:
+    """
+    Normalize and validate a ranking cell so that sets differing only in whitespace compare equal.
+
+    Empty sets and literal tilde padding are preserved. Each candidate name is validated separately
+    so callers can report string/integer collisions once across the complete ranking collection.
+
+    Args:
+        candidate_set (set[Candidate] | frozenset[Candidate]): set of candidates to normalize and
+            validate.
+        context (str): Source of the candidate set as context for error messages.
+
+    Returns:
+        frozenset[Candidate]: normalized and validated frozenset of candidates.
+
+    Raises:
+        TypeError: Ranking cells must contain sets or frozensets of candidates.
+        TypeError: Candidate type must be a string or integer, not a boolean.
+        ValueError: Integer candidate must be non-negative.
+        ValueError: Candidate set cannot contain "~" as a candidate nor ":" within any of its
+            candidate names.
+    """
+    if not isinstance(candidate_set, (set, frozenset)):
+        raise TypeError("Ranking cells must contain sets or frozensets of candidates.")
+    if candidate_set == END_OF_RANKING_SET:
+        return END_OF_RANKING_SET
+
+    normalized = tuple(_normalize_candidate_name(candidate) for candidate in candidate_set)
+    for candidate in normalized:
+        _validate_candidate_names((candidate,), context)
+
+    return frozenset(normalized)

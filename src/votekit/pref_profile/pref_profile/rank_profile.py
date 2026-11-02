@@ -794,33 +794,28 @@ class RankProfile(PreferenceProfile):
             max_ranking_length=max_ranking_length,
         )
 
-    # Static because we intend to bypass the constructor
-    @staticmethod
-    def _from_matrix(matrix: RankMatrix, *, max_ranking_length: int) -> RankProfile:
+    # Need the classmethod so that CleanedRankProfile returns a CleanedRankProfile instance
+    @classmethod
+    def _from_matrix(cls, matrix: RankMatrix, *, max_ranking_length: int) -> Self:
         """
-        Create a RankProfile from a RankMatrix.
+        Create a frozen profile from a matrix, bypassing ballot or df parsing.
+
+        Subclass factories must attach any additional state before returning the profile.
 
         Args:
-            RankMatrix (RankMatrix): A RankMatrix object.
+            matrix (RankMatrix): Validated matrix whose candidates become the profile's
+                candidates.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns and be at
+                least the number of distinct candidates ranked on any stored ballot.
 
         Returns:
-            RankProfile: A RankProfile object.
-        """
-        profile = object.__new__(RankProfile)
-        profile._init_from_matrix(matrix, max_ranking_length=max_ranking_length)
-        return profile
-
-    def _init_from_matrix(self, matrix: RankMatrix, *, max_ranking_length: int) -> None:
-        """
-        Set matrix-derived attributes and freeze the profile, bypassing ballot or df parsing.
-
-        Args:
-            matrix (RankMatrix): Validated matrix whose candidates become the profile's candidates.
-            max_ranking_length (int): Must equal the matrix's number of ranking columns.
+            Self: Profile of the requested class with initialized matrix-derived attributes.
 
         Raises:
-            ValueError: max_ranking_length differs from the number of ranking columns.
+            ValueError: max_ranking_length differs from the number of ranking columns or is
+                smaller than the number of distinct candidates ranked on a ballot.
         """
+
         if len(matrix.ranking_columns) != max_ranking_length:
             raise ValueError(
                 "max_ranking_length must be equivalent to number of ranking columns in"
@@ -828,13 +823,23 @@ class RankProfile(PreferenceProfile):
                 f" {len(matrix.ranking_columns)}."
             )
 
-        self._matrix = matrix
-        self.candidates = matrix.candidates
-        self.max_ranking_length = max_ranking_length
-        self.candidates_cast = tuple(
+        max_candidates_ranked = matrix.max_candidates_ranked()
+        if max_candidates_ranked > max_ranking_length:
+            raise ValueError(
+                f"A ballot ranks {max_candidates_ranked} distinct candidates, exceeding"
+                f" max_ranking_length={max_ranking_length}."
+            )
+
+        profile = object.__new__(cls)
+        profile._matrix = matrix
+        profile.candidates = matrix.candidates
+        profile.max_ranking_length = max_ranking_length
+        profile.candidates_cast = tuple(
             sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())
         )
-        self._finalize_profile()
+
+        profile._finalize_profile()
+        return profile
 
     def to_matrix(self) -> RankMatrix:
         """
