@@ -189,7 +189,7 @@ canonical set meanings; historical pandas ordering and code assignments are not 
 
 Float grouping uses one scalar Neumaier accumulator per group, with contributions in source-row
 order and each corrected total finalized after its last contribution. This deliberately replaces
-the Python reference's weighted `np.bincount` reduction under
+the Python reference's per-group `math.fsum` reduction under
 [ADR 0005](../../ADRs/0005-profile-numeric-contracts.md). Exact grouping retains rational sums.
 Check the revised float totals and any affected election decisions separately from group
 membership, order, and metadata parity.

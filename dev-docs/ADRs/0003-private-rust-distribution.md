@@ -23,11 +23,12 @@ versions and satisfy the distribution obligations of GMP and its bindings. Suppo
 require no compiler on the user's machine; source builds require the documented Rust and C
 toolchains.
 
-Target VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
-Windows x86_64, with the final release matrix and minimum toolchain confirmed during
-implementation. Support for each target requires installed-wheel tests outside the checkout that
-exercise construction, computation, and replay. Source builds receive equivalent verification
-under the existing release authorization and trusted-publishing controls.
+The extension targets VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS
+x86_64/arm64, and Windows x86_64. Package metadata and release CI determine the Python version
+range; the platform matrix and minimum toolchain are confirmed during implementation. Each target
+requires installed-wheel tests outside the checkout that exercise construction, computation, and
+replay. Source builds receive equivalent verification, and releases retain the existing
+authorization and trusted-publishing controls.
 
 ## Consequences
 

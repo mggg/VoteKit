@@ -115,9 +115,10 @@ metadata, extras, `py.typed`, and generator JSON data. Include Rust sources and 
 source distributions. Record GMP and binding dependencies, licenses, linkage, bundled-library
 requirements, and source-build prerequisites.
 
-Target VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS x86_64/arm64, and
-Windows x86_64. Reconfirm that matrix and the minimum Rust toolchain during implementation. PyPy,
-free-threaded Python, WASM, and a separate pure-Python distribution are outside the initial scope.
+The build targets VoteKit's supported CPython versions on Linux glibc x86_64/aarch64, macOS
+x86_64/arm64, and Windows x86_64. Package metadata and release CI determine the Python version
+range, with the platform matrix and minimum Rust toolchain confirmed during implementation. The
+initial scope excludes PyPy, free-threaded Python, WASM, and a separate pure-Python distribution.
 
 Supported wheels require no compiler on the user's machine although development and source builds
 use the documented toolchain. To verify that distinction, install each release target's wheel

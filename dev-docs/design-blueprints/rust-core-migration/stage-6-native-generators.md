@@ -282,10 +282,26 @@ the editable configuration or reusing an advanced RNG.
 
 ## Resource admission
 
-Carry forward the Python implementation's resource policy, adapting allocation estimates to Rust
-storage for preparation, all resident bloc tables, temporary allocations, grouping, and output.
-One float64 value per name subset requires 8 MiB at 20 candidates, 256 MiB at 25, and 8 GiB at 30,
-before other storage. Batching cannot reduce this table requirement.
+The Rust port carries forward the Python implementation's resource policy, with estimates based on
+the allocations that coexist during preparation and sampling. These include all resident bloc
+tables, temporary buffers, grouping storage, and output.
+
+For dense name BT, preparation needs a completion-total array with one float64 value per subset
+and a CDF with one value per candidate per subset. Both arrays are present while the CDF is being
+built. Once preparation finishes, the completion totals can be released because sampling uses only
+the CDF and candidate indexing. Their separate sizes show why admission must account for more than
+the completion totals alone:
+
+| Candidates | Completion totals | Retained CDF |
+| ---------- | ----------------- | ------------ |
+| 20         | 8 MiB             | 160 MiB      |
+| 25         | 256 MiB           | 6.25 GiB     |
+| 30         | 8 GiB             | 240 GiB      |
+
+The preparation estimate includes the sum of these sizes, temporary buffers, and any output or
+other bloc tables already resident. Batching reduces sampling buffers but leaves the full CDF in
+memory. A different Rust representation would need estimates that reflect its own allocation
+lifetimes.
 
 Use checked arithmetic to calculate state products, byte counts, and platform conversions,
 followed by fallible large allocations where possible. Grouped output must be budgeted for the

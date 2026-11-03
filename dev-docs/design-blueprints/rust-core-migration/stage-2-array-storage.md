@@ -98,11 +98,12 @@ ports the matrix computations behind the consumer interfaces established in stag
 
 ## Public and internal construction
 
-Preserve `PreferenceProfile` dispatch to ranked or scored profiles, including empty construction
-and mixed-ballot rejection. Python adapters own candidate-name normalization and DataFrame schema
-interpretation. The matrix owns validated numeric structure and aligned shared data. Fused Rust
-encoding may normalize distinct sets while attached, avoiding a normalized full-frame
-intermediate.
+`PreferenceProfile` continues to dispatch to ranked or scored profiles, preserving empty
+construction and mixed-ballot rejection. Python adapters interpret the DataFrame schema and
+normalize candidate names before encoding them. For ranked input, normalizing each distinct
+candidate set once avoids repeating normalization for every ranking cell or constructing a
+normalized copy of the full DataFrame. The resulting IDs enter the matrix's validated storage,
+where Rust computations operate on encoded identities and aligned shared data.
 
 Public array construction validates and copies caller data, establishing the ownership on which
 internal construction relies. A validated matrix can then be wrapped without re-parsing DataFrames
@@ -186,7 +187,7 @@ operation must publish its metadata with the numeric result and preserve any cat
 permitted by cleaning semantics.
 
 Audit supported profile overrides before switching a consumer. An extension may require a
-compatible Python path even when the built-in type can execute natively. Detached exports remain
+compatible Python path even when the built-in type can execute in Rust. Detached exports remain
 independent of the authoritative profile on either path.
 
 ## Module ownership

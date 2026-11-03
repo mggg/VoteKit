@@ -26,11 +26,16 @@ intermediate decimal rounding. Empty reductions return zero. Grouping maintains 
 per group and feeds it weights in source-row order. Group output retains first-appearance order
 and its existing voter and index semantics. Exact reductions continue to use rational arithmetic.
 
-For total weight and mentions, Neumaier replaces the Python reference's `math.fsum`. For grouped
-weights, it replaces weighted `np.bincount` accumulation. These are deliberate numerical changes:
-Neumaier reduces accumulation error but guarantees neither correct rounding nor bitwise agreement
-with either reference. The same scalar algorithm applies on Windows, Linux, and macOS. SIMD
-implementations and parallel reductions are outside this implementation's scope.
+Within each implementation, total-weight validation and queries use the same reduction so the
+reported total agrees with the value checked against the cap. The Python reference uses
+`math.fsum` for both operations, for mentions, and within each group of three or more float weights.
+Singleton groups preserve their weight, and two-weight groups need only one correctly rounded
+addition. Rust replaces these reductions with scalar Neumaier summation.
+
+These are deliberate numerical changes. Neumaier reduces accumulation error but guarantees neither
+correct rounding nor bitwise agreement with the Python reductions. The same scalar algorithm
+applies on Windows, Linux, and macOS; SIMD implementations and parallel reductions remain outside
+this implementation's scope.
 
 GMP provides exact arithmetic for the Rust implementation, preserving arbitrary-size rational
 values and public Python Fraction results. Explicit rational-to-float conversion follows Python's
@@ -49,16 +54,17 @@ Accumulation and rounding follow these operation-specific rules:
 | Total float weight and float mentions | Scalar Neumaier summation in the existing contribution order                                   |
 | Grouped float weights                 | Scalar Neumaier summation per group, with contributions in source-row order                    |
 | Score totals per ballot               | Float64 `np.nansum` over declared columns; all-missing rows total zero                         |
-| General positional scoring            | NumPy float64 rounding of each weighted allocation to ten places before accumulation           |
+| General positional scoring            | NumPy float64 rounding of each weighted allocation to ten places, then `math.fsum` per candidate |
+| Score-profile tallying                | `math.fsum` of float-converted weighted ballot scores per candidate, without decimal rounding |
 | No-ties positional scoring            | Weighted `np.bincount` over row-major contributions, then NumPy float64 rounding to ten places |
 | Exact operations                      | Rational arithmetic and exact comparisons without float intermediates                          |
 
 NumPy scalar rounding is part of this reference; substituting Python float rounding can change the
-result. The Neumaier decision does not change score-row or positional-scoring reductions. Comparison
-tolerance is not an accumulation-error bound, and even a correctly rounded float64 result can
-differ from the exact sum by more than `TOL_EPSILON`. Changes to reduction order or rounding
-require explicit validation of election decisions. Numerical closeness alone does not establish
-equivalent behavior.
+result. The Neumaier decision does not change score-row or positional-scoring reductions.
+Comparison tolerance is not an accumulation-error bound, and even a correctly rounded float64
+result can differ from the exact sum by more than `TOL_EPSILON`. Changes to reduction order or
+rounding require explicit validation of election decisions. Numerical closeness alone does not
+establish equivalent behavior.
 
 ## Consequences
 

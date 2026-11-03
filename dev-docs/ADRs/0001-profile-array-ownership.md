@@ -36,15 +36,16 @@ guarantee both the allocation's lifetime and the absence of writable aliases.
 ## Considered Alternatives
 
 Borrowing Python-owned NumPy arrays would support individual Rust operations with little binding
-overhead. It would, however, leave generators and exact arithmetic to reconcile Python-owned
-storage with their Rust results. This is particularly important for avoiding the round-trip
+overhead. If exact weights remained authoritative as Python objects, however, each operation would
+have to convert its GMP results back to Python:
 
 ```mermaid
 flowchart LR
     INPUT["Python Fractions"] --> COMPUTE["Rust GMP rationals"] --> OUTPUT["Python Fractions"]
 ```
 
-Rust ownership gives these operations a common representation.
+With Rust ownership, successive operations can reuse GMP values until a caller requests a Python
+export. Generators can likewise return Rust-owned buffers that become profile storage directly.
 
 Caching a Rust-owned copy beside a Python matrix would amortize conversion across repeated calls
 but retain both representations for the profile's lifetime.

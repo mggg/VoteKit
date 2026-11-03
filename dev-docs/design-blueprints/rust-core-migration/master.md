@@ -79,13 +79,16 @@ fixtures distinguish intentional changes from regressions and retain historical 
 for persistence support.
 
 The Python matrix work has already introduced dense set IDs, float64/Fraction weight variants, the
-`2**50` total cap, nonnegative scores, first-appearance grouping, and fresh DataFrame exports. The
-Rust migration adds float64-only score storage with lossless input conversion, scalar Neumaier
-summation for total float weight, float mentions, and grouped float weights, immutable election
-history, and the specified generator tail and seed contracts. Under
-[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md), Neumaier replaces `math.fsum` for totals
-and mentions and weighted `np.bincount` for grouping. SIMD summation is outside this implementation.
-`.df` is deprecated as of 3.6.0 and scheduled for removal in the next major release.
+`2**50` total cap, nonnegative scores, first-appearance grouping, and fresh DataFrame exports.
+`.df` is deprecated as of 3.6.0 and scheduled for removal in the next major release. The Rust
+migration adds float64-only score storage with lossless input conversion, immutable election
+history, and the specified generator tail and seed contracts.
+
+The migration also changes float accumulation under
+[ADR 0005](../../ADRs/0005-profile-numeric-contracts.md). Stage 1 first brings Python total-weight
+validation and queries together under `math.fsum`. Rust then replaces the Python `math.fsum`
+reductions for totals, mentions, and grouped weights with scalar Neumaier summation. SIMD
+summation remains outside this implementation.
 
 Compatibility includes extension hooks, provenance, and election decisions under the documented
 arithmetic. Generator samples are reproducible within a fixed version but may change between minor
@@ -93,9 +96,10 @@ versions. Election tiebreak and RNG behavior retain their separate contracts. Un
 configurations are dispatched to compatible execution before counting; failures after Rust
 execution begins propagate without retry.
 
-FastSTV remains unchanged, with deprecation planned for 4.0. Municipal RuleSets are outside this
-migration. Pandas remains an input/export dependency, and Numba remains while supported consumers
-require it.
+FastSTV's counting and replay implementations remain outside this migration, with deprecation
+planned for 4.0. Its use of shared types such as `ElectionState` still requires compatibility
+checks in stage 4. Municipal RuleSets are separate work. Pandas remains an input/export
+dependency, and Numba remains while supported consumers require it.
 
 ## A possible route through the work
 

@@ -398,10 +398,12 @@ to the same executed round.
 
 ## Python references and callback safety
 
-Numerical state contains Rust values while binding owners may retain the Python labels and
-summaries needed at the interface. Keep those references outside detached work and provide GC
-traversal and clearing where cycles are possible. Even call-scoped callbacks can retain references
-to a live election through closures.
+Numerical state contains Rust values, but binding owners may retain Python labels, summaries, and
+callbacks. Those references stay outside detached work. Callback objects are retained only for the
+execution that needs them because replay uses their recorded effects without invoking the
+callables. Limiting their lifetime does not exclude reference cycles: a callback closure can still
+hold a reference to the election. Binding owners therefore need GC traversal and clearing wherever
+such cycles are possible.
 
 Before invoking Python, release incompatible Rust borrows and supply the required context
 directly. Callbacks may query completed rounds. Recursive advancement and queries requiring a
@@ -429,8 +431,13 @@ count.
 
 This separation of assembly from publication changes the current mutable interface, requiring an
 audit of internal and supported subclass construction hooks. TopTwo and Alaska, for example,
-currently renumber states from other elections and must instead construct replacements. FastSTV
-uses the separate `NumpySTVBase` history implementation and remains outside this change.
+currently renumber states from other elections and must instead construct replacements.
+
+Although FastSTV's counting and replay implementations remain outside this migration, its
+`NumpySTVBase` constructs the same `ElectionState` type. Changes to that type can therefore affect
+FastSTV's public history without changing its counting code. Check state construction, mutability,
+and exports when introducing immutable history, and account explicitly for any resulting change to
+FastSTV's public behavior.
 
 Legacy custom algorithms retain their existing reconstruction behavior, including possible
 callback repetition. Extending deterministic replay to them requires retained outputs or

@@ -65,5 +65,8 @@ The [election-state plan](../design-blueprints/rust-core-migration/stage-4-elect
 specifies the transition records, callback interface, and compatibility checks. Its
 [workflow and dispatch sketch](../design-blueprints/rust-core-migration/stage-4-election-state.md#rule-set-orchestration)
 shows the Rust/Python boundary. Municipal rule implementations and a public rule-registration API
-remain separate work. FastSTV is unchanged during this migration, with deprecation planned for
-4.0.
+remain separate work.
+
+FastSTV's counting and replay implementations remain outside this migration, with deprecation
+planned for 4.0. Because FastSTV also returns `ElectionState` values, changes to that shared type
+require the compatibility checks described in the election-state plan.
