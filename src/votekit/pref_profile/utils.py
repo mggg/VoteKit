@@ -192,7 +192,7 @@ def score_profile_to_ballot_dict(
     tot_weight = float(score_profile.total_ballot_wt)
     di: dict = {}
     for ballot in score_profile.ballots:
-        weightless_ballot = Ballot(
+        weightless_ballot = ScoreBallot(
             scores=ballot.scores,
             voter_set=ballot.voter_set,
         )

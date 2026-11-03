@@ -12,15 +12,16 @@ def test_convert_row_to_score_ballot():
                 "Voter Set": {"Chris"},
                 "A": 1,
                 "B": 2.1,
+                "zero": 0.0,
                 "CD": pd.NA,
             }
         ),
-        candidates=("A", "B", "CD"),
+        candidates=("A", "B", "CD", "zero"),
     )
 
     assert isinstance(b, ScoreBallot)
     assert b.weight == 2
-    assert b.scores == {"A": 1, "B": 2.1}
+    assert b.scores == {"A": 1, "B": 2.1, "zero": 0.0}
     assert b.voter_set == {"Chris"}
 
     b = convert_row_to_score_ballot(

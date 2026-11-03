@@ -32,6 +32,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Fixed
 
+- `ScoreBallot` now preserves explicit zero scores by default, including through the `Ballot`
+  factory. Pass `include_zero_score=False` to omit them. Profile ballot access, CSV round trips,
+  candidate removal, and ballot dictionaries preserve retained zero scores as distinct from
+  unscored candidates. Closes #415.
+- Score-profile CSV exports use blank cells for unscored candidates. Numeric zeros in existing
+  CSV files are now retained as explicit scores; zeros written as placeholders by older exports
+  cannot be distinguished from intentional scores.
 - Shared within-slate weighted sampling now uses log arrival times to avoid underflow bias for
   small supports.
 - Slate generators now uniformly shuffle zero-support candidates at the end of each slate's

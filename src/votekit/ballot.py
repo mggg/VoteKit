@@ -89,7 +89,9 @@ class Ballot:
             Values can be input as int or float but will be coerced to float.
             Candidates can be strings, integers, or mix of both.
             Stored internally as a dict[Candidate, float].
-            Only retains non-zero scores.
+            Retains explicit zeros unless include_zero_score is False.
+        include_zero_score (bool, optional): Retain explicit zero scores when constructing a
+            ScoreBallot. Defaults to True; False omits zero scores.
 
     Attributes:
         ranking (tuple[frozenset[Candidate], ...] | None): Tuple of candidate ranking.
@@ -122,7 +124,7 @@ class Ballot:
         scores: None = None,
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
-        include_zero_score: bool = False,
+        include_zero_score: bool = True,
     ) -> RankBallot: ...
 
     @overload
@@ -133,7 +135,7 @@ class Ballot:
         scores: ScoresLike,
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
-        include_zero_score: bool = False,
+        include_zero_score: bool = True,
     ) -> ScoreBallot: ...
 
     @overload
@@ -144,7 +146,7 @@ class Ballot:
         scores: ScoresLike = None,
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
-        include_zero_score: bool = False,
+        include_zero_score: bool = True,
     ) -> Self: ...
 
     def __new__(
@@ -154,7 +156,7 @@ class Ballot:
         scores: ScoresLike = None,
         weight: float | int | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
-        include_zero_score: bool = False,
+        include_zero_score: bool = True,
     ) -> Ballot:
         if ranking is not None and scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
@@ -338,6 +340,10 @@ class ScoreBallot(Ballot):
     """
     Class to handle ballots with scores. Strips whitespace from candidate names.
 
+    Explicit zero scores are retained by default and are distinct from candidates who were not
+    scored. Set ``include_zero_score=False`` to omit them. The flag controls construction only;
+    retained zeros are part of the ballot's scores.
+
     Args:
         scores (ScoresLike): Scores of candidates, defaults to None.
             ScoresLike = Mapping[Candidate, int | float] | Mapping[str, int | float]
@@ -346,6 +352,8 @@ class ScoreBallot(Ballot):
         weight (int | float | Fraction): Weight of the ballot, defaults to 1.0.
         voter_set (set[str] | frozenset[str]): Voter set of the ballot,
             defaults to frozenset().
+        include_zero_score (bool, optional): Whether to retain explicitly supplied zero scores.
+            Defaults to True; False omits them from the score mapping.
 
     Attributes:
         scores (dict[Candidate, float] | None): Scores of candidates.
@@ -368,21 +376,26 @@ class ScoreBallot(Ballot):
         scores: ScoresLike = None,
         weight: int | float | Fraction = 1.0,
         voter_set: set[str] | frozenset[str] = frozenset(),
+        include_zero_score: bool = True,
     ):
         if ranking is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
         self._validate_scores_candidates(scores)
-        self.scores = self._convert_scores_to_float_strip_whitespace(scores)
+        self.scores = self._convert_scores_to_float_strip_whitespace(
+            scores, include_zero_score=include_zero_score
+        )
 
         super().__init__(weight=weight, voter_set=voter_set)
 
     def _convert_scores_to_float_strip_whitespace(
-        self, scores: ScoresLike
+        self, scores: ScoresLike, *, include_zero_score: bool = True
     ) -> dict[Candidate, float] | None:
         if scores is None:
             return None
         return {
-            c.strip() if isinstance(c, str) else c: float(s) for c, s in scores.items() if s != 0
+            c.strip() if isinstance(c, str) else c: float(s)
+            for c, s in scores.items()
+            if include_zero_score or s != 0
         }
 
     def _validate_scores_candidates(self, scores: ScoresLike):

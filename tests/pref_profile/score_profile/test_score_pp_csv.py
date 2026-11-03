@@ -193,11 +193,25 @@ def test_csv_misformatted_voter_set_error():
 def test_csv_voter_set_whitespace(tmp_path):
     expected = ScoreProfile(
         ballots=(
-            ScoreBallot(scores={"Alex": 2, "Allen": 4, "D": 1}, voter_set={"Chris"}),
-            ScoreBallot(scores={"Alex": 2, "Allen": 4, "D": 1}, voter_set={"Peter", "Moon"}),
-            ScoreBallot(scores={"Alex": 2, "Allen": 4, "C": 1}),
-            ScoreBallot(scores={"Alex": 2, "Allen": 4, "C": 1}),
-            ScoreBallot(scores={"Alex": 5, "Allen": 4, "C": 1}),
+            ScoreBallot(
+                scores={"Alex": 2, "Allen": 4, "C": 0, "D": 1, "E": 0},
+                voter_set={"Chris"},
+                include_zero_score=True,
+            ),
+            ScoreBallot(
+                scores={"Alex": 2, "Allen": 4, "C": 0, "D": 1, "E": 0},
+                voter_set={"Peter", "Moon"},
+                include_zero_score=True,
+            ),
+            ScoreBallot(
+                scores={"Alex": 2, "Allen": 4, "C": 1, "D": 0, "E": 0}, include_zero_score=True
+            ),
+            ScoreBallot(
+                scores={"Alex": 2, "Allen": 4, "C": 1, "D": 0, "E": 0}, include_zero_score=True
+            ),
+            ScoreBallot(
+                scores={"Alex": 5, "Allen": 4, "C": 1, "D": 0, "E": 0}, include_zero_score=True
+            ),
         )
         * 5,
         candidates=["Alex", "Allen", "C", "D", "E"],
@@ -219,7 +233,7 @@ def test_csv_to_string_round_trip(tmp_path):
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(scores={"A": 2, "B": 1, "C": 0}),
-            ScoreBallot(scores={"A": 0, "B": 3, "C": 1}),
+            ScoreBallot(scores={"A": 0, "B": 3, "C": 1}, include_zero_score=False),
         ],
         candidates=["A", "B", "C"],
     )
@@ -229,6 +243,8 @@ def test_csv_to_string_round_trip(tmp_path):
     out = tmp_path / "round_trip.csv"
     out.write_text(csv_str, encoding="utf-8")
     read_profile = ScoreProfile.from_csv(str(out))
+    assert read_profile.get_ballot(0).scores == {"A": 2.0, "B": 1.0, "C": 0.0}
+    assert read_profile.get_ballot(1).scores == {"B": 3.0, "C": 1.0}
     assert profile == read_profile
 
 
