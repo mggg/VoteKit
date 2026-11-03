@@ -236,6 +236,30 @@ def _score_dict_from_rankings_df_no_ties(
     return scores
 
 
+def _sum_candidate_score_contributions(
+    contributions: dict[Candidate, list[float]],
+) -> dict[Candidate, float]:
+    """
+    Accurately sum nonnegative score contributions for each candidate.
+
+    Args:
+        contributions (dict[Candidate, list[float]]): Weighted contributions after any
+            operation-specific rounding. Positive infinity and NaN are permitted.
+
+    Returns:
+        dict[Candidate, float]: Candidate totals, with zero for empty lists. Overflow produces
+            positive infinity unless a contribution is NaN, in which case the total is NaN.
+    """
+    totals: dict[Candidate, float] = {}
+    for candidate, values in contributions.items():
+        try:
+            totals[candidate] = math.fsum(values)
+        except OverflowError:
+            totals[candidate] = math.nan if any(math.isnan(value) for value in values) else math.inf
+
+    return totals
+
+
 def score_dict_from_score_vector(
     profile: RankProfile,
     score_vector: Sequence[float],
@@ -252,7 +276,8 @@ def score_dict_from_score_vector(
     appearances on the same ballot. Entries beyond the vector contribute zero when applying the
     tie convention.
 
-    We round to 10 decimal places to avoid floating point precision issues.
+    Each weighted allocation is rounded to ten decimal places using NumPy's float64 rounding
+    before math.fsum accumulates the contributions for each candidate. Totals are not rounded again.
 
 
     Args:
@@ -284,7 +309,7 @@ def score_dict_from_score_vector(
     if len(score_vector) < max_length:
         score_vector = list(score_vector) + [0] * (max_length - len(score_vector))
 
-    scores = {c: 0.0 for c in profile.candidates_cast}
+    contributions: dict[Candidate, list[float]] = {c: [] for c in profile.candidates_cast}
 
     matrix = profile._matrix
     weights = matrix.voter_weight_data.weights.astype(float, copy=False)
@@ -325,11 +350,12 @@ def score_dict_from_score_vector(
             else:
                 allocation = sum(local_score_vector) / position_size
 
+            contribution = float(round(allocation * weight, FLOAT_DECIMAL_PLACES))
             for candidate in candidate_set:
-                scores[candidate] += round(allocation * weight, FLOAT_DECIMAL_PLACES)
+                contributions[candidate].append(contribution)
             score_offset += position_size
 
-    return scores
+    return _sum_candidate_score_contributions(contributions)
 
 
 def _first_place_votes_from_df_no_ties(
@@ -827,6 +853,9 @@ def score_profile_from_ballot_scores(
     All ballots must have a ``scores`` parameter; note that a ``scores`` dictionary
     with no non-zero scores will raise the same error.
 
+    Each score is multiplied by its ballot weight and converted to float before math.fsum
+    accumulates the contributions for each candidate. No decimal rounding is applied.
+
     Args:
         profile (ScoreProfile): Profile to score.
 
@@ -837,7 +866,7 @@ def score_profile_from_ballot_scores(
     """
     from votekit.pref_profile import ScoreProfile
 
-    scores = {c: 0.0 for c in profile.candidates}
+    contributions: dict[Candidate, list[float]] = {c: [] for c in profile.candidates}
     if not isinstance(profile, ScoreProfile):
         raise TypeError("Profile must be of type ScoreProfile.")
     for ballot in profile.ballots:
@@ -845,9 +874,9 @@ def score_profile_from_ballot_scores(
             raise TypeError(f"Ballot {ballot} has no scores.")
         else:
             for c, score in ballot.scores.items():
-                scores[c] += float(score * ballot.weight)
+                contributions[c].append(float(score * ballot.weight))
 
-    return scores
+    return _sum_candidate_score_contributions(contributions)
 
 
 def ballot_lengths(profile: RankProfile) -> dict[int, float]:

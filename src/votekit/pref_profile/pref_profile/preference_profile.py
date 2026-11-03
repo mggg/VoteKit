@@ -9,9 +9,8 @@ from collections.abc import Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Generic, Self, TypeVar, overload
 
-import numpy as np
 import pandas as pd
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX
@@ -19,6 +18,7 @@ from votekit.ballot import Ballot, RankBallot, ScoreBallot
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique_candidates
 from votekit.pref_profile.profile_matrix import ProfileMatrix
+from votekit.pref_profile.profile_matrix.shared_data import _sum_ballot_weights
 from votekit.types import Candidate, Numeric
 
 if TYPE_CHECKING:
@@ -291,8 +291,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         if self._matrix is None:
             return 0
 
-        # Object-array weights are validated Fraction values by construction.
-        return cast(Numeric, np.sum(self._matrix.voter_weight_data.weights))
+        return _sum_ballot_weights(self._matrix.voter_weight_data.weights)
 
     def _validate_candidates(self) -> None:
         """

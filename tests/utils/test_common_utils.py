@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from fractions import Fraction
 from itertools import permutations
@@ -349,6 +350,23 @@ def test_scorers_retain_their_distinct_rounding_rules(forbid_dataframe_conversio
     assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1e-10}
 
 
+@pytest.mark.parametrize("tie_convention", ["low", "average", "high"])
+def test_positional_scoring_preserves_small_contributions(
+    tie_convention: Literal["low", "average", "high"],
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A", "B"}, {"A"}], weight=weight) for weight in (1e8, 5e-9, 5e-9)
+        ],
+        max_ranking_length=3,
+    )
+
+    assert score_dict_from_score_vector(profile, [1, 1, 1], tie_convention) == {
+        "A": 200000000.00000003,
+        "B": 100000000.00000001,
+    }
+
+
 @pytest.mark.parametrize("exact", [False, True])
 def test_no_ties_scorer_skips_reserved_ids_and_undeclared_zero_weight_candidates(
     exact: bool,
@@ -370,6 +388,7 @@ def test_no_ties_scoring_preserves_numpy_rounding(forbid_dataframe_conversion: N
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1.00000000005)])
 
     assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1.0}
+    assert score_dict_from_score_vector(profile, [1]) == {"A": 1.0}
 
 
 def test_first_place_votes():
@@ -965,17 +984,62 @@ def test_resolve_profile_ties():
     assert resolve_profile_ties(profile_with_ties) == no_ties
 
 
-def test_score_profile_from_ballot_scores_float():
+@pytest.mark.parametrize("score", [3.0, 1.00000000005])
+def test_score_profile_from_ballot_scores_float(score: float):
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(
-                scores={"A": 3},
+                scores={"A": score},
             ),
         ]
     )
     scores = score_profile_from_ballot_scores(profile)
-    assert scores == {"A": 3}
+    assert scores == {"A": score}
     assert isinstance(scores["A"], float)
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_score_profile_tally_preserves_small_contributions(exact: bool) -> None:
+    weights = (Fraction(100_000_000), Fraction(1, 200_000_000), Fraction(1, 200_000_000))
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, weight=weight if exact else float(weight))
+            for weight in weights
+        ],
+        candidates=("A", "B", "unused"),
+    )
+
+    assert score_profile_from_ballot_scores(profile) == {
+        "A": 100000000.00000001,
+        "B": 0.0,
+        "unused": 0.0,
+    }
+
+
+@pytest.mark.parametrize(
+    "scores, weights, expected",
+    [
+        ([1e308, 1e308], [1.0, 1.0], math.inf),
+        ([math.inf, math.inf], [1.0, 0.0], math.nan),
+        ([1e308, 1e308, math.inf], [1.0, 1.0, 0.0], math.nan),
+    ],
+    ids=["overflow", "zero-times-infinity", "overflow-before-nan"],
+)
+def test_score_profile_tally_preserves_nonfinite_results(
+    scores: list[float], weights: list[float], expected: float
+) -> None:
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": score}, weight=weight)
+            for score, weight in zip(scores, weights, strict=True)
+        ]
+    )
+
+    result = score_profile_from_ballot_scores(profile)["A"]
+    if math.isnan(expected):
+        assert math.isnan(result)
+    else:
+        assert result == expected
 
 
 def test_score_profile_from_ballot_scores_error():

@@ -19,6 +19,7 @@ from votekit._df_schema import (
 )
 from votekit.ballot import _to_float_weight, validate_weight
 from votekit.exceptions import ProfileError
+from votekit.types import Numeric
 
 MAX_TOTAL_BALLOT_WEIGHT = 2**50
 EMPTY_VOTER_SET: frozenset[str] = frozenset()
@@ -277,9 +278,11 @@ class ProfileVoterWeightData:
                 The matrix grouping operation must supply consistent, complete assignments.
 
         Returns:
-            _ProfileVoterWeightData: Owned, read-only grouped columns without source labels.
-                Fraction sums remain exact. Empty input produces float64 weights, and absent
-                or entirely empty voter sets produce None.
+            ProfileVoterWeightData: Owned, read-only grouped columns without source labels.
+                Float groups use math.fsum for three or more weights. Singletons are preserved,
+                and pairs need only one correctly rounded addition. Fraction sums remain exact.
+                Empty input produces float64 weights, and absent or entirely empty voter sets
+                produce None.
 
         Raises:
             ProfileError: A grouped floating-point weight overflows to a nonfinite value.
@@ -297,13 +300,8 @@ class ProfileVoterWeightData:
                 weights[group_ids[row]] += self.weights[row]  # need to add fractions in Python
 
         else:
-            weights = cast(
-                NDArray[np.float64],
-                np.bincount(
-                    group_ids,
-                    weights=cast(NDArray[np.float64], self.weights),
-                    minlength=len(first_rows_idx),
-                ),
+            weights = _sum_grouped_float_weights(
+                cast(NDArray[np.float64], self.weights), first_rows_idx, group_ids
             )
 
         voter_sets = None
@@ -385,6 +383,67 @@ class ProfileVoterWeightData:
             )
 
 
+def _sum_grouped_float_weights(
+    weights: NDArray[np.float64],
+    first_rows_idx: NDArray[np.intp],
+    group_ids: NDArray[np.intp],
+) -> NDArray[np.float64]:
+    """
+    Sum float weights accurately, reserving math.fsum for groups with at least three rows.
+
+    A singleton needs no addition, and a pair needs only one rounded addition. Larger groups
+    are gathered in source-row order and recomputed with math.fsum so intermediate rounding
+    does not discard small contributions.
+
+    Args:
+        weights (NDArray[np.float64]): Validated nonnegative ballot weights.
+        first_rows_idx (NDArray[np.intp]): First source row for each group, in output order.
+        group_ids (NDArray[np.intp]): One group ID per source row, indexing first_rows_idx.
+
+    Returns:
+        NDArray[np.float64]: Independent totals in group order.
+    """
+    if len(first_rows_idx) == len(weights):
+        return weights[first_rows_idx]
+
+    totals = cast(
+        NDArray[np.float64],
+        np.bincount(group_ids, weights=weights, minlength=len(first_rows_idx)),
+    )
+    group_sizes = np.bincount(group_ids, minlength=len(first_rows_idx))
+    larger_groups = np.flatnonzero(group_sizes > 2)
+    if not larger_groups.size:
+        return totals
+
+    rows_in_larger_groups = group_sizes[group_ids] > 2
+    selected_weights = weights[rows_in_larger_groups]
+    selected_group_ids = group_ids[rows_in_larger_groups]
+    sorted_weights = selected_weights[np.argsort(selected_group_ids, kind="stable")]
+    group_offsets = np.concatenate(([0], np.cumsum(group_sizes[larger_groups])))
+
+    for position, group in enumerate(larger_groups):
+        start, stop = group_offsets[position : position + 2]
+        totals[group] = fsum(sorted_weights[start:stop])
+
+    return totals
+
+
+def _sum_ballot_weights(weights: NDArray[np.float64] | NDArray[np.object_]) -> Numeric:
+    """
+    Sum validated ballot weights using accurate float summation or exact Fraction arithmetic.
+
+    Args:
+        weights (NDArray[np.float64] | NDArray[np.object_]): Finite float64 or Fraction weights.
+
+    Returns:
+        Numeric: Combined weight, or zero for an empty array.
+    """
+    if weights.dtype == object:
+        return cast(Numeric, sum(weights))
+
+    return fsum(weights)
+
+
 def _validate_total_ballot_weight(weights: NDArray[np.float64] | NDArray[np.object_]) -> None:
     """
     Reject validated, nonnegative weights whose combined total exceeds 2**50.
@@ -406,7 +465,7 @@ def _validate_total_ballot_weight(weights: NDArray[np.float64] | NDArray[np.obje
     if np.any(weights > MAX_TOTAL_BALLOT_WEIGHT):
         raise ProfileError(error_message)
 
-    total_weight = sum(weights) if weights.dtype == object else fsum(weights)
+    total_weight = _sum_ballot_weights(weights)
     if total_weight > MAX_TOTAL_BALLOT_WEIGHT:
         raise ProfileError(error_message)
 
