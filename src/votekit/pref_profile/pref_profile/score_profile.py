@@ -704,6 +704,7 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
         """
         profile = object.__new__(ScoreProfile)
         profile._matrix = matrix
+        profile.max_ranking_length = None
         profile.candidates = matrix.candidates
         profile.candidates_cast = tuple(
             sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())

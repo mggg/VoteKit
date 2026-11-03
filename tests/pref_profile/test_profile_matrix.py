@@ -1157,6 +1157,9 @@ def test_trusted_score_constructor_derives_metadata_and_shares_immutable_storage
     result = ScoreProfile._from_matrix(source._matrix)
 
     assert type(result) is ScoreProfile
+    assert result.max_ranking_length is None
+    assert result.copy().max_ranking_length is None
+    assert result.group_ballots().max_ranking_length is None
     assert result._matrix is source._matrix
     assert result.candidates == source.candidates
     assert result.candidates_cast == ("A", "B")
