@@ -56,6 +56,12 @@ def test_from_df_init_errors():
         RankProfile(ballots=(RankBallot(ranking=[{"Chris"}]), ScoreBallot(scores={"Chris": 1})))
 
 
+@pytest.mark.parametrize("max_ranking_length", [None, 0])
+def test_from_df_requires_explicit_nonzero_ranking_length(max_ranking_length: int | None):
+    with pytest.raises(ProfileError, match="max_ranking_length must be provided and be non-zero"):
+        RankProfile(df=df, candidates=profile.candidates, max_ranking_length=max_ranking_length)
+
+
 def test_from_df_validation_errors():
     with pytest.raises(ProfileError, match="Weight column not in dataframe:"):
         RankProfile(

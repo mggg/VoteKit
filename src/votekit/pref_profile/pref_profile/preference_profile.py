@@ -96,10 +96,10 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
             Candidate can be a str or int. Defaults to empty tuple.
             If empty, computes this from any candidate listed on a ballot with positive weight.
             Candidates can be strings, integers, or mix of both.
-        max_ranking_length (int, optional): The length of the longest allowable ballot, i.e., how
-            many candidates are allowed to be ranked in an election. Defaults to 0, which infers
-            the length from ranked ballots. A nonempty ranked dataframe requires an explicit
-            nonzero length. Ignored for score profiles.
+        max_ranking_length (int | None, optional): The length of the longest allowable ballot, i.e.,
+            how many candidates are allowed to be ranked in an election. Defaults to None.
+            None and 0 infer the length from ranked ballots. A nonempty ranked dataframe requires
+            an explicit nonzero length. Ignored for score profiles.
         df (pd.DataFrame, optional): Input ballot dataframe. Defaults to an empty dataframe.
         candidates_cast (Sequence[Candidate], optional): Candidates cast for an empty base profile.
             Defaults to empty tuple. Concrete profiles compute this from their ballots or dataframe.
@@ -142,7 +142,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         df: pd.DataFrame,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         **kwargs,
     ) -> RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]: ...
 
@@ -152,7 +152,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         *,
         ballots: tuple[()] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         candidates_cast: Sequence[Candidate] = tuple(),
         include_zero_score: bool = False,
     ) -> PreferenceProfile[None, Ballot]: ...
@@ -163,7 +163,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         *,
         ballots: Sequence[RankBallot],
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         include_zero_score: None = None,
     ) -> RankProfile | PreferenceProfile[None, Ballot]: ...
 
@@ -173,7 +173,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         *,
         ballots: Sequence[ScoreBallot],
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
     ) -> ScoreProfile | PreferenceProfile[None, Ballot]: ...
 
     @overload
@@ -182,7 +182,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         *,
         ballots: Sequence[Ballot],
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         **kwargs,
     ) -> RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]: ...
 
@@ -191,7 +191,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
         **kwargs,
     ) -> Self | RankProfile | ScoreProfile | PreferenceProfile[None, Ballot]:
@@ -212,7 +212,7 @@ class PreferenceProfile(Generic[MatrixT, BallotT]):
         ballots: Sequence[Ballot] = tuple(),
         candidates_cast: Sequence[Candidate] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: bool = False,
     ):

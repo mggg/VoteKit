@@ -74,7 +74,7 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
             Defaults to empty tuple.
         candidates (Sequence[Candidate], optional): Declared candidates. Defaults to empty tuple,
             which infers candidates from positive-weight ballots. Required for a nonempty dataframe.
-        max_ranking_length (int, optional): Unused compatibility argument. Defaults to 0.
+        max_ranking_length (int | None, optional): Unused compatibility argument. Defaults to None.
         df (pd.DataFrame, optional): Score ballot dataframe, supplied instead of ballots.
             Defaults to an empty dataframe.
     """
@@ -90,7 +90,7 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
         for index, ballot in enumerate(ballots):

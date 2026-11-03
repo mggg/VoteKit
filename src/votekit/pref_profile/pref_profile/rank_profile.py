@@ -114,9 +114,9 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
             Defaults to empty tuple.
         candidates (Sequence[Candidate], optional): Declared candidates. Defaults to empty tuple,
             which infers candidates from positive-weight ballots or dataframe rows.
-        max_ranking_length (int, optional): Maximum permitted ranking length. Defaults to 0,
-            which infers the length from ballots. A nonempty dataframe requires an explicit
-            nonzero length. None is not supported.
+        max_ranking_length (int | None, optional): Maximum permitted ranking length. Defaults to
+            None. None and 0 infer the length from ballots. A nonempty dataframe requires an
+            explicit nonzero length.
         df (pd.DataFrame, optional): Ranked ballot dataframe, supplied instead of ballots.
             Defaults to an empty dataframe.
         include_zero_score (None, optional): Unused compatibility argument. Defaults to None.
@@ -135,7 +135,7 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: int = 0,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
         include_zero_score: None = None,
     ):
@@ -150,7 +150,7 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
             candidates, f"{type(self).__name__}.candidates"
         )
 
-        self.max_ranking_length = max_ranking_length
+        self.max_ranking_length = 0 if max_ranking_length is None else max_ranking_length
 
         if df.equals(pd.DataFrame()):
             rank_df, self.candidates_cast = self._init_from_rank_ballots(
