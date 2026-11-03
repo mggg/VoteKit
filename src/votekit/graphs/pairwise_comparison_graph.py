@@ -12,7 +12,12 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit._df_schema import WEIGHT_COLUMN
-from votekit.constants import END_OF_RANKING_SET
+from votekit.constants import (
+    EMPTY_CANDIDATE_SET,
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+)
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -20,13 +25,16 @@ from votekit.utils import (
     sort_candidates_pseudo_lexicographically,
 )
 
+UNDEFINED_ENTRY_ID = -3  # Special value for undefined entries in the integer rankings matrix
+
 
 def __rows_to_indices(rankings: NDArray, cand_name_to_idx: dict[Candidate, int]) -> NDArray:
     """
-    Converts an array of candidate-set rankings to integer indices.
-    Each singleton candidate set is converted to an index based on the provided candidates list.
-    A special value of -2 is used for the short ballot candidate set {"~"} and -1 for undefined
-    entries.
+    Convert candidate-set rankings to integer indices.
+
+    Singleton sets use the supplied candidate indices. Empty sets map to ``EMPTY_SET_ID`` (-2),
+    and the end-of-ranking set {"~"} maps to ``END_OF_RANKING_ID`` (-1). Unrecognized entries
+    map to ``UNDEFINED_ENTRY_ID`` (-3).
 
     Args:
         rankings (NDArray): Two-dimensional array of candidate-set ranking cells.
@@ -34,14 +42,15 @@ def __rows_to_indices(rankings: NDArray, cand_name_to_idx: dict[Candidate, int])
             integer index representations. Candidates can be strings, integers, or mix of both.
 
     Returns:
-        NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
+        NDArray: Integer rankings with dtype int32 and the same shape as the input.
     """
     fs_to_idx = {frozenset({c}): cand_name_to_idx[c] for c in cand_name_to_idx.keys()}
-    fs_to_idx[END_OF_RANKING_SET] = -2  # Make a special value for short ballots
+    fs_to_idx[END_OF_RANKING_SET] = END_OF_RANKING_ID
+    fs_to_idx[EMPTY_CANDIDATE_SET] = EMPTY_SET_ID
     flat = rankings.ravel()
     flat_idx = np.empty(flat.shape[0], dtype=np.int32)
     for k, x in enumerate(flat):
-        flat_idx[k] = fs_to_idx.get(x, -1)  # -1 for any undefined entry
+        flat_idx[k] = fs_to_idx.get(x, UNDEFINED_ENTRY_ID)
     return flat_idx.reshape(rankings.shape).astype(np.int32)
 
 
@@ -71,11 +80,11 @@ def __tally_and_mutate_head_to_head(
     for row_idx, row in enumerate(integer_rankings_mat):
         seen_vec = np.zeros(n_cands, dtype=np.bool_)
         for candset_idx in row:
-            # -1 is for undefined entries
-            if candset_idx == -1:
+            if candset_idx == UNDEFINED_ENTRY_ID:
                 continue
-            # Special value for short ballots "~"
-            if candset_idx == -2:
+            if candset_idx == EMPTY_SET_ID:
+                continue
+            if candset_idx == END_OF_RANKING_ID:
                 break
 
             seen_vec[candset_idx] = True
