@@ -15,7 +15,7 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
-from votekit.constants import EMPTY_CANDIDATE_SET
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -186,7 +186,7 @@ class NumpySTVBase(ABC):
         """
         df = pf.to_df()
         candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
-        candidate_to_index[frozenset(["~"])] = int(
+        candidate_to_index[END_OF_RANKING_SET] = int(
             NumpySTVSentinel.BLANK_RANKING.value
         )  # sentinel for blank/empty rankings after padding
 
@@ -543,7 +543,7 @@ class NumpySTVBase(ABC):
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
         lut: np.ndarray = np.empty(256, dtype=object)
-        lut[:] = frozenset(["~"])
+        lut[:] = END_OF_RANKING_SET
         for k, v in idx_to_fset.items():
             lut[int(np.int16(k)) + 128] = v
         # index into LUT (shift by +128 to map [-128,127] -> [0,255])

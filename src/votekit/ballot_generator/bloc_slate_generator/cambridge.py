@@ -28,8 +28,8 @@ from votekit.ballot_generator.bloc_slate_generator.slate_utils import (
     _fill_slate_candidate_rankings,
     _prepare_slate_candidate_arrays,
 )
+from votekit.constants import END_OF_RANKING_ID
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 from votekit.types import Candidate
 
 # =================================================

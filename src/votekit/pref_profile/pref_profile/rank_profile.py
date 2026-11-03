@@ -19,7 +19,7 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot
-from votekit.constants import EMPTY_CANDIDATE_SET
+from votekit.constants import EMPTY_CANDIDATE_SET, EMPTY_VOTER_SET, END_OF_RANKING_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_rank_csv,
@@ -31,7 +31,7 @@ from votekit.pref_profile.pref_profile._candidate_names import (
     _normalize_unique_candidates,
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import END_OF_RANKING_SET, RankMatrix
+from votekit.pref_profile.profile_matrix import RankMatrix
 from votekit.pref_profile.utils import _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
@@ -253,7 +253,7 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         """
         rank_ballot_data[WEIGHT_COLUMN][idx] = rank_ballot.weight
 
-        if rank_ballot.voter_set != frozenset():
+        if rank_ballot.voter_set != EMPTY_VOTER_SET:
             rank_ballot_data[VOTER_SET_COLUMN][idx] = rank_ballot.voter_set
 
         if rank_ballot.ranking is not None:
@@ -512,7 +512,9 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         """
         ranking = self._matrix.get_ranking(row)
         ballot_data = self._matrix.voter_weight_data
-        voters = ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else frozenset()
+        voters = (
+            ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else EMPTY_VOTER_SET
+        )
         return RankBallot(
             ranking=ranking or None, weight=ballot_data.weights[row], voter_set=voters
         )

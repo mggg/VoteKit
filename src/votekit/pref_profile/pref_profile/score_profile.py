@@ -17,6 +17,7 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, ScoreBallot
+from votekit.constants import EMPTY_VOTER_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_score_csv,
@@ -199,7 +200,7 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
         """
         score_ballot_data[WEIGHT_COLUMN][idx] = ballot.weight
 
-        if ballot.voter_set != frozenset():
+        if ballot.voter_set != EMPTY_VOTER_SET:
             score_ballot_data[VOTER_SET_COLUMN][idx] = ballot.voter_set
 
         if ballot.scores is not None:
@@ -432,7 +433,9 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
         """
         scores = self._matrix.get_scores(row)
         ballot_data = self._matrix.voter_weight_data
-        voters = ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else frozenset()
+        voters = (
+            ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else EMPTY_VOTER_SET
+        )
         return ScoreBallot(
             scores=scores or None,
             weight=ballot_data.weights[row],

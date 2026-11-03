@@ -6,6 +6,7 @@ from fractions import Fraction
 from numbers import Integral, Real
 from typing import Self, overload
 
+from votekit.constants import EMPTY_VOTER_SET
 from votekit.types import Candidate, Ranking, RankingLike, ScoresLike
 from votekit.utils import SourceWithAttribute, _validate_candidate_names
 
@@ -123,7 +124,7 @@ class Ballot:
         ranking: RankingLike,
         scores: None = None,
         weight: float | int | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
         include_zero_score: bool = True,
     ) -> RankBallot: ...
 
@@ -134,7 +135,7 @@ class Ballot:
         ranking: None = None,
         scores: ScoresLike,
         weight: float | int | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
         include_zero_score: bool = True,
     ) -> ScoreBallot: ...
 
@@ -145,7 +146,7 @@ class Ballot:
         ranking: RankingLike = None,
         scores: ScoresLike = None,
         weight: float | int | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
         include_zero_score: bool = True,
     ) -> Self: ...
 
@@ -155,7 +156,7 @@ class Ballot:
         ranking: RankingLike = None,
         scores: ScoresLike = None,
         weight: float | int | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
         include_zero_score: bool = True,
     ) -> Ballot:
         if ranking is not None and scores is not None:
@@ -173,7 +174,7 @@ class Ballot:
         ranking: RankingLike = None,
         scores: ScoresLike = None,
         weight: float | int | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
     ):
         self.voter_set = frozenset(voter_set) if not isinstance(voter_set, frozenset) else voter_set
         validate_weight(weight)
@@ -201,7 +202,7 @@ class Ballot:
 
     def __str__(self):
         repr_str = f"Ballot\nWeight: {self.weight}"
-        if self.voter_set != frozenset():
+        if self.voter_set != EMPTY_VOTER_SET:
             repr_str += f"\nVoter set: {set(self.voter_set)}"
         return repr_str
 
@@ -250,7 +251,7 @@ class RankBallot(Ballot):
         ranking: RankingLike = None,
         scores: ScoresLike = None,
         weight: int | float | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
     ):
         if scores is not None:
             raise TypeError("Only one of ranking or scores can be provided.")
@@ -331,7 +332,7 @@ class RankBallot(Ballot):
                 ranking_str += "\n"
 
         ranking_str += f"Weight: {self.weight}"
-        if self.voter_set != frozenset():
+        if self.voter_set != EMPTY_VOTER_SET:
             ranking_str += f"\nVoter set: {set(self.voter_set)}"
         return ranking_str
 
@@ -375,7 +376,7 @@ class ScoreBallot(Ballot):
         ranking: RankingLike = None,
         scores: ScoresLike = None,
         weight: int | float | Fraction = 1.0,
-        voter_set: set[str] | frozenset[str] = frozenset(),
+        voter_set: set[str] | frozenset[str] = EMPTY_VOTER_SET,
         include_zero_score: bool = True,
     ):
         if ranking is not None:
@@ -430,7 +431,7 @@ class ScoreBallot(Ballot):
                 score_str += f"{c}: {score:.2f}\n"
 
         score_str += f"Weight: {self.weight}"
-        if self.voter_set != frozenset():
+        if self.voter_set != EMPTY_VOTER_SET:
             score_str += f"\nVoter set: {set(self.voter_set)}"
         return score_str
 

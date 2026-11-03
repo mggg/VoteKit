@@ -11,7 +11,7 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
-from votekit.constants import EMPTY_CANDIDATE_SET
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 
@@ -161,7 +161,7 @@ def __format_ranking_cols(mutated_df: pd.DataFrame, rank_cols: list[str]) -> pd.
             elif any(isinstance(c, str) for c in vals[i + 1 :]):
                 out.append(EMPTY_CANDIDATE_SET)
             else:
-                out.append(frozenset({"~"}))  # explicit tilde marker
+                out.append(END_OF_RANKING_SET)  # explicit tilde marker
         return pd.Series(out, index=row.index)
 
     mutated_df[rank_cols] = mutated_df[rank_cols].apply(_format_row, axis=1)

@@ -6,12 +6,11 @@ from votekit.types import Candidate
 
 from ...ballot import RankBallot
 from .csv_utils import (
+    VALID_TYPE_MAP,
     _validate_csv_ballot_row_break_idxs,
     _validate_csv_ballot_voter_set,
     _validate_csv_ballot_weight,
 )
-
-VALID_TYPE_MAP = {"str": str, "int": int}
 
 
 def _parse_profile_data_from_rank_csv(

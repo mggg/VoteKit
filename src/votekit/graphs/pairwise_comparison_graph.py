@@ -12,6 +12,7 @@ from numba import float64, int32, njit
 from numpy.typing import NDArray
 
 from votekit._df_schema import WEIGHT_COLUMN
+from votekit.constants import END_OF_RANKING_SET
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -36,7 +37,7 @@ def __rows_to_indices(rankings: NDArray, cand_name_to_idx: dict[Candidate, int])
         NDArray: A tuple containing: An NDArray of integer indices representing the rankings.
     """
     fs_to_idx = {frozenset({c}): cand_name_to_idx[c] for c in cand_name_to_idx.keys()}
-    fs_to_idx[frozenset({"~"})] = -2  # Make a special value for short ballots
+    fs_to_idx[END_OF_RANKING_SET] = -2  # Make a special value for short ballots
     flat = rankings.ravel()
     flat_idx = np.empty(flat.shape[0], dtype=np.int32)
     for k, x in enumerate(flat):

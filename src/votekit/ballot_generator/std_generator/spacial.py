@@ -25,6 +25,7 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
+from votekit.constants import EMPTY_VOTER_SET, END_OF_RANKING_SET
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate, CandidateList
@@ -62,7 +63,7 @@ def onedim_spacial_profile_generator(
     candidate_position_dict = {c: rng.normal(0, 1) for c in candidates}
     voter_positions = rng.normal(0, 1, number_of_ballots)
 
-    ballot_pool = np.full((number_of_ballots, n_candidates), frozenset("~"), dtype=object)
+    ballot_pool = np.full((number_of_ballots, n_candidates), END_OF_RANKING_SET, dtype=object)
 
     for i, vp in enumerate(voter_positions):
         distance_tuples = [(c, abs(v - vp)) for c, v in candidate_position_dict.items()]
@@ -78,7 +79,7 @@ def onedim_spacial_profile_generator(
     df.insert(
         len(df.columns),
         VOTER_SET_COLUMN,
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return RankProfile(
         candidates=candidates,
@@ -185,7 +186,7 @@ def spacial_profile_and_positions_generator(
     candidate_position_dict = {c: candidate_dist(**candidate_dist_kwargs) for c in candidates}
     voter_positions = np.array([voter_dist(**voter_dist_kwargs) for _ in range(number_of_ballots)])
 
-    ballot_pool = np.full((number_of_ballots, len(candidates)), frozenset("~"))
+    ballot_pool = np.full((number_of_ballots, len(candidates)), END_OF_RANKING_SET)
 
     for i in range(number_of_ballots):
         distance_tuples = [
@@ -205,7 +206,7 @@ def spacial_profile_and_positions_generator(
     df.insert(
         len(df.columns),
         VOTER_SET_COLUMN,
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return (
         RankProfile(
@@ -341,7 +342,7 @@ def clustered_spacial_profile_and_positions_generator(
             vidx += 1
 
     n_candidates = len(_candidates)
-    ballot_pool = np.full((n_voters, n_candidates), frozenset("~"), dtype=object)
+    ballot_pool = np.full((n_voters, n_candidates), END_OF_RANKING_SET, dtype=object)
     for i in range(len(voter_positions)):
         v_position = voter_positions[i]
         distance_tuples = [
@@ -362,7 +363,7 @@ def clustered_spacial_profile_and_positions_generator(
     df.insert(
         len(df.columns),
         VOTER_SET_COLUMN,
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return (
         RankProfile(

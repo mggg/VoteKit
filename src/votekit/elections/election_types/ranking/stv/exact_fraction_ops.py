@@ -7,8 +7,8 @@ from typing import Any, cast
 
 import numpy as np
 
+from votekit.constants import EMPTY_SET_ID, END_OF_RANKING_ID
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import EMPTY_SET_ID, END_OF_RANKING_ID
 from votekit.types import Candidate, Numeric
 
 

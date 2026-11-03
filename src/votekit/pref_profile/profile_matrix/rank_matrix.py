@@ -11,7 +11,12 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX
-from votekit.constants import EMPTY_CANDIDATE_SET
+from votekit.constants import (
+    EMPTY_CANDIDATE_SET,
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+)
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.profile_matrix.shared_data import (
     ProfileVoterWeightData,
@@ -21,14 +26,6 @@ from votekit.pref_profile.profile_matrix.shared_data import (
 )
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
-
-END_OF_RANKING_SET: frozenset[str] = frozenset({"~"})
-
-# NOTE: Reserved candidate set IDs. Real candidate sets are numbered from 0 in order
-# of first appearance, so ``cand_sets[cand_set_id - EMPTY_SET_ID]`` is the set for any ID. This
-# access pattern makes the dense array representation easier to think about.
-EMPTY_SET_ID = -2
-END_OF_RANKING_ID = -1
 
 
 @dataclass(frozen=True, slots=True, eq=False)

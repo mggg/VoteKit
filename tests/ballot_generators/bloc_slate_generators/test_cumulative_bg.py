@@ -25,7 +25,10 @@ def test_cumulative_constructs_matrices_with_the_same_multinomial_samples(
         counts = rng.multinomial(5, probabilities, size=rows.stop - rows.start)
         expected[bloc] = ScoreProfile(
             ballots=tuple(
-                ScoreBallot(scores=dict(zip(candidates, row, strict=True))) for row in counts
+                ScoreBallot(
+                    scores=dict(zip(candidates, row, strict=True)), include_zero_score=False
+                )
+                for row in counts
             ),
             candidates=candidates,
         )

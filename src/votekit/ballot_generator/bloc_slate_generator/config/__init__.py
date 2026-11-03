@@ -8,7 +8,6 @@ from votekit.ballot_generator.bloc_slate_generator.config.collections import (
 )
 from votekit.ballot_generator.bloc_slate_generator.config.core import BlocSlateConfig
 from votekit.ballot_generator.bloc_slate_generator.config.validation import (
-    FLOAT_TOL,
     UNSET_VALUE,
     BlocProportionMapping,
     BlocPropotionMapping,
@@ -26,7 +25,6 @@ from votekit.ballot_generator.bloc_slate_generator.config.validation import (
 
 __all__ = [
     "UNSET_VALUE",
-    "FLOAT_TOL",
     "ConfigurationWarning",
     "BlocProportionMapping",
     "BlocPropotionMapping",

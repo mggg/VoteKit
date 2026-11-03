@@ -17,8 +17,8 @@ from votekit.ballot_generator.bloc_slate_generator._sampling import (
     _fill_pl_rankings,
 )
 from votekit.ballot_generator.bloc_slate_generator.config import BlocSlateConfig
+from votekit.constants import EMPTY_VOTER_SET, END_OF_RANKING_ID, END_OF_RANKING_SET
 from votekit.pref_profile import RankProfile
-from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 from votekit.types import Candidate
 
 
@@ -220,7 +220,7 @@ def _convert_slate_ballot_type_to_ranking(
     """
 
     positions = {s: 0 for s in cand_ordering_by_slate}
-    ranking: list[frozenset[Candidate]] = [frozenset("~")] * final_max_ranking_length
+    ranking: list[frozenset[Candidate]] = [END_OF_RANKING_SET] * final_max_ranking_length
 
     fset_cache: dict[Candidate, frozenset[Candidate]] = {}
     rank_position = 0
@@ -282,7 +282,7 @@ def _convert_slate_ballots_to_profile(
         numpy_rng=numpy_rng,
     )
 
-    ballot_pool = np.full((n_ballots, n_candidates), frozenset("~"))
+    ballot_pool = np.full((n_ballots, n_candidates), END_OF_RANKING_SET)
     for i, slate_ballot in enumerate(slate_ballots):
         ranking = _convert_slate_ballot_type_to_ranking(
             ballot_type=slate_ballot,
@@ -300,7 +300,7 @@ def _convert_slate_ballots_to_profile(
     df.insert(
         len(df.columns),
         VOTER_SET_COLUMN,
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     pp = RankProfile(
         candidates=config.candidates,

@@ -18,11 +18,8 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
-from votekit.pref_profile.profile_matrix import (
-    EMPTY_SET_ID,
-    END_OF_RANKING_ID,
-    ScoreMatrix,
-)
+from votekit.constants import EMPTY_SET_ID, END_OF_RANKING_ID, END_OF_RANKING_SET
+from votekit.pref_profile.profile_matrix import ScoreMatrix
 from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
 from votekit.pref_profile.profile_matrix.score_matrix import _concatenate_score_matrices
 from votekit.types import Candidate
@@ -52,8 +49,8 @@ def _convert_ranking_cols_to_ranking(
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
     if any(
-        row[col_idx] == frozenset({"~"})
-        and not all(row[idx] == frozenset({"~"}) for idx in ranking_cols_idxs[i:])
+        row[col_idx] == END_OF_RANKING_SET
+        and not all(row[idx] == END_OF_RANKING_SET for idx in ranking_cols_idxs[i:])
         for i, col_idx in enumerate(ranking_cols_idxs)
     ):
         raise ValueError(
@@ -61,7 +58,7 @@ def _convert_ranking_cols_to_ranking(
             "'~' values can only trail on a ranking."
         )
 
-    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")]
+    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != END_OF_RANKING_SET]
 
     return tuple(ranking) if len(ranking) > 0 else None
 

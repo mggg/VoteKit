@@ -17,7 +17,14 @@ if TYPE_CHECKING:
     from votekit.pref_profile import RankProfile, ScoreProfile
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
-from votekit.constants import EMPTY_CANDIDATE_SET, FLOAT_DECIMAL_PLACES
+from votekit.constants import (
+    EMPTY_CANDIDATE_SET,
+    EMPTY_SET_ID,
+    EMPTY_VOTER_SET,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+    FLOAT_DECIMAL_PLACES,
+)
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
@@ -92,7 +99,9 @@ def ballots_by_first_cand(profile: RankProfile) -> dict[Candidate, list[RankBall
         ranking = matrix.get_ranking(row_index)
         weight = ballot_data.weights[row_index]
         voter_set = (
-            ballot_data.voter_sets[row_index] if ballot_data.voter_sets is not None else frozenset()
+            ballot_data.voter_sets[row_index]
+            if ballot_data.voter_sets is not None
+            else EMPTY_VOTER_SET
         )
 
         if len(first) > 1:
@@ -204,7 +213,6 @@ def _score_dict_from_rankings_df_no_ties(
             Candidates can be strings, integers, or mix of both.
     """
     from votekit.pref_profile import RankProfile
-    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID
 
     validate_score_vector(score_vector)
 
@@ -298,7 +306,6 @@ def score_dict_from_score_vector(
             Candidates can be strings, integers, or mix of both.
     """
     from votekit.pref_profile import RankProfile
-    from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
 
     validate_score_vector(score_vector)
 
@@ -428,7 +435,6 @@ def _mentions_from_matrix(profile: RankProfile) -> dict[Candidate, float]:
         TypeError: If any ballot has no ranking, i.e. all its ranking positions are padding.
     """
     from votekit.pref_profile import RankProfile
-    from votekit.pref_profile.profile_matrix import EMPTY_SET_ID
 
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be of type RankProfile.")
@@ -1062,7 +1068,7 @@ def build_df_from_ballot_samples(
         completed_ballot = (
             ballot_as_frozenset_entries
             + tuple(
-                [frozenset(["~"]) for _ in range(n_cands - len(ballot))]
+                [END_OF_RANKING_SET for _ in range(n_cands - len(ballot))]
             )  # padding short ballots
             + tuple([ballots_freq_dict[ballot], set()])
         )  # weight, voter set

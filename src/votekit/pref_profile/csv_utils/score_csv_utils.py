@@ -5,6 +5,7 @@ from votekit.types import Candidate
 
 from ...ballot import ScoreBallot
 from .csv_utils import (
+    VALID_TYPE_MAP,
     _validate_csv_ballot_row_break_idxs,
     _validate_csv_ballot_voter_set,
     _validate_csv_ballot_weight,
@@ -17,7 +18,6 @@ VOTER_SET_VALUE_ROW = VOTER_SET_HEADER_ROW + 1
 EQ_SIGN_ROW = 5
 COLUMN_NAMES_ROW = 6
 DATA_START_ROW = COLUMN_NAMES_ROW + 1
-VALID_TYPE_MAP = {"str": str, "int": int}
 
 
 def _parse_profile_data_from_score_csv(

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 
 from votekit._df_schema import WEIGHT_COLUMN
-from votekit.constants import EMPTY_CANDIDATE_SET
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
@@ -41,7 +41,6 @@ def _iterate_and_clean_ranking_tuples(
 
     cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
-    tilde = frozenset({"~"})
     idxs = cleaned_df.index
 
     unaltr_idxs = {
@@ -52,7 +51,10 @@ def _iterate_and_clean_ranking_tuples(
     no_rank_altr_idxs = {
         idx
         for idx, cleaned_row in zip(idxs, cleaned_rows)
-        if all(cand_set == tilde or cand_set == EMPTY_CANDIDATE_SET for cand_set in cleaned_row)
+        if all(
+            cand_set == END_OF_RANKING_SET or cand_set == EMPTY_CANDIDATE_SET
+            for cand_set in cleaned_row
+        )
     }
     no_rank_altr_idxs = no_rank_altr_idxs - unaltr_idxs
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
@@ -142,7 +144,7 @@ def _clean_rank_profile_with_candidates(
         assert profile.max_ranking_length is not None
         ranking_cols = list(profile._matrix.ranking_columns)
 
-        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        mask = cleaned_df[ranking_cols].map(lambda x: x == END_OF_RANKING_SET).all(axis=1)
 
         cleaned_df = cleaned_df[~mask]
 
@@ -180,8 +182,8 @@ def remove_repeat_cands_from_ranking_row(
     seen_cands = []
 
     for cand_set in ranking_tup:
-        if cand_set == frozenset({"~"}):
-            dedup_ranking.append(frozenset({"~"}))
+        if cand_set == END_OF_RANKING_SET:
+            dedup_ranking.append(END_OF_RANKING_SET)
             continue
         if not isinstance(cand_set, frozenset):
             dedup_ranking.append(np.nan)
@@ -347,7 +349,7 @@ def condense_ranking_row(
     condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != EMPTY_CANDIDATE_SET]
 
     if len(condensed_ranking) < max_ranking_length:
-        condensed_ranking += [frozenset("~")] * (max_ranking_length - len(condensed_ranking))
+        condensed_ranking += [END_OF_RANKING_SET] * (max_ranking_length - len(condensed_ranking))
 
     return tuple(condensed_ranking)
 
@@ -536,7 +538,7 @@ def remove_ballots_with_cand_rank_profile(
     cleaned_df = profile_df[~ballots_to_remove]
 
     if remove_null_ballots:
-        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        mask = cleaned_df[ranking_cols].map(lambda x: x == END_OF_RANKING_SET).all(axis=1)
         cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:

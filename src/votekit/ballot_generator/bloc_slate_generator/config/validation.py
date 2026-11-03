@@ -14,8 +14,6 @@ from votekit.pref_interval import PreferenceInterval
 from votekit.types import Candidate
 
 UNSET_VALUE = -1.0
-# Retain the exported name for callers of the configuration package.
-FLOAT_TOL = TOL_EPSILON
 
 
 class ConfigurationWarning(UserWarning):

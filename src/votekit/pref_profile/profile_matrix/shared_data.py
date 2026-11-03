@@ -18,11 +18,9 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import _to_float_weight, validate_weight
+from votekit.constants import EMPTY_VOTER_SET, MAX_TOTAL_BALLOT_WEIGHT
 from votekit.exceptions import ProfileError
 from votekit.types import Numeric
-
-MAX_TOTAL_BALLOT_WEIGHT = 2**50
-EMPTY_VOTER_SET: frozenset[str] = frozenset()
 
 
 def _arrays_equal(arr_1: NDArray | None, arr_2: NDArray | None) -> bool:
