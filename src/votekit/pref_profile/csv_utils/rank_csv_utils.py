@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.types import Candidate
 
 from ...ballot import RankBallot
@@ -93,7 +94,7 @@ def _parse_ballot_from_rank_csv(
             (
                 frozenset(inv_candidate_mapping[c.strip("'")] for c in cand_set)
                 if cand_set != [""]
-                else frozenset()
+                else EMPTY_CANDIDATE_SET
             )
             for cand_set in temp_ranking
         ]

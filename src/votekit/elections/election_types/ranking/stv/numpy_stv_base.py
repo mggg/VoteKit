@@ -15,6 +15,7 @@ from votekit._df_schema import (
     VOTER_SET_COLUMN,
     WEIGHT_COLUMN,
 )
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -245,12 +246,12 @@ class NumpySTVBase(ABC):
             packaged_elected = (
                 tuple([frozenset([self.candidates[c]]) for c in play["winners"]])
                 if play["round_type"] != "elimination"
-                else (frozenset(),)
+                else (EMPTY_CANDIDATE_SET,)
             )
             packaged_eliminated = (
                 (frozenset([self.candidates[c] for c in play["loser"]]),)
                 if play["round_type"] == "elimination"
-                else (frozenset(),)
+                else (EMPTY_CANDIDATE_SET,)
             )
             packaged_scores = {
                 self.candidates[int(c)]: float(self._data.fpv_by_round[i + 1][c])
@@ -362,7 +363,7 @@ class NumpySTVBase(ABC):
         return (
             tuple(frozenset(value) for value in tallies_to_cands.values())
             if len(tallies_to_cands) > 0
-            else (frozenset(),)
+            else (EMPTY_CANDIDATE_SET,)
         )
 
     def get_elected(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:

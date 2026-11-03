@@ -1,5 +1,12 @@
+from votekit.constants import EMPTY_CANDIDATE_SET
+
 from .protocol import ProfileMatrix
-from .rank_matrix import EMPTY_SET_ID, END_OF_RANKING_ID, END_OF_RANKING_SET, RankMatrix
+from .rank_matrix import (
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+    RankMatrix,
+)
 from .score_matrix import ScoreMatrix
 from .shared_data import EMPTY_VOTER_SET, WeightKind
 from .shared_data import ProfileVoterWeightData as ProfileVoterWeightData
@@ -18,6 +25,7 @@ __all__ = [
     "RankMatrix",
     "ScoreMatrix",
     "WeightKind",
+    "EMPTY_CANDIDATE_SET",
     "EMPTY_SET_ID",
     "END_OF_RANKING_ID",
     "END_OF_RANKING_SET",

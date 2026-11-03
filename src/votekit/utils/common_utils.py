@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from votekit.pref_profile import RankProfile, ScoreProfile
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
-from votekit.constants import FLOAT_DECIMAL_PLACES
+from votekit.constants import EMPTY_CANDIDATE_SET, FLOAT_DECIMAL_PLACES
 from votekit.types import Candidate, CandidateNumericDict, Numeric
 
 COLOR_LIST = [
@@ -654,7 +654,9 @@ def tiebroken_ranking(
             candidate sets). The second entry is a dictionary that maps tied sets to their
             resolution. Candidates can be strings, integers, or mix of both.
     """
-    new_ranking: list[frozenset[Candidate]] = [frozenset()] * len([c for s in ranking for c in s])
+    new_ranking: list[frozenset[Candidate]] = [EMPTY_CANDIDATE_SET] * len(
+        [c for s in ranking for c in s]
+    )
 
     i = 0
     tied_dict = {}
@@ -704,7 +706,7 @@ def score_dict_to_ranking(
             ]
         )
     else:
-        return (frozenset(),)
+        return (EMPTY_CANDIDATE_SET,)
 
 
 def elect_cands_from_set_ranking(

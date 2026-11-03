@@ -7,6 +7,7 @@ import numpy as np
 
 from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -261,7 +262,7 @@ class _IterativeVetoBase(RankingElection, ABC):
                 self._veto_position_cache[ballot_idx] = pos
                 break
         else:
-            potential_vetoes = frozenset()
+            potential_vetoes = EMPTY_CANDIDATE_SET
 
         return potential_vetoes
 
@@ -379,7 +380,7 @@ class _IterativeVetoBase(RankingElection, ABC):
         remaining_set = self.candidates - self._eliminated
         if len(remaining_set) == self.n_seats:
             electable_candidates = remaining_set
-            eliminated_set: frozenset[Candidate] = frozenset()
+            eliminated_set: frozenset[Candidate] = EMPTY_CANDIDATE_SET
         else:
             eliminated_set, electable_candidates = self._veto_loop(new_scores)
 
@@ -400,7 +401,7 @@ class _IterativeVetoBase(RankingElection, ABC):
             elected = tiebroken_order[: self.n_seats]
             new_profile = RankProfile()
         else:
-            elected = (frozenset(),)
+            elected = (EMPTY_CANDIDATE_SET,)
             new_profile = remove_and_condense_rank_profile(
                 removed=list(eliminated_set),
                 profile=profile,
@@ -489,7 +490,7 @@ class PluralityVeto(_IterativeVetoBase):
         """
 
         eliminated: set[Candidate] = set()
-        elected: frozenset[Candidate] = frozenset()
+        elected: frozenset[Candidate] = EMPTY_CANDIDATE_SET
         if self._internal_round_number == 0:
             eliminated.update(c for c, score in scores.items() if score <= 0)
 
@@ -577,7 +578,7 @@ class SerialVeto(_IterativeVetoBase):
                 Candidates can be strings, integers, or mix of both.
         """
         eliminated: set[Candidate] = set()
-        elected: frozenset[Candidate] = frozenset()
+        elected: frozenset[Candidate] = EMPTY_CANDIDATE_SET
         while self._voter_order_current_index < len(self._voter_order):
             voter_idx = self._voter_order[self._voter_order_current_index]
             ballot_idx = self._get_ballot_idx(voter_idx)

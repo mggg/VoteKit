@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from votekit._df_schema import WEIGHT_COLUMN
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
@@ -41,7 +42,6 @@ def _iterate_and_clean_ranking_tuples(
     cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
     tilde = frozenset({"~"})
-    empty = frozenset()
     idxs = cleaned_df.index
 
     unaltr_idxs = {
@@ -52,7 +52,7 @@ def _iterate_and_clean_ranking_tuples(
     no_rank_altr_idxs = {
         idx
         for idx, cleaned_row in zip(idxs, cleaned_rows)
-        if all(cand_set == tilde or cand_set == empty for cand_set in cleaned_row)
+        if all(cand_set == tilde or cand_set == EMPTY_CANDIDATE_SET for cand_set in cleaned_row)
     }
     no_rank_altr_idxs = no_rank_altr_idxs - unaltr_idxs
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
@@ -344,7 +344,7 @@ def condense_ranking_row(
 
     """
     max_ranking_length = len(ranking_tup)
-    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != frozenset()]
+    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != EMPTY_CANDIDATE_SET]
 
     if len(condensed_ranking) < max_ranking_length:
         condensed_ranking += [frozenset("~")] * (max_ranking_length - len(condensed_ranking))

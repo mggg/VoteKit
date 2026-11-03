@@ -11,9 +11,9 @@ import pandas as pd
 from numpy.typing import NDArray
 
 from votekit._df_schema import RANKING_COLUMN_PREFIX
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.profile_matrix.shared_data import (
-    EMPTY_VOTER_SET,
     ProfileVoterWeightData,
     _arrays_equal,
     _attach_index_voterset_and_weight_columns,
@@ -168,7 +168,10 @@ class RankMatrix:
                 contains tilde, or a positive-weight ballot references a candidate outside the
                 profile universe.
         """
-        if len(candidate_sets) < 2 or candidate_sets[:2] != (frozenset(), END_OF_RANKING_SET):
+        if len(candidate_sets) < 2 or candidate_sets[:2] != (
+            EMPTY_CANDIDATE_SET,
+            END_OF_RANKING_SET,
+        ):
             raise ValueError("Candidate sets must begin with the reserved empty and tilde sets.")
 
         candidates = set(self.candidates)
@@ -238,7 +241,11 @@ class RankMatrix:
         return cls(
             voter_weight_data=voter_weight_data,
             rankings=rankings,
-            cand_sets=(EMPTY_VOTER_SET, END_OF_RANKING_SET, *(frozenset({c}) for c in candidates)),
+            cand_sets=(
+                EMPTY_CANDIDATE_SET,
+                END_OF_RANKING_SET,
+                *(frozenset({c}) for c in candidates),
+            ),
             ranking_columns=tuple(
                 f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(rankings.shape[1])
             ),
@@ -276,7 +283,7 @@ class RankMatrix:
         cells = df[list(ranking_columns)].to_numpy()
 
         cand_set_to_id: dict[frozenset[Candidate], int] = {
-            EMPTY_VOTER_SET: EMPTY_SET_ID,
+            EMPTY_CANDIDATE_SET: EMPTY_SET_ID,
             END_OF_RANKING_SET: END_OF_RANKING_ID,
         }
         for cand_set in cells.ravel():
@@ -456,7 +463,7 @@ class RankMatrix:
         """
         active_candidate_set_ids = np.unique(self.rankings[self.voter_weight_data.weights > 0])
 
-        return frozenset().union(
+        return EMPTY_CANDIDATE_SET.union(
             *(
                 self.get_cand_set_from_id(cand_set_id)
                 for cand_set_id in active_candidate_set_ids
@@ -603,7 +610,7 @@ def _concatenate_rank_matrices(
     """
     data = _concatenate_voter_weight_data([matrix.voter_weight_data for matrix in matrices])
     rankings = np.full((len(data), max_ranking_length), END_OF_RANKING_ID, dtype=np.intp)
-    candidate_set_ids = {frozenset(): EMPTY_SET_ID, END_OF_RANKING_SET: END_OF_RANKING_ID}
+    candidate_set_ids = {EMPTY_CANDIDATE_SET: EMPTY_SET_ID, END_OF_RANKING_SET: END_OF_RANKING_ID}
 
     offset = 0
 

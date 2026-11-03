@@ -10,7 +10,7 @@ from typing_extensions import Sentinel
 
 from votekit._df_schema import WEIGHT_COLUMN
 from votekit.cleaning import remove_and_condense_rank_profile
-from votekit.constants import TOL_EPSILON
+from votekit.constants import EMPTY_CANDIDATE_SET, TOL_EPSILON
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -648,8 +648,8 @@ class SimultaneousVeto(RankingElection):
         else:
             self._write_state(current_round)
 
-        eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
-        elected: tuple[frozenset[Candidate], ...] = (frozenset(),)
+        eliminated: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
+        elected: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
         tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = {}
 
         remaining_set = self.candidates - self._eliminated

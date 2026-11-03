@@ -16,6 +16,7 @@ from votekit.cleaning import (
     remove_and_condense_rank_profile,
     remove_cand_rank_ballot,
 )
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -1209,7 +1210,7 @@ class STV(RankingElection):
             else:
                 elected, tiebreaks, new_profile = self._single_elect_step(profile, prev_state)
             # no one eliminated in elect round
-            eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
+            eliminated: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
 
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
@@ -1218,7 +1219,7 @@ class STV(RankingElection):
             [c for s in self.get_elected() for c in s]
         ):
             elected = prev_state.remaining
-            eliminated = (frozenset(),)
+            eliminated = (EMPTY_CANDIDATE_SET,)
             new_profile = RankProfile()
 
         else:
@@ -1256,7 +1257,7 @@ class STV(RankingElection):
                 retain_original_candidate_list=False,
             )
 
-            elected = (frozenset(),)
+            elected = (EMPTY_CANDIDATE_SET,)
             eliminated = (frozenset([eliminated_cand]),)
 
         if store_states:

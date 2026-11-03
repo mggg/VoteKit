@@ -4,6 +4,7 @@ from typing import Generic, TypeVar
 
 import pandas as pd
 
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile.pref_profile import PreferenceProfile
 from votekit.types import Candidate, CandidateNumericDict
@@ -120,7 +121,7 @@ class Election(Generic[P]):
                 s
                 for state in self.election_states[: (round_number + 1)]
                 for s in state.elected
-                if state.elected != (frozenset(),)
+                if state.elected != (EMPTY_CANDIDATE_SET,)
             ]
         )
 
@@ -152,7 +153,7 @@ class Election(Generic[P]):
                 s
                 for state in self.election_states[round_number::-1]
                 for s in state.eliminated[::-1]
-                if state.eliminated != (frozenset(),)
+                if state.eliminated != (EMPTY_CANDIDATE_SET,)
             ]
         )
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.types import Candidate, CandidateNumericDict
 
 
@@ -33,9 +34,9 @@ class ElectionState:
     """
 
     round_number: int = 0
-    remaining: tuple[frozenset[Candidate], ...] = (frozenset(),)
-    elected: tuple[frozenset[Candidate], ...] = (frozenset(),)
-    eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
+    remaining: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
+    elected: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
+    eliminated: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
     tiebreaks: dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]] = field(
         default_factory=dict
     )

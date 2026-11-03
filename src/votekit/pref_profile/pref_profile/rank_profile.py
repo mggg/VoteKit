@@ -19,6 +19,7 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_rank_csv,
@@ -639,7 +640,11 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
 
         if rank_ballot.ranking is not None:
             ranking_list = [
-                (set([candidate_mapping[c] for c in cand_set]) if cand_set != frozenset() else "{}")
+                (
+                    set([candidate_mapping[c] for c in cand_set])
+                    if cand_set != EMPTY_CANDIDATE_SET
+                    else "{}"
+                )
                 for cand_set in rank_ballot.ranking
             ]
             if len(ranking_list) != self.max_ranking_length:
