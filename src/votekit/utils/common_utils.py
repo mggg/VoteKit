@@ -248,6 +248,10 @@ def score_dict_from_score_vector(
     If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
     in the dictionary.
 
+    Each candidate in a tied position consumes one score-vector entry, including repeated
+    appearances on the same ballot. Entries beyond the vector contribute zero when applying the
+    tie convention.
+
     We round to 10 decimal places to avoid floating point precision issues.
 
 
@@ -307,6 +311,12 @@ def score_dict_from_score_vector(
             local_score_vector: Sequence[float | int] = score_vector[
                 score_offset : score_offset + position_size
             ]
+            # Make sure to pad the local score vector if the position size is larger than the
+            # remaining score vector so that "low" allocations are handled correctly.
+            if len(local_score_vector) < position_size:
+                local_score_vector = list(local_score_vector) + [0] * (
+                    position_size - len(local_score_vector)
+                )
 
             if tie_convention == "high":
                 allocation = max(local_score_vector)

@@ -314,6 +314,34 @@ def test_scoring_uses_matrix_with_ties_and_repeated_candidates(
     }
 
 
+@pytest.mark.parametrize(
+    "max_ranking_length,tie_convention,expected",
+    [
+        (2, "low", 1.0),
+        (2, "high", 2.0),
+        (2, "average", 1.5),
+        (3, "low", 2.0),
+        (3, "high", 4.0),
+        (3, "average", 3.0),
+    ],
+)
+def test_scoring_pads_exhausted_tie_slices_with_zeros(
+    max_ranking_length: int,
+    tie_convention: Literal["low", "high", "average"],
+    expected: float,
+) -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=({"A", "B"}, {"A", "B"}))],
+        max_ranking_length=max_ranking_length,
+    )
+    score_vector = tuple(range(max_ranking_length, 0, -1))
+
+    assert score_dict_from_score_vector(profile, score_vector, tie_convention) == {
+        "A": expected,
+        "B": expected,
+    }
+
+
 def test_scorers_retain_their_distinct_rounding_rules(forbid_dataframe_conversion: None) -> None:
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=4e-11)] * 2)
 
