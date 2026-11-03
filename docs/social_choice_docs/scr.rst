@@ -251,6 +251,25 @@ supports. Here, ``cumulative`` identifies the ballot format, and the allocation 
 multinomial distribution. Unlike BT, allocating points to slates first and then to candidates can
 produce exactly the same distribution, as described below.
 
+Zero-support candidates
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Set ``allow_zero_support_candidates=True`` on ``BlocSlateConfig`` to permit zero entries in
+the within-slate preference intervals. Each interval must still have positive total support.
+The effect of a zero depends on whether the model orders candidates across the whole ballot or
+within a slate.
+
+Name-PL and direct name-BT rank the positive-support candidates first, then append a uniformly
+random ordering of the zero-support candidates. Support here means the combined support after
+applying cohesion, so a zero-cohesion slate also contributes candidates to this tail.
+
+Slate-PL, slate-BT, and the Cambridge sampler place zero-support candidates after the
+positive-support candidates within their own slate's ordering, with a uniformly shuffled tail
+for each ballot. Their final positions still follow the sampled slate sequence; they need not
+appear after every positive-support candidate from other slates. A short Cambridge ballot can
+omit them if it has too few positions for their slate. Name-Cumulative instead assigns no points
+to zero-support candidates and leaves them unscored in the returned profile.
+
 Name-Plackett-Luce
 ~~~~~~~~~~~~~~~~~~
 
