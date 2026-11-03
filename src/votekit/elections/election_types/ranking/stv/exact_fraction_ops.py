@@ -87,6 +87,7 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
     Compute exact first-place totals for an exact STV profile.
 
     Empty and tilde first positions contribute no votes, matching the float STV scorer.
+    Zero-weight ballots contribute nothing and do not add candidates to the score dictionary.
 
     Warning:
         The profile must already have passed STV validation. Tied ranking positions are not
@@ -111,6 +112,9 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
         assert len(candidate_set) == 1
         candidate = next(iter(candidate_set))
         assert isinstance(weight, Fraction)
+        if weight == 0:
+            continue
+
         scores[candidate] += weight
     return scores
 
@@ -118,6 +122,9 @@ def exact_first_place_votes(profile: RankProfile) -> dict[Candidate, Fraction]:
 def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
     """
     Compute exact Borda scores for an exact STV profile.
+
+    Zero-weight ballots contribute nothing and do not add candidates to the score dictionary.
+    Their rankings remain subject to the same structural checks as positive-weight ballots.
 
     Warning:
         The profile must already have passed STV validation. Tied ranking positions are not
@@ -151,6 +158,9 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
         profile._matrix.rankings, profile._matrix.voter_weight_data.weights
     ):
         assert isinstance(weight, Fraction)
+        if weight == 0:
+            continue
+
         for rank, candidate_set_id in enumerate(candidate_set_ids):
             if candidate_set_id == END_OF_RANKING_ID:
                 break
