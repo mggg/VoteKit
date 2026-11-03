@@ -1,4 +1,5 @@
 import pickle
+from dataclasses import replace
 from fractions import Fraction
 from typing import Any, cast
 
@@ -7,6 +8,7 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections import IRV, STV, SequentialRCV, fractional_transfer, random_transfer
 from votekit.graphs.ballot_graph import BallotGraph
 from votekit.pref_profile import ProfileError, RankProfile
@@ -306,6 +308,36 @@ def test_exact_stv_uses_exact_borda_tiebreak():
         if tied == frozenset({"A", "B"})
     )
     assert resolution[0] == frozenset({"B"})
+
+
+@pytest.mark.parametrize("retain_unused_tie", [False, True])
+def test_exact_stv_borda_tiebreak_after_removing_a_tied_candidate(retain_unused_tie: bool):
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=({"A", "X"}, {"C"}, {"B"})),
+            RankBallot(ranking=({"B"}, {"C"}, {"A"})),
+        ),
+        max_ranking_length=4,
+    )
+    cleaned: RankProfile = remove_and_condense_rank_profile("X", profile)
+    if retain_unused_tie:
+        matrix = replace(
+            cleaned._matrix,
+            cand_sets=(*cleaned._matrix.cand_sets, frozenset({"A", "X"})),
+        )
+        cleaned = RankProfile._from_matrix(matrix, max_ranking_length=cleaned.max_ranking_length)
+
+    election = STV(
+        cleaned,
+        n_seats=2,
+        simultaneous=False,
+        exact=True,
+        tiebreak="borda",
+        rng_seed=5,
+    )
+
+    assert {candidate for elected in election.get_elected() for candidate in elected} == {"A", "B"}
+    assert any(frozenset({"A", "B"}) in state.tiebreaks for state in election.election_states)
 
 
 def test_exact_stv_accepts_first_place_tiebreak():

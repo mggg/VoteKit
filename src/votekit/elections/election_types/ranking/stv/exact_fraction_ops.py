@@ -140,9 +140,10 @@ def exact_borda_scores(profile: RankProfile) -> dict[Candidate, Fraction]:
         return scores
 
     candidates_by_set_id = {}
-    for candidate_set_id, candidate_set in profile._matrix.iter_candidate_sets():
+    for candidate_set_id in np.unique(profile._matrix.rankings):
         if candidate_set_id in (EMPTY_SET_ID, END_OF_RANKING_ID):
             continue
+        candidate_set = profile._matrix.get_cand_set_from_id(candidate_set_id)
         assert len(candidate_set) == 1
         candidates_by_set_id[candidate_set_id] = next(iter(candidate_set))
 
