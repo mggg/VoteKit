@@ -121,8 +121,8 @@ class CleanedRankProfile(RankProfile):
         Args:
             matrix (RankMatrix): Validated cleaned matrix. Its ballot labels, or source positions
                 when it has none, become ``df_index_column``.
-            max_ranking_length (int): Must equal the matrix's number of ranking columns and be at
-                least the number of distinct candidates ranked on any stored ballot.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns. Stored
+                ballots must already rank no more distinct candidates than max_ranking_length.
             parent_profile (RankProfile | CleanedRankProfile): The profile that was cleaned.
             no_wt_altr_idxs (set[int]): Indices of ballots whose weight cleaning set to zero.
             no_rank_altr_idxs (set[int]): Indices of altered ballots left with no ranking.
@@ -135,8 +135,7 @@ class CleanedRankProfile(RankProfile):
 
         Raises:
             ValueError: An index set does not match the parent profile's index, or
-                max_ranking_length differs from the number of ranking columns or is smaller than the
-                number of distinct candidates ranked on a ballot.
+                max_ranking_length differs from the number of ranking columns.
         """
         labels = matrix.voter_weight_data.ballot_index
         df_index_column = list(range(len(matrix))) if labels is None else labels.tolist()

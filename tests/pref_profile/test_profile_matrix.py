@@ -1073,6 +1073,13 @@ def test_rank_matrix_mask_rejects_wrong_shape(mask):
         matrix.apply_mask(mask)
 
 
+def test_rank_matrix_apply_mask_rejects_non_boolean_dtype():
+    matrix = RankProfile(ballots=[RankBallot(ranking=[{"A"}]), RankBallot(ranking=[{"B"}])])._matrix
+
+    with pytest.raises(TypeError, match="mask must have boolean dtype"):
+        matrix.apply_mask(np.array([1, 0]))
+
+
 @pytest.mark.parametrize("fraction_weights", [False, True])
 def test_score_matrix_grouping_canonicalizes_nan_keys_but_preserves_source_scores(fraction_weights):
     nan_values = np.array([0x7FF8000000000001, 0xFFF8000000000002], dtype=np.uint64).view(

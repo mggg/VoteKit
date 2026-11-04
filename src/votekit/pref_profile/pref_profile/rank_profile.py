@@ -805,15 +805,14 @@ class RankProfile(PreferenceProfile):
         Args:
             matrix (RankMatrix): Validated matrix whose candidates become the profile's
                 candidates.
-            max_ranking_length (int): Must equal the matrix's number of ranking columns and be at
-                least the number of distinct candidates ranked on any stored ballot.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns. Stored
+                ballots must already rank no more distinct candidates than max_ranking_length.
 
         Returns:
             Self: Profile of the requested class with initialized matrix-derived attributes.
 
         Raises:
-            ValueError: max_ranking_length differs from the number of ranking columns or is
-                smaller than the number of distinct candidates ranked on a ballot.
+            ValueError: max_ranking_length differs from the number of ranking columns.
         """
 
         if len(matrix.ranking_columns) != max_ranking_length:
@@ -821,13 +820,6 @@ class RankProfile(PreferenceProfile):
                 "max_ranking_length must be equivalent to number of ranking columns in"
                 f" matrix, got {max_ranking_length}, expected"
                 f" {len(matrix.ranking_columns)}."
-            )
-
-        max_candidates_ranked = matrix.max_candidates_ranked()
-        if max_candidates_ranked > max_ranking_length:
-            raise ValueError(
-                f"A ballot ranks {max_candidates_ranked} distinct candidates, exceeding"
-                f" max_ranking_length={max_ranking_length}."
             )
 
         profile = object.__new__(cls)

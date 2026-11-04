@@ -58,12 +58,12 @@ def _normalize_ranking_set(
     so callers can report string/integer collisions once across the complete ranking collection.
 
     Args:
-        candidate_set (set[Candidate] | frozenset[Candidate]): set of candidates to normalize and
+        candidate_set (set[Candidate] | frozenset[Candidate]): Set of candidates to normalize and
             validate.
         context (str): Source of the candidate set as context for error messages.
 
     Returns:
-        frozenset[Candidate]: normalized and validated frozenset of candidates.
+        frozenset[Candidate]: Normalized and validated frozenset of candidates.
 
     Raises:
         TypeError: Ranking cells must contain sets or frozensets of candidates.

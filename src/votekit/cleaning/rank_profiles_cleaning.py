@@ -40,8 +40,10 @@ def _iterate_and_clean_ranking_tuples(
             nonempty_altr_idxs, no_wt_altr_idxs, no_rank_altr_idxs
 
     Raises:
-        ValueError: A cleaned ranking does not have one entry per ranking position, or the cleaned
-            rankings are not a valid rank matrix.
+        TypeError: A cleaned ranking contains non-set positions or non-string/integer candidates.
+        ValueError: A cleaned ranking does not have one entry per ranking position, places padding
+            before a ranked position, or ranks an invalid candidate name or an undeclared
+            candidate on a positive-weight ballot.
     """
     matrix = profile._matrix
     num_positions = matrix.num_ranking_positions
@@ -139,6 +141,12 @@ def clean_rank_profile(
 
     Raises:
         TypeError: Profile must only contain ranked ballots.
+        TypeError: A cleaned ranking contains non-set positions or non-string/integer candidates.
+        ValueError: A cleaned ranking does not have one entry per ranking position, places padding
+            before a ranked position, or ranks an invalid candidate name or an undeclared
+            candidate on a positive-weight ballot.
+        ValueError: A ballot retained after cleaning ranks more distinct candidates than the
+            profile's max_ranking_length.
     """
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be a RankProfile.")
@@ -180,6 +188,14 @@ def _clean_rank_profile_with_candidates(
 
     Returns:
         CleanedRankProfile: Cleaned profile with the source as its immediate parent.
+
+    Raises:
+        TypeError: A cleaned ranking contains non-set positions or non-string/integer candidates.
+        ValueError: A cleaned ranking does not have one entry per ranking position, places padding
+            before a ranked position, or ranks an invalid candidate name or an undeclared
+            candidate on a positive-weight ballot.
+        ValueError: A retained ballot after cleaned ranks more distinct candidates than the source
+            profile's max_ranking_length.
     """
     (
         cleaned_matrix,
@@ -197,6 +213,14 @@ def _clean_rank_profile_with_candidates(
         keep_rows &= cleaned_matrix.voter_weight_data.weights > 0
 
     cleaned_matrix = cleaned_matrix.apply_mask(keep_rows)
+
+    # The cleaner can introduce ties, so check the retained ballots against the original limit.
+    max_candidates_ranked = cleaned_matrix.max_candidates_ranked()
+    if max_candidates_ranked > profile.max_ranking_length:
+        raise ValueError(
+            f"A cleaned ballot ranks {max_candidates_ranked} distinct candidates, exceeding"
+            f" max_ranking_length={profile.max_ranking_length}."
+        )
 
     max_ranking_length = profile.max_ranking_length
     if reduce_max_ranking_length:

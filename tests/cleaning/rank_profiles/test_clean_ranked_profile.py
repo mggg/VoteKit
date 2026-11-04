@@ -214,3 +214,39 @@ def test_clean_profile_stripped_name_collision_warns():
 
     assert adj_profile.ballots[1] == RankBallot(ranking=[{"1"}], weight=0)
     assert adj_profile.candidates_cast == (1, "A")
+
+
+def tie_A_with_B(ranking):
+    return tuple(
+        candidate_set | {"B"} if candidate_set == frozenset({"A"}) else candidate_set
+        for candidate_set in ranking
+    )
+
+
+def test_clean_profile_tie_exceeding_max_ranking_length_errors():
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=1)],
+        candidates=("A", "B"),
+        max_ranking_length=1,
+    )
+
+    with pytest.raises(
+        ValueError, match="ranks 2 distinct candidates, exceeding max_ranking_length"
+    ):
+        clean_rank_profile(profile, tie_A_with_B)
+
+
+def test_clean_profile_tie_on_removed_ballot_is_allowed():
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"B"}], weight=1),
+            RankBallot(ranking=[{"A"}], weight=0),
+        ],
+        candidates=("A", "B"),
+        max_ranking_length=1,
+    )
+
+    adj_profile = clean_rank_profile(profile, tie_A_with_B)
+
+    assert adj_profile.ballots == (RankBallot(ranking=[{"B"}], weight=1),)
+    assert adj_profile.max_ranking_length == 1

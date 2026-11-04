@@ -556,16 +556,17 @@ class RankMatrix:
                 labels (i.e. voter_weight_data.ballot_index will not be None).
 
         Raises:
+            TypeError: The mask does not have boolean dtype.
             ValueError: The mask is not one flag per ballot.
         """
-        if mask.shape != (len(self),):
-            raise ValueError(f"mask must have shape ({len(self)},), not {mask.shape}.")
+        # Validates the mask before the rankings are indexed.
+        data = self.voter_weight_data.apply_mask(mask)
 
         rankings = self.rankings[mask]
         rankings.setflags(write=False)
 
         matrix = shallow_copy(self)
-        object.__setattr__(matrix, "voter_weight_data", self.voter_weight_data.apply_mask(mask))
+        object.__setattr__(matrix, "voter_weight_data", data)
         object.__setattr__(matrix, "rankings", rankings)
 
         return matrix

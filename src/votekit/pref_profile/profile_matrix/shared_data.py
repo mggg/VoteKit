@@ -395,8 +395,11 @@ class ProfileVoterWeightData:
                 original labels instead of being renumbered from zero.
 
         Raises:
+            TypeError: The mask does not have boolean dtype.
             ValueError: The mask is not one flag per ballot.
         """
+        if mask.dtype != np.bool_:
+            raise TypeError("mask must have boolean dtype.")
         if mask.shape != (len(self),):
             raise ValueError(f"mask must have shape ({len(self)},), not {mask.shape}.")
 
