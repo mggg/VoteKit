@@ -641,6 +641,16 @@ def subtract_profiles(
     if isinstance(subtracted_profiles, PreferenceProfile):
         subtracted_profile = subtracted_profiles
     else:
+        if isinstance(base_profile, ScoreProfile):
+            # Preserve explicit zero scores outside the declared candidate universe.
+            subtracted_profiles = [
+                ScoreProfile._from_matrix(
+                    replace(profile._matrix, candidates=profile._matrix.score_columns)
+                )
+                if isinstance(profile, ScoreProfile)
+                else profile
+                for profile in subtracted_profiles
+            ]
         subtracted_profile = sum_profiles(subtracted_profiles)
 
     if isinstance(base_profile, RankProfile):
@@ -709,6 +719,9 @@ def _subtract_grouped_weights(
             retained group, and the grouped shared data with the subtracted weight removed.
     """
     num_base_rows = len(base_data)
+    if num_base_rows == 0:
+        return first_rows[:0], base_data
+
     base_group_ids = group_ids[:num_base_rows]
     num_base_groups = int(np.max(base_group_ids, initial=-1)) + 1
     grouped_base_data = base_data.group_rows(first_rows[:num_base_groups], base_group_ids)

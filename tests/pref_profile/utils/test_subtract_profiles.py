@@ -6,6 +6,7 @@ import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+from votekit.pref_profile.profile_matrix import WeightKind
 from votekit.pref_profile.utils import subtract_profiles
 
 
@@ -310,3 +311,57 @@ def test_subtract_profiles_removes_weight_within_zero_tolerance():
     subtracted_profile = RankProfile(ballots=[RankBallot(ranking=({"A"},), weight=0.3)])
     result = base_profile - subtracted_profile
     assert result.num_ballots == 0
+
+
+@pytest.mark.parametrize(
+    "profile_type, ballot",
+    [
+        (RankProfile, RankBallot(ranking=({"A"},), weight=Fraction(1, 3))),
+        (ScoreProfile, ScoreBallot(scores={"A": 1}, weight=Fraction(1, 3))),
+    ],
+)
+def test_subtract_profiles_from_empty_profile_keeps_weight_type(profile_type, ballot):
+    profile = profile_type(ballots=[ballot])
+    empty_result = profile - profile
+    empty_result = empty_result - profile
+    assert empty_result.num_ballots == 0
+    assert empty_result._matrix.voter_weight_data.weight_kind is WeightKind.FRACTION
+
+
+def test_subtract_score_profiles_with_zero_score_undeclared_candidate_does_not_match():
+    base_profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=3)])
+
+    subtracted_df = pd.DataFrame(
+        {"A": [1.0], "B": [0.0], "Weight": [1.0], "Voter Set": [frozenset()]}
+    )
+    subtracted_df.index.name = "Ballot Index"
+
+    subtracted_profile = ScoreProfile(df=subtracted_df, candidates=["A"])
+    result = base_profile - subtracted_profile
+    assert result.total_ballot_wt == 3
+
+
+def test_subtract_score_profiles_with_zero_score_undeclared_candidate_list_does_not_match():
+    base_profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=3)])
+
+    subtracted_df = pd.DataFrame(
+        {"A": [1.0], "B": [0.0], "Weight": [1.0], "Voter Set": [frozenset()]}
+    )
+
+    subtracted_df.index.name = "Ballot Index"
+    subtracted_profile = ScoreProfile(df=subtracted_df, candidates=["A"])
+    result = subtract_profiles(base_profile, [subtracted_profile])
+    assert result.total_ballot_wt == 3
+
+
+def test_subtract_score_profiles_zero_score_undeclared_candidate_and_empty_profile_does_not_match():
+    base_profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1}, weight=3)])
+
+    subtracted_df = pd.DataFrame(
+        {"A": [1.0], "B": [0.0], "Weight": [1.0], "Voter Set": [frozenset()]}
+    )
+
+    subtracted_df.index.name = "Ballot Index"
+    subtracted_profile = ScoreProfile(df=subtracted_df, candidates=["A"])
+    result = subtract_profiles(base_profile, [subtracted_profile, ScoreProfile()])
+    assert result.total_ballot_wt == 3
