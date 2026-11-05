@@ -1,5 +1,4 @@
 import pickle
-from dataclasses import replace
 from fractions import Fraction
 from typing import Any, cast
 
@@ -364,12 +363,14 @@ def test_exact_stv_borda_tiebreak_after_removing_a_tied_candidate(retain_unused_
         max_ranking_length=4,
     )
     cleaned: RankProfile = remove_and_condense_rank_profile("X", profile)
-    if retain_unused_tie:
-        matrix = replace(
-            cleaned._matrix,
-            cand_sets=(*cleaned._matrix.cand_sets, frozenset({"A", "X"})),
+    if not retain_unused_tie:
+        cleaned = RankProfile(
+            ballots=cleaned.ballots,
+            candidates=cleaned.candidates,
+            max_ranking_length=cleaned.max_ranking_length,
         )
-        cleaned = RankProfile._from_matrix(matrix, max_ranking_length=cleaned.max_ranking_length)
+
+    assert (frozenset({"A", "X"}) in cleaned._matrix.cand_sets) == retain_unused_tie
 
     election = STV(
         cleaned,

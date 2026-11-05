@@ -294,3 +294,47 @@ def test_cleaned_rank_validation_reads_parent_labels(
 
     with pytest.raises(ValueError, match="not a subset"):
         CleanedRankProfile(parent_profile=parent, df_index_column=[], unaltr_idxs={99})
+
+
+def test_from_cleaned_matrix_matches_constructor():
+    matrix = profile._matrix.apply_mask(np.array([True, True, True, True, False]))
+
+    cleaned = CleanedRankProfile._from_cleaned_matrix(
+        matrix,
+        max_ranking_length=profile.max_ranking_length,
+        parent_profile=profile,
+        no_wt_altr_idxs={4},
+        no_rank_altr_idxs=set(),
+        nonempty_altr_idxs=set(),
+        unaltr_idxs={0, 1, 2, 3},
+    )
+
+    assert type(cleaned) is CleanedRankProfile
+    assert cleaned == clean_1
+    assert cleaned.parent_profile is profile
+    assert cleaned.df_index_column == clean_1.df_index_column
+    assert cleaned.no_wt_altr_idxs == clean_1.no_wt_altr_idxs
+    assert cleaned.unaltr_idxs == clean_1.unaltr_idxs
+    pd.testing.assert_frame_equal(cleaned.to_df(), clean_1.to_df())
+
+
+def test_from_cleaned_matrix_errors():
+    index_sets = {"no_wt_altr_idxs": set(), "no_rank_altr_idxs": set(), "nonempty_altr_idxs": set()}
+
+    with pytest.raises(ValueError, match="Union of ballot indices"):
+        CleanedRankProfile._from_cleaned_matrix(
+            profile._matrix,
+            max_ranking_length=profile.max_ranking_length,
+            parent_profile=profile,
+            unaltr_idxs={0},
+            **index_sets,
+        )
+
+    with pytest.raises(ValueError, match="max_ranking_length must be equivalent"):
+        CleanedRankProfile._from_cleaned_matrix(
+            profile._matrix,
+            max_ranking_length=profile.max_ranking_length + 1,
+            parent_profile=profile,
+            unaltr_idxs={0, 1, 2, 3, 4},
+            **index_sets,
+        )

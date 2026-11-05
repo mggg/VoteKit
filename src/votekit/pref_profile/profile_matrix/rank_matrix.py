@@ -415,17 +415,29 @@ class RankMatrix:
         if self.rankings.size == 0:
             return 0
 
-        return int(
-            np.apply_along_axis(
-                lambda row: len(
-                    frozenset.union(
-                        *(self.get_cand_set_from_id(cand_set_id) for cand_set_id in row)
-                    )
-                    - END_OF_RANKING_SET
-                ),
-                axis=1,
-                arr=self.rankings,
-            ).max()
+        return int(self.num_candidates_ranked_per_ballot().max())
+
+    def num_candidates_ranked_per_ballot(self) -> np.ndarray:
+        """
+        Count the number of distinct candidates ranked per ballot.
+
+        Tied candidates each count once; repeated candidates count once per ballot. Empty and
+        unranked positions contribute nothing. Zero-weight ballots are included.
+
+        Returns:
+            np.ndarray: Unique candidates ranked count per ballot array. Returns an empty array
+                if rankings are empty.
+        """
+        if self.rankings.size == 0:
+            return np.zeros(len(self), dtype=np.intp)
+
+        return np.apply_along_axis(
+            lambda row: len(
+                frozenset.union(*(self.get_cand_set_from_id(cand_set_id) for cand_set_id in row))
+                - END_OF_RANKING_SET
+            ),
+            axis=1,
+            arr=self.rankings,
         )
 
     def to_df(self, *, rows: NDArray[np.intp] | None = None) -> pd.DataFrame:
@@ -544,6 +556,36 @@ class RankMatrix:
             ranking_columns=self.ranking_columns,
             candidates=self.candidates,
         )
+
+    def apply_mask(self, mask: NDArray[np.bool_]) -> RankMatrix:
+        """
+        Select rows with a boolean mask, retaining source index labels and the candidate sets.
+
+        A selection of validated rows remains valid, so construction is bypassed. Unused
+        candidate-set entries are retained.
+
+        Args:
+            mask (NDArray[np.bool_]): One flag per ballot; True rows are kept in source order.
+
+        Returns:
+            RankMatrix: Selected rows with owned, read-only rankings and explicit ballot index
+                labels (i.e. voter_weight_data.ballot_index will not be None).
+
+        Raises:
+            TypeError: The mask does not have boolean dtype.
+            ValueError: The mask is not one flag per ballot.
+        """
+        # Validates the mask before the rankings are indexed.
+        data = self.voter_weight_data.apply_mask(mask)
+
+        rankings = self.rankings[mask]
+        rankings.setflags(write=False)
+
+        matrix = shallow_copy(self)
+        object.__setattr__(matrix, "voter_weight_data", data)
+        object.__setattr__(matrix, "rankings", rankings)
+
+        return matrix
 
 
 def _group_ranking_rows(rankings: NDArray[np.intp]) -> tuple[NDArray[np.intp], NDArray[np.intp]]:

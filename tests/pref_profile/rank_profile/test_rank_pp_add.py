@@ -22,7 +22,6 @@ def test_add_profiles():
             RankBallot(weight=0),
         ],
         candidates=["D", "E", "F"],
-        max_ranking_length=0,
     )
     summed_profile = profile_1 + profile_2
     true_summed_profile = RankProfile(

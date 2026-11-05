@@ -32,7 +32,7 @@ from votekit.pref_profile.pref_profile._candidate_names import (
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import RankMatrix
-from votekit.pref_profile.utils import _sum_rank_profiles
+from votekit.pref_profile.utils import _subtract_rank_profiles, _sum_rank_profiles
 from votekit.types import Candidate
 from votekit.utils import (
     _validate_candidate_names,
@@ -378,9 +378,15 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
             return
 
         if self.max_ranking_length == 0:
-            raise ProfileError(
-                boiler_plate + "max_ranking_length must be provided and be non-zero."
-            )
+            ranking_cols = [c for c in df.columns if c.startswith(RANKING_COLUMN_PREFIX)]
+            if (
+                not df[ranking_cols]
+                .map(lambda cand_set: cand_set == frozenset({"~"}))
+                .all(axis=None)
+            ):
+                raise ProfileError(
+                    boiler_plate + "max_ranking_length must be provided and be non-zero."
+                )
 
     def __validate_init_rank_df(self, df: pd.DataFrame) -> None:
         """
@@ -548,6 +554,19 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         Add two PreferenceProfiles by combining their ballot lists.
         """
         return _sum_rank_profiles([self, other])
+
+    def __sub__(self, other) -> RankProfile:
+        """
+        Remove the ballots of another profile, matched by identical rankings.
+
+        See ``subtract_profiles``: the result is grouped, and ballots whose weight is exhausted
+        are removed. Voter sets of this profile are retained.
+
+        Raises:
+            ValueError: A subtracted weight cannot be represented exactly in this profile's
+                weights.
+        """
+        return _subtract_rank_profiles(self, other)
 
     def group_ballots(self) -> RankProfile:
         """
@@ -817,25 +836,42 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
             max_ranking_length=max_ranking_length,
         )
 
-    # Static because we intend to bypass the constructor
-    @staticmethod
-    def _from_matrix(matrix: RankMatrix, *, max_ranking_length: int) -> RankProfile:
+    # Need the classmethod so that CleanedRankProfile returns a CleanedRankProfile instance
+    @classmethod
+    def _from_matrix(cls, matrix: RankMatrix, *, max_ranking_length: int) -> Self:
         """
-        Create a RankProfile from a RankMatrix.
+        Create a frozen profile from a matrix, bypassing ballot or df parsing.
+
+        Subclass factories must attach any additional state before returning the profile.
 
         Args:
-            RankMatrix (RankMatrix): A RankMatrix object.
+            matrix (RankMatrix): Validated matrix whose candidates become the profile's
+                candidates.
+            max_ranking_length (int): Must equal the matrix's number of ranking columns. Stored
+                ballots must already rank no more distinct candidates than max_ranking_length.
 
         Returns:
-            RankProfile: A RankProfile object.
+            Self: Profile of the requested class with initialized matrix-derived attributes.
+
+        Raises:
+            ValueError: max_ranking_length differs from the number of ranking columns.
         """
-        profile = object.__new__(RankProfile)
+
+        if len(matrix.ranking_columns) != max_ranking_length:
+            raise ValueError(
+                "max_ranking_length must be equivalent to number of ranking columns in"
+                f" matrix, got {max_ranking_length}, expected"
+                f" {len(matrix.ranking_columns)}."
+            )
+
+        profile = object.__new__(cls)
         profile._matrix = matrix
         profile.candidates = matrix.candidates
         profile.max_ranking_length = max_ranking_length
         profile.candidates_cast = tuple(
             sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())
         )
+
         profile._finalize_profile()
         return profile
 

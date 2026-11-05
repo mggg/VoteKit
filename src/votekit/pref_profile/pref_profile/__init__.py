@@ -1,6 +1,7 @@
 from votekit.exceptions import ProfileError
 
 from ._candidate_names import _normalize_candidate_name as _normalize_candidate_name
+from ._candidate_names import _normalize_ranking_set as _normalize_ranking_set
 from ._candidate_names import _normalize_unique_candidates as _normalize_unique_candidates
 from .preference_profile import PreferenceProfile
 from .preference_profile import _infer_profile_type as _infer_profile_type
