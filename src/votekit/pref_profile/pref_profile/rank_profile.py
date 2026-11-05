@@ -110,6 +110,10 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
     This specializes PreferenceProfile with RankMatrix and RankBallot. Shared candidate and
     weight validation follows the PreferenceProfile contract.
 
+    Zero-weight ballots may name candidates outside the declared candidate universe. Their data
+    remain stored in the matrix, but they do not contribute to candidates_cast. Candidate names
+    and ballot structure are still validated regardless of weight.
+
     Args:
         ballots (Sequence[Ballot], optional): Ranked ballots. Other ballot types are rejected.
             Defaults to empty tuple.
@@ -210,12 +214,11 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
 
         for j, cand_set in enumerate(rank_ballot.ranking):
             for c in cand_set:
-                if self.candidates != tuple():
-                    if c not in self.candidates:
-                        raise ProfileError(
-                            f"Candidate {c} found in ballot {rank_ballot} but not in "
-                            f"candidate list {self.candidates}."
-                        )
+                if rank_ballot.weight > 0 and self.candidates and c not in self.candidates:
+                    raise ProfileError(
+                        f"Candidate {c} found in ballot {rank_ballot} but not in "
+                        f"candidate list {self.candidates}."
+                    )
                 if rank_ballot.weight > 0 and c not in candidates_cast:
                     candidates_cast.append(c)
 

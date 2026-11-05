@@ -280,9 +280,13 @@ def score_dict_from_score_vector(
     If it is shorter, we add 0s. Candidates who are not mentioned in any ranking do not appear
     in the dictionary.
 
-    Each candidate in a tied position consumes one score-vector entry, including repeated
-    appearances on the same ballot. Entries beyond the vector contribute zero when applying the
-    tie convention.
+    Each candidate appearance consumes one score-vector entry, including repeated appearances
+    on the same ballot. A tied position consumes one entry per candidate before applying the tie
+    convention. Entries beyond the vector contribute zero, so repeated appearances can earn
+    additional points only while score-vector entries remain.
+
+    Zero-weight ballots contribute nothing and do not add candidates to the score dictionary.
+    Their rankings remain subject to the same structural checks as positive-weight ballots.
 
     Each weighted allocation is rounded to ten decimal places using NumPy's float64 rounding
     before math.fsum accumulates the contributions for each candidate. Totals are not rounded again.
@@ -337,7 +341,7 @@ def score_dict_from_score_vector(
                     f"Ballot at row {row_index} has an empty ranking position. "
                     f"Ranking: {[matrix.get_cand_set_from_id(int(i)) for i in ranking_ids]}"
                 )
-            if set_id == END_OF_RANKING_ID:
+            if set_id == END_OF_RANKING_ID or weight == 0:
                 continue
 
             local_score_vector: Sequence[float | int] = score_vector[
@@ -502,6 +506,14 @@ def borda_scores(
     r"""
     Calculates Borda scores for candidates_cast in a ``RankProfile``. The Borda vector is
     :math:`(n,n-1,\dots,1)` where :math:`n` is the ``borda_max`.
+
+    Each candidate appearance consumes one score-vector entry, including repeated appearances
+    on the same ballot. A tied position consumes one entry per candidate before applying the tie
+    convention. Entries beyond the vector contribute zero, so repeated appearances can earn
+    additional points only while score-vector entries remain.
+
+    Zero-weight ballots contribute nothing and do not add candidates to the score dictionary.
+    Their rankings remain subject to the same structural checks as positive-weight ballots.
 
     Args:
         profile (RankProfile): ``RankProfile`` of ballots.
@@ -858,8 +870,10 @@ def score_profile_from_ballot_scores(
 ) -> dict[Candidate, float]:
     """
     Score the candidates based on the ``scores`` parameter of the ballots.
-    All ballots must have a ``scores`` parameter; note that a ``scores`` dictionary
-    with no non-zero scores will raise the same error.
+
+    Explicit zero scores remain distinct from missing scores and contribute zero to the totals.
+    A ballot with no scores raises TypeError. Passing ``include_zero_score=False`` when
+    constructing a ScoreBallot omits its zero scores, so a zero-only ballot then has no scores.
 
     Each score is multiplied by its ballot weight and converted to float before math.fsum
     accumulates the contributions for each candidate. No decimal rounding is applied.

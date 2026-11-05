@@ -23,6 +23,14 @@ class Borda(RankingElection):
     are elected. This class uses the ``utils.score_dict_from_score_vector()`` to handle ballots with
     ties.
 
+    Each candidate appearance consumes one score-vector entry, including repeated appearances
+    on the same ballot. A tied position consumes one entry per candidate before applying the tie
+    convention. Entries beyond the vector contribute zero, so repeated appearances can earn
+    additional points only while score-vector entries remain.
+
+    Zero-weight ballots contribute nothing and do not add candidates to the score dictionary.
+    Their rankings remain subject to the same structural checks as positive-weight ballots.
+
     Args:
         profile (RankProfile): Profile to conduct election on.
         n_seats (int, optional): Number of seats to elect. Defaults to 1.

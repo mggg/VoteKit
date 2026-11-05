@@ -23,6 +23,27 @@ def test_init():
     assert not empty_profile.num_ballots
 
 
+@pytest.mark.parametrize("undeclared_weight", [0, 1])
+def test_undeclared_scored_candidates_require_zero_weight(undeclared_weight: int) -> None:
+    ballots = [
+        ScoreBallot(scores={"X": 2}, weight=0),
+        ScoreBallot(scores={"A": 1}),
+        ScoreBallot(scores={"X": 3}, weight=undeclared_weight),
+    ]
+    if undeclared_weight > 0:
+        with pytest.raises(ProfileError, match="Candidate X found in ballot"):
+            ScoreProfile(ballots=ballots, candidates=["A"])
+        return
+
+    profile = ScoreProfile(ballots=ballots, candidates=["A"])
+    assert profile.candidates == profile.candidates_cast == ("A",)
+    assert profile.to_df()["X"].iloc[::2].tolist() == [2, 3]
+    assert profile.to_df()["Weight"].tolist() == [0, 1, 0]
+
+    from_df = ScoreProfile(df=profile.to_df(), candidates=["A"])
+    pd.testing.assert_frame_equal(profile.to_df(), from_df.to_df())
+
+
 def test_unique_cands_validator():
     with pytest.raises(ProfileError, match="All candidates must be unique."):
         ScoreProfile(candidates=("A", "A", "B"))

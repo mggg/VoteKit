@@ -262,6 +262,30 @@ def test_score_profile_from_rankings_avg():
     assert isinstance(comp_scores["A"], float)
 
 
+@pytest.mark.parametrize("tie_convention, expected", [("high", 6), ("average", 5), ("low", 4)])
+def test_positional_scoring_ignores_zero_weight_candidates(
+    tie_convention: Literal["high", "average", "low"], expected: float
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"X"}], weight=0),
+            RankBallot(ranking=[{"A", "B"}], weight=2),
+        ],
+        max_ranking_length=3,
+    )
+    scores = {"A": expected, "B": expected}
+    assert score_dict_from_score_vector(profile, [3, 2, 1], tie_convention) == scores
+    assert borda_scores(profile, tie_convention=tie_convention) == scores
+
+
+def test_positional_scoring_rejects_empty_positions_on_zero_weight_ballots() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}]), RankBallot(ranking=[set()], weight=0)]
+    )
+    with pytest.raises(TypeError, match="has an empty ranking position"):
+        score_dict_from_score_vector(profile, [1])
+
+
 def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
         score_dict_from_score_vector(RankProfile(), [3, 2, -1])

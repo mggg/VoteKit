@@ -74,6 +74,10 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
     This specializes PreferenceProfile with ScoreMatrix and ScoreBallot. Even an empty profile
     has a score matrix. Its max_ranking_length attribute is always None.
 
+    Zero-weight ballots may name candidates outside the declared candidate universe. Their data
+    remain stored in the matrix, but they do not contribute to candidates_cast. Candidate names
+    and ballot structure are still validated regardless of weight.
+
     Args:
         ballots (Sequence[Ballot], optional): Scored ballots. Other ballot types are rejected.
             Defaults to empty tuple.
@@ -162,12 +166,12 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
             return
 
         for c, score in ballot.scores.items():
+            if ballot.weight > 0 and self.candidates and c not in self.candidates:
+                raise ProfileError(
+                    f"Candidate {c} found in ballot {ballot} but not in "
+                    f"candidate list {self.candidates}."
+                )
             if c not in seen_candidates:
-                if self.candidates:
-                    raise ProfileError(
-                        f"Candidate {c} found in ballot {ballot} but not in "
-                        f"candidate list {self.candidates}."
-                    )
                 seen_candidates.append(c)
             if ballot.weight > 0 and c not in candidates_cast:
                 candidates_cast.append(c)
