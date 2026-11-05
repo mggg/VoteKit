@@ -1,23 +1,21 @@
 from __future__ import annotations
 
-from typing import Tuple
-
 from votekit._df_schema import RANKING_COLUMN_PREFIX, VOTER_SET_COLUMN, WEIGHT_COLUMN
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.types import Candidate
 
 from ...ballot import RankBallot
 from .csv_utils import (
+    VALID_TYPE_MAP,
     _validate_csv_ballot_row_break_idxs,
     _validate_csv_ballot_voter_set,
     _validate_csv_ballot_weight,
 )
 
-VALID_TYPE_MAP = {"str": str, "int": int}
-
 
 def _parse_profile_data_from_rank_csv(
     csv_data: list[list[str]],
-) -> Tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
+) -> tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
     """
     Parse the profile data from a PreferenceProfile csv.
 
@@ -25,7 +23,7 @@ def _parse_profile_data_from_rank_csv(
         csv_data (list[list[str]]): Data from csv.
 
     Returns:
-        Tuple[dict[str, str] | dict[str, Candidate], int,  bool, list[int]]:
+        tuple[dict[str, str] | dict[str, Candidate], int, bool, list[int]]:
             inv_candidate_mapping, max_ranking_length,
             includes_voter_set, break_indices
             Candidates can be strings, integers, or mix of both.
@@ -95,7 +93,7 @@ def _parse_ballot_from_rank_csv(
             (
                 frozenset(inv_candidate_mapping[c.strip("'")] for c in cand_set)
                 if cand_set != [""]
-                else frozenset()
+                else EMPTY_CANDIDATE_SET
             )
             for cand_set in temp_ranking
         ]

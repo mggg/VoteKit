@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.profile_matrix.rank_matrix import END_OF_RANKING_SET

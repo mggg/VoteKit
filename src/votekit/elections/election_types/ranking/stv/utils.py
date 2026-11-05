@@ -1,5 +1,4 @@
 import random
-from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,7 +10,7 @@ def numpy_random_transfer(
     winner: int,
     surplus: int,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> NDArray:
     """
     Samples ``surplus``  row indices to transfer from an implicit pool.

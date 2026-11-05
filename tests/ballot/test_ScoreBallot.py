@@ -5,6 +5,39 @@ import pytest
 from votekit.ballot import Ballot, ScoreBallot
 
 
+@pytest.mark.parametrize("ballot_type", [Ballot, ScoreBallot])
+@pytest.mark.parametrize("include_zero_score", [False, True])
+def test_include_zero_score_controls_retention(ballot_type, include_zero_score):
+    scores = {" A ": 3, " B ": 0, 2: -0.0}
+    ballot = ballot_type(
+        scores=scores,
+        include_zero_score=include_zero_score,
+        weight=Fraction(1, 3),
+        voter_set={"v"},
+    )
+
+    assert isinstance(ballot, ScoreBallot)
+    assert ballot.scores == ({"A": 3.0, "B": 0.0, 2: 0.0} if include_zero_score else {"A": 3.0})
+    assert ballot.weight == Fraction(1, 3)
+    assert ballot.voter_set == frozenset({"v"})
+    assert scores == {" A ": 3, " B ": 0, 2: -0.0}
+
+
+@pytest.mark.parametrize("scores", [None, {}, {"A": 0}])
+def test_default_preserves_empty_and_all_zero_scores(scores):
+    ballot = ScoreBallot(scores=scores)
+
+    assert ballot.scores == scores
+
+
+def test_explicit_zero_score_is_distinct_from_unscored_candidate():
+    scored = ScoreBallot(scores={"A": 1, "B": 0})
+    unscored = ScoreBallot(scores={"A": 1})
+
+    assert scored != unscored
+    assert len({scored, unscored}) == 2
+
+
 def test_ballot_init():
     b = ScoreBallot()
     assert isinstance(b, ScoreBallot)
@@ -19,7 +52,7 @@ def test_init_from_parent_class():
 
     assert isinstance(b.scores, dict)
     assert isinstance(b.scores["A"], float)
-    assert b.scores == {"A": 3.0}
+    assert b.scores == {"A": 3.0, "B": 0.0}
 
     assert isinstance(b.weight, float)
     assert b.weight == 2.0
@@ -33,7 +66,7 @@ def test_init_from_parent_class():
 def test_ballot_is_frozen():
     b = ScoreBallot()
     with pytest.raises(AttributeError, match="is frozen"):
-        b.scores = {"A": 2}
+        setattr(b, "scores", {"A": 2})
     with pytest.raises(AttributeError, match="is frozen"):
         b.weight = 2
     with pytest.raises(AttributeError, match="is frozen"):
@@ -176,7 +209,7 @@ def test_invalid_candidate_type_ballot():
     with pytest.raises(
         TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreBallot.scores"
     ):
-        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type]
+        ScoreBallot(scores={"A": 2, 1: 1, 1.5: 2})  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_negative_integer_candidate_ballot():
@@ -188,7 +221,7 @@ def test_negative_integer_candidate_ballot():
 
 def test_non_mapping_scores_ballot_raises_error():
     with pytest.raises(TypeError, match="Scores must be a mapping of candidates to score values."):
-        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type]
+        ScoreBallot(scores=[("A", 1)])  # type: ignore[arg-type, ty:no-matching-overload]
 
 
 def test_colon_in_cand_name_ballot_raises_error():

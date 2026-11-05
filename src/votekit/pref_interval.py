@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from types import MappingProxyType
-from typing import Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
@@ -96,8 +96,8 @@ class PreferenceInterval:
         *,
         allow_zero_support: bool = False,
         sort_strengths_descending: bool = False,
-        rng_seed: Optional[int] = None,
-        numpy_rng: Optional[Generator] = None,
+        rng_seed: int | None = None,
+        numpy_rng: Generator | None = None,
     ):
         """
         Samples a PreferenceInterval from the Dirichlet distribution on the candidate simplex.

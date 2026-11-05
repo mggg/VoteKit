@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import random
 from fractions import Fraction
 from itertools import permutations
@@ -261,6 +262,30 @@ def test_score_profile_from_rankings_avg():
     assert isinstance(comp_scores["A"], float)
 
 
+@pytest.mark.parametrize("tie_convention, expected", [("high", 6), ("average", 5), ("low", 4)])
+def test_positional_scoring_ignores_zero_weight_candidates(
+    tie_convention: Literal["high", "average", "low"], expected: float
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"X"}], weight=0),
+            RankBallot(ranking=[{"A", "B"}], weight=2),
+        ],
+        max_ranking_length=3,
+    )
+    scores = {"A": expected, "B": expected}
+    assert score_dict_from_score_vector(profile, [3, 2, 1], tie_convention) == scores
+    assert borda_scores(profile, tie_convention=tie_convention) == scores
+
+
+def test_positional_scoring_rejects_empty_positions_on_zero_weight_ballots() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}]), RankBallot(ranking=[set()], weight=0)]
+    )
+    with pytest.raises(TypeError, match="has an empty ranking position"):
+        score_dict_from_score_vector(profile, [1])
+
+
 def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
         score_dict_from_score_vector(RankProfile(), [3, 2, -1])
@@ -314,11 +339,56 @@ def test_scoring_uses_matrix_with_ties_and_repeated_candidates(
     }
 
 
+@pytest.mark.parametrize(
+    "max_ranking_length,tie_convention,expected",
+    [
+        (2, "low", 1.0),
+        (2, "high", 2.0),
+        (2, "average", 1.5),
+        (3, "low", 2.0),
+        (3, "high", 4.0),
+        (3, "average", 3.0),
+    ],
+)
+def test_scoring_pads_exhausted_tie_slices_with_zeros(
+    max_ranking_length: int,
+    tie_convention: Literal["low", "high", "average"],
+    expected: float,
+) -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=({"A", "B"}, {"A", "B"}))],
+        max_ranking_length=max_ranking_length,
+    )
+    score_vector = tuple(range(max_ranking_length, 0, -1))
+
+    assert score_dict_from_score_vector(profile, score_vector, tie_convention) == {
+        "A": expected,
+        "B": expected,
+    }
+
+
 def test_scorers_retain_their_distinct_rounding_rules(forbid_dataframe_conversion: None) -> None:
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=4e-11)] * 2)
 
     assert score_dict_from_score_vector(profile, [1]) == {"A": 0.0}
     assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1e-10}
+
+
+@pytest.mark.parametrize("tie_convention", ["low", "average", "high"])
+def test_positional_scoring_preserves_small_contributions(
+    tie_convention: Literal["low", "average", "high"],
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A", "B"}, {"A"}], weight=weight) for weight in (1e8, 5e-9, 5e-9)
+        ],
+        max_ranking_length=3,
+    )
+
+    assert score_dict_from_score_vector(profile, [1, 1, 1], tie_convention) == {
+        "A": 200000000.00000003,
+        "B": 100000000.00000001,
+    }
 
 
 @pytest.mark.parametrize("exact", [False, True])
@@ -342,6 +412,7 @@ def test_no_ties_scoring_preserves_numpy_rounding(forbid_dataframe_conversion: N
     profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1.00000000005)])
 
     assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1.0}
+    assert score_dict_from_score_vector(profile, [1]) == {"A": 1.0}
 
 
 def test_first_place_votes():
@@ -399,7 +470,7 @@ def _sum_mentions_from_ballots(profile: RankProfile) -> dict[Candidate, float]:
 
 @pytest.mark.slow
 def test_mentions_large_profile_matches_ballot_reference():
-    profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
+    profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
 
     assert mentions(profile) == _sum_mentions_from_ballots(profile)
 
@@ -937,17 +1008,62 @@ def test_resolve_profile_ties():
     assert resolve_profile_ties(profile_with_ties) == no_ties
 
 
-def test_score_profile_from_ballot_scores_float():
+@pytest.mark.parametrize("score", [3.0, 1.00000000005])
+def test_score_profile_from_ballot_scores_float(score: float):
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(
-                scores={"A": 3},
+                scores={"A": score},
             ),
         ]
     )
     scores = score_profile_from_ballot_scores(profile)
-    assert scores == {"A": 3}
+    assert scores == {"A": score}
     assert isinstance(scores["A"], float)
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_score_profile_tally_preserves_small_contributions(exact: bool) -> None:
+    weights = (Fraction(100_000_000), Fraction(1, 200_000_000), Fraction(1, 200_000_000))
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, weight=weight if exact else float(weight))
+            for weight in weights
+        ],
+        candidates=("A", "B", "unused"),
+    )
+
+    assert score_profile_from_ballot_scores(profile) == {
+        "A": 100000000.00000001,
+        "B": 0.0,
+        "unused": 0.0,
+    }
+
+
+@pytest.mark.parametrize(
+    "scores, weights, expected",
+    [
+        ([1e308, 1e308], [1.0, 1.0], math.inf),
+        ([math.inf, math.inf], [1.0, 0.0], math.nan),
+        ([1e308, 1e308, math.inf], [1.0, 1.0, 0.0], math.nan),
+    ],
+    ids=["overflow", "zero-times-infinity", "overflow-before-nan"],
+)
+def test_score_profile_tally_preserves_nonfinite_results(
+    scores: list[float], weights: list[float], expected: float
+) -> None:
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": score}, weight=weight)
+            for score, weight in zip(scores, weights, strict=True)
+        ]
+    )
+
+    result = score_profile_from_ballot_scores(profile)["A"]
+    if math.isnan(expected):
+        assert math.isnan(result)
+    else:
+        assert result == expected
 
 
 def test_score_profile_from_ballot_scores_error():
@@ -986,7 +1102,7 @@ def test_sort_mixed_cands_lexicographically():
 def test_sort_non_valid_type_cand_raises_error():
     cands = ["1", 1, 1.0]
     with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
-        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_sort_nan_cand_at_end_of_list():
@@ -1009,7 +1125,7 @@ def test_validate_candidate_names_errors_on_colon_in_candidate():
 def test_validate_candidate_names_errors_non_str_int_candidate():
     invalid_candidates_list = ["A", 1.0]
     with pytest.raises(TypeError, match=r"Non-string/integer candidate\(s\) found in"):
-        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type]
+        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_validate_candidate_names_errors_on_negative_int_candidate():

@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from functools import cache
-from typing import Callable, Optional, Union
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -17,7 +17,7 @@ class BallotGraph(Graph):
     Class to build ballot graphs.
 
     Args:
-        source (Union[RankProfile, int, list]): data to create graph from, either
+        source (RankProfile | int | list): data to create graph from, either
             ``RankProfile`` object, number of candidates, or list of candidates.
         allow_partial (bool, optional): If True, builds graph using all possible ballots,
             If False, only uses total linear ordered ballots. Defaults to True.
@@ -37,9 +37,9 @@ class BallotGraph(Graph):
 
     def __init__(
         self,
-        source: Union[RankProfile, int, list],
-        allow_partial: Optional[bool] = True,
-        fix_short: Optional[bool] = True,
+        source: RankProfile | int | list,
+        allow_partial: bool | None = True,
+        fix_short: bool | None = True,
     ):
         super().__init__(nx.Graph())
         self.profile = None
@@ -144,7 +144,7 @@ class BallotGraph(Graph):
 
         return Gc
 
-    def from_profile(self, profile: RankProfile, fix_short: Optional[bool] = True) -> nx.Graph:
+    def from_profile(self, profile: RankProfile, fix_short: bool | None = True) -> nx.Graph:
         """
         Updates existing graph based on cast ballots from a RankProfile,
         or creates graph based on RankProfile.
@@ -269,9 +269,9 @@ class BallotGraph(Graph):
     def draw(
         self,
         to_display: Callable = all_nodes,
-        neighborhoods: Optional[list[tuple]] = [],
-        show_cast: Optional[bool] = False,
-        labels: Optional[bool] = False,
+        neighborhoods: list[tuple] | None = [],
+        show_cast: bool | None = False,
+        labels: bool | None = False,
         scale: float = 1.0,
     ):
         """

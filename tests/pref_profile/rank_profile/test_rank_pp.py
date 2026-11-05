@@ -21,6 +21,26 @@ def test_init():
     assert empty_profile.max_ranking_length == 0
 
 
+@pytest.mark.parametrize("undeclared_weight", [0, 1])
+def test_undeclared_ranked_candidates_require_zero_weight(undeclared_weight: int) -> None:
+    ballots = [
+        RankBallot(ranking=[{"X"}], weight=0),
+        RankBallot(ranking=[{"A"}]),
+        RankBallot(ranking=[{"X"}], weight=undeclared_weight),
+    ]
+    if undeclared_weight > 0:
+        with pytest.raises(ProfileError, match="Candidate X found in ballot"):
+            RankProfile(ballots=ballots, candidates=["A"])
+        return
+
+    profile = RankProfile(ballots=ballots, candidates=["A"])
+    assert profile.candidates == profile.candidates_cast == ("A",)
+    assert profile.ballots == tuple(ballots)
+
+    from_df = RankProfile(df=profile.to_df(), candidates=["A"], max_ranking_length=1)
+    pd.testing.assert_frame_equal(profile.to_df(), from_df.to_df())
+
+
 def test_unique_cands_validator():
     with pytest.raises(ProfileError, match="All candidates must be unique."):
         RankProfile(candidates=("A", "A", "B"))
@@ -156,7 +176,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
     ):
         RankProfile(
             ballots=[RankBallot(ranking=["A"])],
-            candidates=["A", 1.0],  # type: ignore[arg-type]
+            candidates=["A", 1.0],  # type: ignore[arg-type, ty:invalid-argument-type]
         )
 
 

@@ -1,12 +1,13 @@
 import warnings
 from collections.abc import Mapping
-from typing import Any, Literal, Optional, Tuple, Union, cast
+from typing import Any, Literal, cast
 
 import matplotlib.patches as mpatches
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 from matplotlib.lines import Line2D
+from matplotlib.typing import LegendLocType
 
 from votekit.types import CategoryLabel, CategoryLabelList, CategoryLabelMapping, DataMapping
 from votekit.utils import COLOR_LIST, check_for_equivalent_str_int_labels
@@ -47,13 +48,13 @@ def add_null_keys(data: DataMapping) -> dict[str, dict[CategoryLabel, float]]:
 def _set_default_bar_plot_args(
     *,
     data: DataMapping,
-    data_set_colors: Optional[Mapping[str, str]],
-    bar_width: Optional[float],
-    category_ordering: Optional[CategoryLabelList],
-    legend_font_size: Optional[float],
-    threshold_values: Optional[Union[list[float], float]],
-    threshold_kwds: Optional[Union[list[dict], dict]],
-    ax: Optional[Axes],
+    data_set_colors: Mapping[str, str] | None,
+    bar_width: float | None,
+    category_ordering: CategoryLabelList | None,
+    legend_font_size: float | None,
+    threshold_values: list[float] | float | None,
+    threshold_kwds: list[dict] | dict | None,
+    ax: Axes | None,
 ) -> dict[str, Any]:
     """
     Handles setting default arguments.
@@ -68,9 +69,9 @@ def _set_default_bar_plot_args(
             as 0.7 divided by the number of data sets.
         category_ordering (list[str], optional): Ordering of x labels. Defaults to order retrieved
             from first data dictionary.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list of values or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list of dictionaries or single dictionary.
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes.
@@ -132,10 +133,10 @@ def _validate_bar_plot_args(
     *,
     data: DataMapping,
     category_ordering: CategoryLabelList,
-    categories_legend: Optional[CategoryLabelMapping],
+    categories_legend: CategoryLabelMapping | None,
     bar_width: float,
-    threshold_values: Optional[list[float]],
-    threshold_kwds: Optional[list[dict[str, object]]],
+    threshold_values: list[float] | None,
+    threshold_kwds: list[dict[str, object]] | None,
 ) -> float:
     """
     Validates bar plot arguments.
@@ -313,7 +314,7 @@ def _plot_datasets_on_bar_plot(
     category_ordering: CategoryLabelList,
     y_data: list[list[float]],
     data_set_labels: list[str],
-    categories_legend: Optional[CategoryLabelMapping],
+    categories_legend: CategoryLabelMapping | None,
     bar_width: float,
     data_set_to_color: Mapping[str, str],
     font_size: float,
@@ -391,9 +392,9 @@ def _plot_datasets_on_bar_plot(
 def _label_bar_plot(
     *,
     ax: Axes,
-    x_axis_name: Optional[str],
-    y_axis_name: Optional[str],
-    title: Optional[str],
+    x_axis_name: str | None,
+    y_axis_name: str | None,
+    title: str | None,
     font_size: float,
 ) -> Axes:
     """
@@ -451,12 +452,12 @@ def _add_data_sets_legend_bar_plot(
     ax: Axes,
     data_set_labels: list[str],
     data_set_to_color: Mapping[str, str],
-    categories_legend: Optional[CategoryLabelMapping],
-    threshold_kwds: Optional[list[dict]],
+    categories_legend: CategoryLabelMapping | None,
+    threshold_kwds: list[dict] | None,
     legend_font_size: float,
-    legend_loc: str,
-    legend_bbox_to_anchor: Tuple[float, float],
-) -> Tuple[Axes, Optional[Legend]]:
+    legend_loc: LegendLocType,
+    legend_bbox_to_anchor: tuple[float, float],
+) -> tuple[Axes, Legend | None]:
     """
     Add legend to bar plot for data sets and any horizontal lines.
 
@@ -470,13 +471,13 @@ def _add_data_sets_legend_bar_plot(
         threshold_kwds (list[dict], optional): List of plotting
             keywords for the horizontal lines.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
-        legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
+        legend_loc (LegendLocType): The location parameter to pass to ``Axes.legend(loc=)``.
+        legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
 
     Returns:
-        Tuple[Axes, Legend]: Matplotlib axes containing bar plot with legend for data sets.
+        tuple[Axes, Legend]: Matplotlib axes containing bar plot with legend for data sets.
     """
-    proxy_artists: list[Union[mpatches.Patch, Line2D]] = []
+    proxy_artists: list[mpatches.Patch | Line2D] = []
 
     for label in data_set_labels:
         patch = mpatches.Patch(color=data_set_to_color[label], label=label)
@@ -510,9 +511,9 @@ def _add_categories_legend_bar_plot(
     ax: Axes,
     categories_legend: CategoryLabelMapping,
     legend_font_size: float,
-    legend_loc: str,
-    legend_bbox_to_anchor: Tuple[float, float],
-    data_set_legend: Optional[Legend],
+    legend_loc: LegendLocType,
+    legend_bbox_to_anchor: tuple[float, float],
+    data_set_legend: Legend | None,
 ) -> Axes:
     """
     Add legend to bar plot.
@@ -522,8 +523,8 @@ def _add_categories_legend_bar_plot(
         categories_legend (dict[str | int, str] | dict[str, str] | dict[int, str]):
             Dictionary mapping x-axis categories to description in legend.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc(str): The location parameter to pass to ``Axes.legend(loc=)``.
-        legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
+        legend_loc (LegendLocType): The location parameter to pass to ``Axes.legend(loc=)``.
+        legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
         data_set_legend (Legend, optional): The data set legend. Defaults to None.
 
 
@@ -569,18 +570,18 @@ def multi_bar_plot(
     | Mapping[str, Mapping[int, float]],
     *,
     normalize: bool = False,
-    data_set_colors: Optional[Mapping[str, str]] = None,
-    bar_width: Optional[float] = None,
-    category_ordering: Optional[CategoryLabelList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    data_set_colors: Mapping[str, str] | None = None,
+    bar_width: float | None = None,
+    category_ordering: CategoryLabelList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_data_set_legend: bool = False,
-    categories_legend: Optional[CategoryLabelMapping] = None,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    categories_legend: CategoryLabelMapping | None = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots bar plot of categorical data.
@@ -608,9 +609,9 @@ def multi_bar_plot(
             Dictionary mapping data categories to relabeling.
             Defaults to None. If provided, generates a second legend for data
             categories and relabels the x-axis accordingly. Can be a subset of the data keys.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -618,7 +619,7 @@ def multi_bar_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -718,17 +719,17 @@ def bar_plot(
     data_set_label: str = "Data set",
     normalize: bool = False,
     data_set_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    category_ordering: Optional[CategoryLabelList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    category_ordering: CategoryLabelList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_data_set_legend: bool = False,
-    categories_legend: Optional[CategoryLabelMapping] = None,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    categories_legend: CategoryLabelMapping | None = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots bar plot of a single categorical data set. Wrapper for ``multi_bar_plot``.
@@ -754,9 +755,9 @@ def bar_plot(
         categories_legend (dict[str | int, str] | dict[str, str] | dict[int, str] |  None):
             Dictionary mapping data categories to description. Defaults to None.
             If provided, generates a second legend for data categories.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -764,7 +765,7 @@ def bar_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches

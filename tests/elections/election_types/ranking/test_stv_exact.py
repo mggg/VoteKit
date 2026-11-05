@@ -7,7 +7,12 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot
+from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections import IRV, STV, SequentialRCV, fractional_transfer, random_transfer
+from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
+    exact_borda_scores,
+    exact_first_place_votes,
+)
 from votekit.graphs.ballot_graph import BallotGraph
 from votekit.pref_profile import ProfileError, RankProfile
 from votekit.pref_profile.utils import (
@@ -59,6 +64,46 @@ def test_exact_stv_does_not_mutate_float_input_profile():
     STV(profile, n_seats=2, exact=True, rng_seed=2)
 
     assert all(isinstance(ballot.weight, float) for ballot in profile.ballots)
+
+
+@pytest.mark.parametrize("simultaneous", [False, True])
+def test_exact_stv_handles_zero_weight_rows_after_electing_at_quota(simultaneous: bool):
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=3),
+            RankBallot(ranking=[{"B"}, {"A"}, {"C"}], weight=0),
+        ]
+    )
+
+    election = STV(profile, n_seats=1, quota="hare", simultaneous=simultaneous, exact=True)
+
+    assert election.get_elected() == (frozenset({"A"}),)
+    assert election.get_profile(-1).total_ballot_wt == 0
+    assert all(
+        isinstance(score, Fraction)
+        for state in election.election_states
+        for score in state.scores.values()
+    )
+
+
+@pytest.mark.parametrize(
+    "scorer, expected",
+    [
+        (exact_first_place_votes, {"A": Fraction(2, 3), "B": Fraction(0)}),
+        (exact_borda_scores, {"A": Fraction(4, 3), "B": Fraction(2, 3)}),
+    ],
+)
+@pytest.mark.parametrize("weight", [Fraction(0), Fraction(2, 3)])
+def test_exact_scores_ignore_candidates_on_zero_weight_rows(scorer, expected, weight: Fraction):
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=weight),
+            RankBallot(ranking=[{"X"}, {"Y"}], weight=Fraction(0)),
+        ],
+        candidates=("A", "B", "X", "Y"),
+    )
+
+    assert scorer(profile) == (expected if weight else {})
 
 
 @pytest.mark.parametrize("value", [1, 1.0, np.int64(1), np.float64(1.0)])
@@ -308,6 +353,38 @@ def test_exact_stv_uses_exact_borda_tiebreak():
     assert resolution[0] == frozenset({"B"})
 
 
+@pytest.mark.parametrize("retain_unused_tie", [False, True])
+def test_exact_stv_borda_tiebreak_after_removing_a_tied_candidate(retain_unused_tie: bool):
+    profile = RankProfile(
+        ballots=(
+            RankBallot(ranking=({"A", "X"}, {"C"}, {"B"})),
+            RankBallot(ranking=({"B"}, {"C"}, {"A"})),
+        ),
+        max_ranking_length=4,
+    )
+    cleaned: RankProfile = remove_and_condense_rank_profile("X", profile)
+    if not retain_unused_tie:
+        cleaned = RankProfile(
+            ballots=cleaned.ballots,
+            candidates=cleaned.candidates,
+            max_ranking_length=cleaned.max_ranking_length,
+        )
+
+    assert (frozenset({"A", "X"}) in cleaned._matrix.cand_sets) == retain_unused_tie
+
+    election = STV(
+        cleaned,
+        n_seats=2,
+        simultaneous=False,
+        exact=True,
+        tiebreak="borda",
+        rng_seed=5,
+    )
+
+    assert {candidate for elected in election.get_elected() for candidate in elected} == {"A", "B"}
+    assert any(frozenset({"A", "B"}) in state.tiebreaks for state in election.election_states)
+
+
 def test_exact_stv_accepts_first_place_tiebreak():
     profile = RankProfile(
         ballots=(
@@ -458,9 +535,6 @@ def test_shared_rational_profile_float_boundaries():
 
 @pytest.mark.parametrize("weight", [Fraction(0), Fraction(2, 3)])
 def test_exact_first_place_votes_ignores_empty_first_position(weight):
-    from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
-        exact_first_place_votes,
-    )
     from votekit.utils import _first_place_votes_from_df_no_ties
 
     profile = RankProfile(
@@ -483,7 +557,6 @@ def test_exact_first_place_votes_ignores_empty_first_position(weight):
 @pytest.mark.parametrize("ranking", [[set(), {"A"}], [{"A"}, set(), {"B"}]])
 @pytest.mark.parametrize("weight", [Fraction(0), Fraction(1)])
 def test_exact_borda_rejects_empty_positions_like_float_borda(ranking, weight):
-    from votekit.elections.election_types.ranking.stv.exact_fraction_ops import exact_borda_scores
     from votekit.utils import borda_scores
 
     profile = RankProfile(

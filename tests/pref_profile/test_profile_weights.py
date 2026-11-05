@@ -126,3 +126,33 @@ def test_empty_profile_weights_use_float_storage(profile_type, dtype):
     assert profile._matrix.voter_weight_data.weight_kind is WeightKind.FLOAT
     assert profile.total_ballot_wt == 0
     assert profile.candidates_cast == ()
+
+
+@pytest.mark.parametrize("profile_type", [RankProfile, ScoreProfile])
+def test_profile_total_preserves_small_float_contributions(profile_type):
+    weights = pd.Series([1e9, 5e-8, 5e-8])
+    profile = _profile_from_weights(profile_type, weights)
+
+    assert profile.total_ballot_wt == 1000000000.0000001
+
+
+@pytest.mark.parametrize("profile_type", [RankProfile, ScoreProfile])
+@pytest.mark.parametrize(
+    "weights, expected",
+    [
+        ([1e9, 5e-8, 5e-8, 1e9, 5e-8, 5e-8], [1000000000.0000001] * 2),
+        ([1e9, 1e9, 1e-7, 1e-7], [1000000000.0000001] * 2),
+        ([1e9, 1e9, 5e-8, 5e-8, 5e-8], [1000000000.0000001, 1e9]),
+        ([1e9, 2.0, 1e-7], [1000000000.0000001, 2.0]),
+    ],
+    ids=["larger-groups", "pairs", "pair-and-larger-group", "singleton-and-pair"],
+)
+def test_grouping_preserves_small_float_contributions_in_interleaved_groups(
+    profile_type, weights, expected
+):
+    profile = _profile_from_weights(profile_type, pd.Series(weights))
+
+    grouped = profile.group_ballots()
+
+    assert grouped.to_df()["Weight"].tolist() == expected
+    assert profile.to_df()["Weight"].tolist() == weights

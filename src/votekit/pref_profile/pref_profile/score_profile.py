@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Self, Sequence, Tuple, Union, cast
+from typing import Self, cast
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, ScoreBallot
+from votekit.constants import EMPTY_VOTER_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile.csv_utils import (
     _parse_ballot_from_score_csv,
@@ -27,7 +28,7 @@ from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import ScoreMatrix
 from votekit.pref_profile.utils import _sum_score_profiles
-from votekit.types import Candidate
+from votekit.types import Candidate, Numeric
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
@@ -59,15 +60,33 @@ def _normalize_score_df_candidates(
     return df.rename(columns=column_mapping)
 
 
-class ScoreProfile(PreferenceProfile):
+class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
     """
     Store scored ballots with nonnegative scores and matrix-owned storage.
 
-    NaN denotes an unscored candidate. Construction raises ValueError for negative scores,
-    including scores on zero-weight ballots; election-specific limits are validated separately.
-    """
+    NaN denotes an unscored candidate; explicit zeros remain scored entries. Inferred candidates
+    include candidates scored zero on positive-weight ballots, but candidates_cast contains only
+    candidates with positive scores on positive-weight ballots.
 
-    _matrix: ScoreMatrix
+    Construction raises ValueError for negative scores, including scores on zero-weight ballots;
+    election-specific limits are validated separately.
+
+    This specializes PreferenceProfile with ScoreMatrix and ScoreBallot. Even an empty profile
+    has a score matrix. Its max_ranking_length attribute is always None.
+
+    Zero-weight ballots may name candidates outside the declared candidate universe. Their data
+    remain stored in the matrix, but they do not contribute to candidates_cast. Candidate names
+    and ballot structure are still validated regardless of weight.
+
+    Args:
+        ballots (Sequence[Ballot], optional): Scored ballots. Other ballot types are rejected.
+            Defaults to empty tuple.
+        candidates (Sequence[Candidate], optional): Declared candidates. Defaults to empty tuple,
+            which infers candidates from positive-weight ballots. Required for a nonempty dataframe.
+        max_ranking_length (int | None, optional): Unused compatibility argument. Defaults to None.
+        df (pd.DataFrame, optional): Score ballot dataframe, supplied instead of ballots.
+            Defaults to an empty dataframe.
+    """
 
     def __new__(cls, **kwargs) -> Self:
         """
@@ -80,7 +99,7 @@ class ScoreProfile(PreferenceProfile):
         *,
         ballots: Sequence[Ballot] = tuple(),
         candidates: Sequence[Candidate] = tuple(),
-        max_ranking_length: Optional[int] = None,
+        max_ranking_length: int | None = None,
         df: pd.DataFrame = pd.DataFrame(),
     ):
         for index, ballot in enumerate(ballots):
@@ -110,6 +129,12 @@ class ScoreProfile(PreferenceProfile):
         self._validate_candidates()
 
         self._matrix = ScoreMatrix.from_df(score_df, self.candidates)
+        candidates_with_positive_scores = self._matrix.get_candidates_cast()
+        self.candidates_cast = tuple(
+            candidate
+            for candidate in self.candidates_cast
+            if candidate in candidates_with_positive_scores
+        )
 
         self.max_ranking_length = None
         self._finalize_profile()
@@ -141,12 +166,12 @@ class ScoreProfile(PreferenceProfile):
             return
 
         for c, score in ballot.scores.items():
+            if ballot.weight > 0 and self.candidates and c not in self.candidates:
+                raise ProfileError(
+                    f"Candidate {c} found in ballot {ballot} but not in "
+                    f"candidate list {self.candidates}."
+                )
             if c not in seen_candidates:
-                if self.candidates:
-                    raise ProfileError(
-                        f"Candidate {c} found in ballot {ballot} but not in "
-                        f"candidate list {self.candidates}."
-                    )
                 seen_candidates.append(c)
             if ballot.weight > 0 and c not in candidates_cast:
                 candidates_cast.append(c)
@@ -179,7 +204,7 @@ class ScoreProfile(PreferenceProfile):
         """
         score_ballot_data[WEIGHT_COLUMN][idx] = ballot.weight
 
-        if ballot.voter_set != frozenset():
+        if ballot.voter_set != EMPTY_VOTER_SET:
             score_ballot_data[VOTER_SET_COLUMN][idx] = ballot.voter_set
 
         if ballot.scores is not None:
@@ -194,7 +219,7 @@ class ScoreProfile(PreferenceProfile):
 
     def __init_score_ballot_data(
         self, ballots: Sequence[ScoreBallot]
-    ) -> Tuple[int, dict[str | int, list]]:
+    ) -> tuple[int, dict[str | int, list]]:
         """
         Create the ballot data objects.
 
@@ -202,7 +227,7 @@ class ScoreProfile(PreferenceProfile):
             ballots (Sequence[ScoreBallot]): Ballots in dataframe row order.
 
         Returns:
-            Tuple[int, dict[str | int, list]]: Ballot count and allocated column lists.
+            tuple[int, dict[str | int, list]]: Ballot count and allocated column lists.
                 Declared candidate columns begin with NaN for unscored entries.
         """
         num_ballots = len(ballots)
@@ -311,9 +336,7 @@ class ScoreProfile(PreferenceProfile):
             df (pd.DataFrame): Dataframe representation of ballots.
 
         Raises:
-            ValueError: One of contains_rankings and contains_scores must be True.
-            ValueError: If contains_rankings is True, max_ranking_length must be provided.
-            ValueError: Candidates must be provided.
+            ProfileError: Candidates were not provided for a nonempty dataframe.
         """
         boiler_plate = "When providing a dataframe and no ballot list to the init method, "
         if len(df) == 0:
@@ -407,14 +430,21 @@ class ScoreProfile(PreferenceProfile):
 
         Returns:
             ScoreBallot: Ballot with the stored weight and voters, including zero-weight rows.
+                Explicit zero scores are retained; missing scores are omitted.
 
         Raises:
             IndexError: The row is outside the profile.
         """
         scores = self._matrix.get_scores(row)
         ballot_data = self._matrix.voter_weight_data
-        voters = ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else frozenset()
-        return ScoreBallot(scores=scores or None, weight=ballot_data.weights[row], voter_set=voters)
+        voters = (
+            ballot_data.voter_sets[row] if ballot_data.voter_sets is not None else EMPTY_VOTER_SET
+        )
+        return ScoreBallot(
+            scores=scores or None,
+            weight=ballot_data.weights[row],
+            voter_set=voters,
+        )
 
     def iter_ballots(self) -> Iterator[ScoreBallot]:
         """
@@ -516,16 +546,19 @@ class ScoreProfile(PreferenceProfile):
 
         return header
 
-    def __to_score_csv_score_list(self, score_ballot: ScoreBallot) -> list:
+    def __to_score_csv_score_list(self, score_ballot: ScoreBallot) -> list[float | str]:
         """
-        Create the list of score data for a ballot in the profile.
+        Create CSV score cells, leaving missing scores blank and retaining explicit zeros.
 
         Args:
-            ballot (Ballot): Ballot.
+            score_ballot (ScoreBallot): Ballot to export.
 
+        Returns:
+            list[float | str]: Score cells in declared candidate order, with blanks for missing
+                scores.
         """
         if score_ballot.scores is not None:
-            return [float(score_ballot.scores.get(c, 0)) for c in self.candidates]
+            return [score_ballot.scores.get(c, "") for c in self.candidates]
 
         return [""] * len(self.candidates)
 
@@ -534,7 +567,7 @@ class ScoreProfile(PreferenceProfile):
         score_ballot: ScoreBallot,
         include_voter_set: bool,
         weight_precision: int,
-    ) -> list[list]:
+    ) -> list[Numeric | str]:
         """
         Create the row for a ballot in the profile.
 
@@ -544,12 +577,16 @@ class ScoreProfile(PreferenceProfile):
                 ballot.
             weight_precision (int): Number of decimals to round float weights to.
 
-
+        Returns:
+            list[Numeric | str]: CSV cells containing scores, weight, separators, and optional
+                voter names.
         """
-        row = self.__to_score_csv_score_list(score_ballot)
-        row += ["&"]
-
-        row += [round(score_ballot.weight, weight_precision), "&"]
+        row: list[Numeric | str] = [
+            *self.__to_score_csv_score_list(score_ballot),
+            "&",
+            round(score_ballot.weight, weight_precision),
+            "&",
+        ]
 
         if include_voter_set:
             row += [v for v in sorted(score_ballot.voter_set)]
@@ -641,16 +678,23 @@ class ScoreProfile(PreferenceProfile):
         return None
 
     @classmethod
-    def from_csv(cls, fpath: Union[str, PathLike, Path]) -> PreferenceProfile:
+    def from_csv(cls, fpath: str | PathLike | Path) -> Self:
         """
-        Creates a PreferenceProfile from a csv, formatted from the ``to_csv`` method.
+        Load a score profile from the CSV format produced by ``to_csv``.
+
+        Blank score cells are unscored; numeric zeros are retained as explicit scores. Older
+        exports used zeros for missing scores, so their original missing entries cannot be
+        recovered from the file.
 
         Args:
-            fpath (str): Path to csv.
+            fpath (str | PathLike | Path): Path to csv.
+
+        Returns:
+            Self: Profile constructed using the class this method is called on.
 
         Raises:
             ValueError: If csv is improperly formatted for VoteKit.
-            ProfileError: If read profile has no rankings or scores.
+            ProfileError: If the loaded ballots or candidates violate profile constraints.
 
         """
         with open(str(fpath), "r") as file:
@@ -693,6 +737,7 @@ class ScoreProfile(PreferenceProfile):
         """
         profile = object.__new__(ScoreProfile)
         profile._matrix = matrix
+        profile.max_ranking_length = None
         profile.candidates = matrix.candidates
         profile.candidates_cast = tuple(
             sort_candidates_pseudo_lexicographically(matrix.get_candidates_cast())

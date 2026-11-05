@@ -3,7 +3,7 @@ import numpy as np
 from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
 from votekit.pref_profile import RankProfile
-from votekit.types import Candidate, CandidateList
+from votekit.types import Candidate, CandidateList, Numeric
 
 
 def comention(cands: Candidate | CandidateList, ballot: RankBallot):
@@ -81,7 +81,9 @@ def comentions_matrix(
     Returns:
       np.ndarray: Numpy array of comentions.
     """
-    comentions_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
+    comentions_matrix: dict[Candidate, dict[Candidate, Numeric]] = {
+        c: {c: 0.0 for c in candidates} for c in candidates
+    }
 
     for i in candidates:
         for j in candidates:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ import pandas as pd
 if TYPE_CHECKING:
     from votekit.pref_profile import RankProfile
 
+from votekit.constants import END_OF_RANKING_ID
 from votekit.types import Candidate
 
 
@@ -300,8 +302,6 @@ def _include_unranked_in_cand_locations(profile: RankProfile, cand_set_locations
      np.ndarray: Boolean matrix where all candidate locations are marked as True including its
         unranked locations at the end of the ballot.
     """
-    from votekit.pref_profile.profile_matrix import END_OF_RANKING_ID
-
     rank_array = profile._matrix.rankings
     rank_array = np.column_stack((rank_array, [END_OF_RANKING_ID] * len(rank_array)))
 

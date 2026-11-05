@@ -1,5 +1,5 @@
 from collections.abc import Callable, Mapping
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 from matplotlib.axes import Axes
 
@@ -30,17 +30,17 @@ def profile_bar_plot(
     profile_label: str = "Profile",
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    category_ordering: Optional[CandidateList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    category_ordering: CandidateList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_profile_legend: bool = False,
-    categories_legend: Optional[CandidatePlotLabelMapping] = None,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    categories_legend: CandidatePlotLabelMapping | None = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots bar plot of a single profile.
@@ -71,9 +71,9 @@ def profile_bar_plot(
             |  None): Dictionary mapping data categories to description. Defaults to None.
             If provided, generates a second legend for data categories.
             Candidates can be strings, integers, or mix of both.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -81,7 +81,7 @@ def profile_bar_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -114,23 +114,24 @@ def profile_borda_plot(
     profile: RankProfile,
     *,
     profile_label: str = "Profile",
-    borda_kwds: Optional[dict[str, Any]] = None,
+    borda_kwds: dict[str, Any] | None = None,
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    candidate_ordering: CandidateList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[
-        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
-    ] = None,
+    candidate_legend: Mapping[Candidate, PlotLabel]
+    | Mapping[str, PlotLabel]
+    | Mapping[int, PlotLabel]
+    | None = None,
     relabel_candidates_with_int: bool = False,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots borda points of candidates in profile. Wrapper for ``profile_bar_plot``.
@@ -161,9 +162,9 @@ def profile_borda_plot(
             Candidates can be strings, integers, or mix of both.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -171,7 +172,7 @@ def profile_borda_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -211,23 +212,24 @@ def profile_mentions_plot(
     profile: RankProfile,
     *,
     profile_label: str = "Profile",
-    mentions_kwds: Optional[dict[str, Any]] = None,
+    mentions_kwds: dict[str, Any] | None = None,
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    candidate_ordering: CandidateList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[
-        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
-    ] = None,
+    candidate_legend: Mapping[Candidate, PlotLabel]
+    | Mapping[str, PlotLabel]
+    | Mapping[int, PlotLabel]
+    | None = None,
     relabel_candidates_with_int: bool = False,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots mentions of candidates in profile. Wrapper for ``profile_bar_plot``.
@@ -258,9 +260,9 @@ def profile_mentions_plot(
             Candidates can be strings, integers, or mix of both.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -268,7 +270,7 @@ def profile_mentions_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -308,23 +310,24 @@ def profile_fpv_plot(
     profile: RankProfile,
     *,
     profile_label: str = "Profile",
-    fpv_kwds: Optional[dict[str, Any]] = None,
+    fpv_kwds: dict[str, Any] | None = None,
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    candidate_ordering: Optional[CandidateList] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    candidate_ordering: CandidateList | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_profile_legend: bool = False,
-    candidate_legend: Optional[
-        Mapping[Candidate, PlotLabel] | Mapping[str, PlotLabel] | Mapping[int, PlotLabel]
-    ] = None,
+    candidate_legend: Mapping[Candidate, PlotLabel]
+    | Mapping[str, PlotLabel]
+    | Mapping[int, PlotLabel]
+    | None = None,
     relabel_candidates_with_int: bool = False,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots first place votes of candidates in profile. Wrapper for ``profile_bar_plot``.
@@ -355,9 +358,9 @@ def profile_fpv_plot(
             Candidates can be strings, integers, or mix of both.
         relabel_candidates_with_int (bool, optional): Relabel the candidates with integer labels.
             Defaults to False. If ``candidate_legend`` is passed, those labels supercede.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -365,7 +368,7 @@ def profile_fpv_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], otptional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], otptional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches
@@ -405,20 +408,20 @@ def profile_ballot_lengths_plot(
     profile: RankProfile,
     *,
     profile_label: str = "Profile",
-    ballot_lengths_kwds: Optional[dict[str, Any]] = None,
+    ballot_lengths_kwds: dict[str, Any] | None = None,
     normalize: bool = False,
     profile_color: str = COLOR_LIST[0],
-    bar_width: Optional[float] = None,
-    lengths_ordering: Optional[list[str | int]] = None,
-    x_axis_name: Optional[str] = None,
-    y_axis_name: Optional[str] = None,
-    title: Optional[str] = None,
+    bar_width: float | None = None,
+    lengths_ordering: list[str | int] | None = None,
+    x_axis_name: str | None = None,
+    y_axis_name: str | None = None,
+    title: str | None = None,
     show_profile_legend: bool = False,
-    lengths_legend: Optional[Mapping[str | int, PlotLabel]] = None,
-    threshold_values: Optional[Union[list[float], float]] = None,
-    threshold_kwds: Optional[Union[list[dict], dict]] = None,
-    legend_font_size: Optional[float] = None,
-    ax: Optional[Axes] = None,
+    lengths_legend: Mapping[str | int, PlotLabel] | None = None,
+    threshold_values: list[float] | float | None = None,
+    threshold_kwds: list[dict] | dict | None = None,
+    legend_font_size: float | None = None,
+    ax: Axes | None = None,
 ) -> Axes:
     """
     Plots ballot lengths in profile. Wrapper for ``profile_bar_plot``.
@@ -444,9 +447,9 @@ def profile_ballot_lengths_plot(
             "label" passed through ``threshold_kwds``.
         lengths_legend (dict[str, str], optional): Dictionary mapping lengths
             to alternate label. Defaults to None. If provided, generates a second legend.
-        threshold_values (Union[list[float], float], optional): List of values to plot horizontal
+        threshold_values (list[float] | float, optional): List of values to plot horizontal
             lines at. Can be provided as a list or a single float.
-        threshold_kwds (Union[list[dict], dict], optional): List of plotting
+        threshold_kwds (list[dict] | dict, optional): List of plotting
             keywords for the horizontal lines. Can be a list or single dictionary. These will be
             passed to plt.axhline(). Common keywords include "linestyle", "linewidth", and "label".
             If "label" is passed, automatically plots the data set legend with the labels.
@@ -454,7 +457,7 @@ def profile_ballot_lengths_plot(
             + the number of categories.
         legend_loc (str, optional): The location parameter to pass to ``Axes.legend(loc=)``.
             Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float], optional): The bounding box to anchor
+        legend_bbox_to_anchor (tuple[float, float], optional): The bounding box to anchor
             the legend to. Defaults to (1, 0.5).
         ax (Axes, optional): A matplotlib axes object to plot the figure on. Defaults to None, in
             which case the function creates and returns a new axes. The figure height is 6 inches

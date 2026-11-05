@@ -1,17 +1,15 @@
-from typing import Union
-
 from votekit.ballot import ScoreBallot
 
 
 def remove_cand_score_ballot(
-    removed: Union[str, list],
+    removed: str | list,
     ballot: ScoreBallot,
 ) -> ScoreBallot:
     """
     Removes specified candidate(s) from ballot.
 
     Args:
-        removed (Union[str, list]): Candidate or list of candidates to be removed.
+        removed (str | list): Candidate or list of candidates to be removed.
         ballot (ScoreBallot): Ballot to remove candidates from.
 
     Returns:

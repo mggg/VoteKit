@@ -1,4 +1,5 @@
 from votekit.ballot import RankBallot
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.types import Candidate
 
 
@@ -16,7 +17,7 @@ def condense_rank_ballot(
 
     """
     condensed_ranking = (
-        [cand_set for cand_set in ballot.ranking if cand_set != frozenset()]
+        [cand_set for cand_set in ballot.ranking if cand_set != EMPTY_CANDIDATE_SET]
         if ballot.ranking is not None
         else []
     )
@@ -57,8 +58,8 @@ def remove_repeat_cands_rank_ballot(
     seen_cands = []
 
     for cand_set in ballot.ranking:
-        if cand_set == frozenset({"~"}):
-            dedup_ranking.append(frozenset({"~"}))
+        if cand_set == END_OF_RANKING_SET:
+            dedup_ranking.append(END_OF_RANKING_SET)
             continue
 
         new_position = []

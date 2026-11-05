@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal
 
 from votekit.elections.election_types.ranking.borda import Borda
 from votekit.pref_profile import RankProfile
@@ -34,11 +34,11 @@ class _RankedBlockPlurality(Borda):
         self,
         profile: RankProfile,
         n_seats: int = 1,
-        budget: Optional[int] = None,
-        tiebreak: Optional[str] = None,
+        budget: int | None = None,
+        tiebreak: str | None = None,
         scoring_tie_convention: Literal["high", "average", "low"] = "low",
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         if budget is None or budget == 0:
             budget = n_seats

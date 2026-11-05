@@ -52,7 +52,7 @@ def test_graph_labels():
 def test_k_neighbors_no_weights():
     test = BallotGraph(3)
     with pytest.raises(TypeError):
-        test.k_heaviest_neighborhoods(k=2, **{"int": 2})
+        test.k_heaviest_neighborhoods(k=2, **{"int": 2})  # ty: ignore[unknown-argument]
 
 
 def test_k_neighborhoods():

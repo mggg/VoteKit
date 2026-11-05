@@ -181,7 +181,6 @@ autodoc_mock_imports = [
     "shapely.prep",
     "shapely.prepared",
     "shapely.validation",
-    "matplotlib",
 ]
 
 # -- Extension configuration -------------------------------------------------

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Self, Sequence
+from typing import Self
 
 import numpy as np
 import pandas as pd
@@ -257,8 +258,8 @@ class ScoreMatrix:
         scores = self.scores[:, columns]
 
         return (
-            np.fmin.reduce(scores, axis=1, initial=np.nan),
-            np.fmax.reduce(scores, axis=1, initial=np.nan),
+            np.fmin.reduce(scores, axis=1, initial=np.nan, out=...),
+            np.fmax.reduce(scores, axis=1, initial=np.nan, out=...),
         )
 
     def sum_scores_by_ballot(self) -> NDArray[np.float64]:

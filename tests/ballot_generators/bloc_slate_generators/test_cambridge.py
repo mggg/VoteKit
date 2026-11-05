@@ -4,9 +4,11 @@ import re
 from collections import Counter
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 from votekit.ballot import RankBallot
+from votekit.ballot_generator.bloc_slate_generator import cambridge
 from votekit.ballot_generator.bloc_slate_generator.cambridge import (
     cambridge_profile_generator,
     cambridge_profiles_by_bloc_generator,
@@ -17,6 +19,81 @@ from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 
 PROB_THRESHOLD = 0.01
+
+
+@pytest.mark.parametrize("n_voters", [2, 37])
+def test_cambridge_public_apis_share_matrix_samples_without_dataframe_construction(
+    monkeypatch, two_bloc_two_slate_mixed_config_cambridge, n_voters
+):
+    config = two_bloc_two_slate_mixed_config_cambridge
+    config.n_voters = n_voters
+    monkeypatch.setattr(cambridge, "BATCH_SIZE", 7)
+
+    def reject_profile_round_trip(*args, **kwargs):
+        raise AssertionError("Cambridge generation must construct profiles directly from matrices.")
+
+    with monkeypatch.context() as patches:
+        for name in ("__init__", "__add__", "to_df", "group_ballots"):
+            patches.setattr(RankProfile, name, reject_profile_round_trip)
+
+        combined = cambridge_profile_generator(config, group_ballots=False, rng_seed=42)
+        by_bloc = cambridge_profiles_by_bloc_generator(config, group_ballots=False, rng_seed=42)
+        grouped = cambridge_profile_generator(config, group_ballots=True, rng_seed=42)
+        grouped_by_bloc = cambridge_profiles_by_bloc_generator(config, rng_seed=42)
+
+    assert combined.total_ballot_wt == n_voters
+    assert combined.num_ballots == n_voters
+    assert combined.candidates == tuple(config.candidates)
+    assert combined.max_ranking_length == len(config.candidates)
+    assert list(by_bloc) == list(config.blocs)
+    np.testing.assert_array_equal(
+        combined._matrix.rankings,
+        np.concatenate([profile._matrix.rankings for profile in by_bloc.values()]),
+    )
+    assert grouped.ballots == combined.group_ballots().ballots
+    for bloc, profile in by_bloc.items():
+        assert profile.candidates == combined.candidates
+        assert grouped_by_bloc[bloc].ballots == profile.group_ballots().ballots
+        assert not np.shares_memory(profile._matrix.rankings, combined._matrix.rankings)
+
+
+@pytest.mark.parametrize("majority_bloc, minority_bloc", [("X", "Y"), ("Y", "X")])
+def test_cambridge_keeps_historical_truncation_with_explicit_slate_mapping(
+    monkeypatch, two_bloc_two_slate_mixed_config_cambridge, majority_bloc, minority_bloc
+):
+    config = two_bloc_two_slate_mixed_config_cambridge
+    config.n_voters = 71
+    monkeypatch.setattr(cambridge, "BATCH_SIZE", 7)
+    monkeypatch.setattr(cambridge, "_reduce_ballot_pmfs", lambda *args: ({"W": 1.0}, {"CWC": 1.0}))
+    profiles = cambridge_profiles_by_bloc_generator(
+        config,
+        majority_bloc=majority_bloc,
+        minority_bloc=minority_bloc,
+        group_ballots=False,
+        rng_seed=42,
+    )
+
+    candidate_slates = {
+        candidate: slate
+        for slate, candidates in config.slate_to_candidates.items()
+        for candidate in candidates
+    }
+    observed_lengths = set()
+    for profile in profiles.values():
+        for ballot in profile.ballots:
+            ranking = ballot_ranking(ballot)
+            slate_sequence = tuple(candidate_slates[next(iter(position))] for position in ranking)
+            assert slate_sequence in (
+                (majority_bloc,),
+                (minority_bloc, majority_bloc, minority_bloc),
+            )
+            assert len({candidate for position in ranking for candidate in position}) == len(
+                ranking
+            )
+            observed_lengths.add(len(ranking))
+        encoded = profile._matrix.rankings
+        assert np.all(encoded[:, -1] == -1)
+    assert observed_lengths == {1, 3}
 
 
 def ballot_ranking(ballot: RankBallot) -> tuple[frozenset[Candidate], ...]:

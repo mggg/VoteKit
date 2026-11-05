@@ -57,7 +57,7 @@ def test_generate_election_completion():
         cohesion_mapping=cohesion_parameters,
     )
 
-    pp = bg.cambridge_profile_generator(config)
+    pp = bg.cambridge_profile_generator(config, rng_seed=0)
 
     assert isinstance(pp, PreferenceProfile)
 

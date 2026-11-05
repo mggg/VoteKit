@@ -5,6 +5,7 @@ import numpy as np
 from votekit.ballot import RankBallot
 from votekit.matrices._utils import _convert_dict_to_matrix
 from votekit.pref_profile import RankProfile
+from votekit.types import Numeric
 
 
 def candidate_distance(i: str, j: str, ballot: RankBallot) -> float:
@@ -56,8 +57,12 @@ def candidate_distance_matrix(pref_profile: RankProfile, candidates: list[str]) 
         np.ndarray: Numpy array of average distances.
     """
 
-    dist_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
-    weight_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
+    dist_matrix: dict[str, dict[str, Numeric]] = {
+        c: {c: 0.0 for c in candidates} for c in candidates
+    }
+    weight_matrix: dict[str, dict[str, Numeric]] = {
+        c: {c: 0.0 for c in candidates} for c in candidates
+    }
     avg_dist_matrix = {c: {c: 0.0 for c in candidates} for c in candidates}
 
     for i, j in it.combinations_with_replacement(candidates, 2):

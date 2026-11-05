@@ -3,7 +3,6 @@ import io
 import os
 import urllib.request
 from pathlib import Path
-from typing import Union
 
 from pandas.errors import DataError, EmptyDataError
 
@@ -12,14 +11,14 @@ from votekit.pref_profile import RankProfile
 
 
 def load_scottish(
-    fpath: Union[str, os.PathLike, Path],
+    fpath: str | os.PathLike | Path,
 ) -> tuple[RankProfile, int, list[str], dict[str, str], str]:
     """
     Given a file path, loads cast vote record from format used for Scottish election data
     in (this repo)[https://github.com/mggg/scot-elex].
 
     Args:
-        fpath (Union[str, os.PathLike, pathlib.Path]): Path to Scottish election csv file.
+        fpath (str | os.PathLike | pathlib.Path): Path to Scottish election csv file.
             Can be a url.
 
     Raises:

@@ -1,33 +1,32 @@
-from typing import Dict, List, Optional, Tuple, Union
-
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap, TwoSlopeNorm
+from matplotlib.typing import LegendLocType
 
 
 def _validate_heatmap_inputs(
     *,
     matrix: np.ndarray,
-    row_labels: Optional[List[str]] = None,
-    column_labels: Optional[List[str]] = None,
-    row_legend: Optional[Dict[str, str]] = None,
-    column_legend: Optional[Dict[str, str]] = None,
+    row_labels: list[str] | None = None,
+    column_labels: list[str] | None = None,
+    row_legend: dict[str, str] | None = None,
+    column_legend: dict[str, str] | None = None,
 ) -> None:
     """
     Used internally for the `matrix_heatmap` function to validate the inputs to the function.
 
     Args:
         matrix (np.ndarray): A 2D numpy array containing the data to be plotted.
-        row_labels (Optional[List[str]]): A list of strings containing the labels for the rows
+        row_labels (list[str] | None): A list of strings containing the labels for the rows
             of the heatmap. Defaults to None.
-        column_labels (Optional[List[str]]): A list of strings containing the labels for the
+        column_labels (list[str] | None): A list of strings containing the labels for the
             columns of the heatmap. Defaults to None.
-        row_legend (Optional[Dict[str, str]]): A dictionary mapping row labels to legend
+        row_legend (dict[str, str] | None): A dictionary mapping row labels to legend
             descriptions. Defaults to None.
-        column_legend (Optional[Dict[str, str]]): A dictionary mapping column labels to legend
+        column_legend (dict[str, str] | None): A dictionary mapping column labels to legend
             descriptions. Defaults to None.
 
     Raises:
@@ -79,7 +78,7 @@ def _add_text_to_heatmap(
     heatmap: Axes,
     n_decimals_to_display: int,
     matrix: np.ndarray,
-    cell_font_size: Optional[int] = None,
+    cell_font_size: int | None = None,
 ) -> Axes:
     """
     Adds the text values to the heatmap cells. This function dynamically determines
@@ -91,7 +90,7 @@ def _add_text_to_heatmap(
         n_decimals_to_display (int): The number of decimal places to display for the values
             in the heatmap.
         matrix (np.ndarray): A 2D numpy array containing the data to be plotted.
-        cell_font_size (Optional[int]): The base font size to use for the cell values.
+        cell_font_size (int | None): The base font size to use for the cell values.
             If None, the font size will be dynamically determined.
 
     Returns:
@@ -109,19 +108,16 @@ def _add_text_to_heatmap(
         font_size = cell_font_size
     else:
         fig = heatmap.get_figure()
-        if fig:
-            fig.canvas.draw()
+        assert fig is not None
+        fig.canvas.draw()
 
-            # ignoring type error, ty not up to date with matplotlib get_renderer
-            renderer = fig.canvas.get_renderer()  # type: ignore[attr-defined]
+        # bounding box in display coords
+        bbox = heatmap.get_window_extent()
+        width_pts = bbox.width
 
-            # bounding box in display coords
-            bbox = heatmap.get_window_extent(renderer=renderer)
-            width_pts = bbox.width
+        cell_width_pts = width_pts / ncols
 
-            cell_width_pts = width_pts / ncols
-
-            font_size = int(cell_width_pts / max_chars)
+        font_size = int(cell_width_pts / max_chars)
 
     for i in range(nrows):
         for j in range(ncols):
@@ -154,22 +150,22 @@ def _add_text_to_heatmap(
 
 def _add_legend_to_heatmap(
     *,
-    row_and_col_legends: Dict[str, str],
+    row_and_col_legends: dict[str, str],
     ax: Axes,
     legend_font_size: float,
-    legend_loc: str,
-    legend_bbox_to_anchor: Tuple[float, float],
+    legend_loc: LegendLocType,
+    legend_bbox_to_anchor: tuple[float, float],
 ) -> Axes:
     """
     Adds a legend to a heatmap.
 
     Args:
-        row_and_col_legends (Dict[str, str]): A dictionary mapping row and column labels to
+        row_and_col_legends (dict[str, str]): A dictionary mapping row and column labels to
             legend descriptions.
         ax (matplotlib.axes.Axes): The matplotlib axis to add the legend to.
         legend_font_size (float): The font size to use for the legend.
-        legend_loc (str): The location to place the legend.
-        legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
+        legend_loc (LegendLocType): The location to place the legend.
+        legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
 
     Returns:
         matplotlib.axes.Axes: The matplotlib axis containing with the updated legend.
@@ -208,23 +204,23 @@ def _add_legend_to_heatmap(
 def matrix_heatmap(
     matrix: np.ndarray,
     *,
-    ax: Optional[Axes] = None,
+    ax: Axes | None = None,
     show_cell_values: bool = True,
     n_decimals_to_display: int = 2,
-    row_labels: Optional[List[str]] = None,
-    row_label_rotation: Optional[float] = None,
-    row_legend: Optional[dict[str, str]] = None,
-    column_labels: Optional[List[str]] = None,
-    column_label_rotation: Optional[float] = None,
-    column_legend: Optional[dict[str, str]] = None,
-    cell_color_map: Optional[Union[str, Colormap]] = None,
-    cell_font_size: Optional[int] = None,
+    row_labels: list[str] | None = None,
+    row_label_rotation: float | None = None,
+    row_legend: dict[str, str] | None = None,
+    column_labels: list[str] | None = None,
+    column_label_rotation: float | None = None,
+    column_legend: dict[str, str] | None = None,
+    cell_color_map: str | Colormap | None = None,
+    cell_font_size: int | None = None,
     cell_spacing: float = 0.5,
     cell_divider_color: str = "white",
     show_colorbar: bool = False,
     legend_font_size: float = 10.0,
-    legend_location: str = "center left",
-    legend_bbox_to_anchor: Tuple[float, float] = (1.03, 0.5),
+    legend_location: LegendLocType = "center left",
+    legend_bbox_to_anchor: tuple[float, float] = (1.03, 0.5),
 ) -> Axes:
     """
     Basic function for plotting a matrix as a heatmap.
@@ -238,22 +234,22 @@ def matrix_heatmap(
             human-readable.  Defaults to True.
         n_decimals_to_display (int): The number of decimal places to display for the values
             in the heatmap.  Defaults to 2.
-        row_labels (Optional(List[str])): A list of strings containing the labels for the rows
+        row_labels (list[str] | None): A list of strings containing the labels for the rows
             of the heatmap. Defaults to None.
-        row_label_rotation (Optional(float)): The rotation to apply to the row labels.
+        row_label_rotation (float | None): The rotation to apply to the row labels.
             Defaults to None.
-        row_legend (Optional(Dict[str, str])): A dictionary mapping row labels to legend
+        row_legend (dict[str, str] | None): A dictionary mapping row labels to legend
             descriptions. Defaults to None.
-        column_labels (Optional(List[str])): A list of strings containing the labels for the
+        column_labels (list[str] | None): A list of strings containing the labels for the
             columns of the heatmap. Defaults to None.
-        column_label_rotation (Optional(float)): The rotation to apply to the column labels.
+        column_label_rotation (float | None): The rotation to apply to the column labels.
             Defaults to None.
-        column_legend (Optional(Dict[str, str])): A dictionary mapping column labels to legend
+        column_legend (dict[str, str] | None): A dictionary mapping column labels to legend
             descriptions. Defaults to None.
-        cell_color_map (Optional(Union[str, matplotlib.colors.Colormap])): The color map to use
+        cell_color_map (str | matplotlib.colors.Colormap | None): The color map to use
             for the heatmap. Defaults to `PRGn` if the matrix contains negative values and
             `Greens` otherwise.
-        cell_font_size (Optional(int)): The font size to use for the cell values. Defaults to
+        cell_font_size (int | None): The font size to use for the cell values. Defaults to
             None, which will then use dynamic font size based on the number of cells and the
             figure size.
         cell_spacing (float): The spacing between the cells in the heatmap. Defaults to 0.5.
@@ -261,8 +257,9 @@ def matrix_heatmap(
             Defaults to "white".
         show_colorbar (bool): Whether to show the colorbar for the heatmap. Defaults to False.
         legend_font_size (float): The font size to use for the legend. Defaults to 10.0.
-        legend_location (str): The location to place the legend. Defaults to "center left".
-        legend_bbox_to_anchor (Tuple[float, float]): The bounding box to anchor the legend to.
+        legend_location (LegendLocType): The location to place the legend.
+            Defaults to "center left".
+        legend_bbox_to_anchor (tuple[float, float]): The bounding box to anchor the legend to.
             Defaults to (1.03, 0.5).
 
     Returns:
@@ -291,7 +288,7 @@ def matrix_heatmap(
 
     vmin = np.nanmin(matrix)
     vmax = np.nanmax(matrix)
-    norm: Union[TwoSlopeNorm, str, None] = (
+    norm: TwoSlopeNorm | str | None = (
         TwoSlopeNorm(vmin=vmin, vcenter=0.0, vmax=vmax) if (vmin < 0 < vmax) else None
     )
 

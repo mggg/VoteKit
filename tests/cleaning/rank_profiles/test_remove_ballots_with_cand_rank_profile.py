@@ -88,7 +88,7 @@ def test_remove_ballots_without_retain_original_candidate_list(profile_no_ties):
 
 def test_remove_ballots_with_invalid_cand_type(profile_no_ties):
     with pytest.raises(TypeError, match=r"Non-string\/integer candidate\(s\) found in removed"):
-        remove_ballots_with_cand_rank_profile([1.0], profile_no_ties)  # type: ignore[arg-type]
+        remove_ballots_with_cand_rank_profile([1.0], profile_no_ties)  # type: ignore[arg-type, ty:invalid-argument-type]
     with pytest.raises(TypeError, match=r"Boolean candidate\(s\) found in removed"):
         remove_ballots_with_cand_rank_profile(True, profile_no_ties)
 

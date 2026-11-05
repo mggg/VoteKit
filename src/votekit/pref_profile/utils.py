@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
-from functools import partial
-from typing import Optional, Sequence, cast
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 import pandas as pd
@@ -18,11 +18,8 @@ from votekit._df_schema import (
     WEIGHT_COLUMN,
 )
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
-from votekit.pref_profile.profile_matrix import (
-    EMPTY_SET_ID,
-    END_OF_RANKING_ID,
-    ScoreMatrix,
-)
+from votekit.constants import EMPTY_SET_ID, END_OF_RANKING_ID, END_OF_RANKING_SET
+from votekit.pref_profile.profile_matrix import ScoreMatrix
 from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
 from votekit.pref_profile.profile_matrix.score_matrix import _concatenate_score_matrices
 from votekit.types import Candidate
@@ -31,7 +28,7 @@ from votekit.utils import sort_candidates_pseudo_lexicographically
 
 def _convert_ranking_cols_to_ranking(
     row: pd.Series, max_ranking_length: int
-) -> Optional[tuple[frozenset, ...]]:
+) -> tuple[frozenset, ...] | None:
     """
     Convert the ranking cols to a ranking tuple in profile.to_df().
 
@@ -40,7 +37,7 @@ def _convert_ranking_cols_to_ranking(
         max_ranking_length (int, optional): The maximum length of a ranking.
 
     Returns:
-        Optional[tuple[frozenset, ...]]: Ranking of ballot.
+        tuple[frozenset, ...] | None: Ranking of ballot.
 
     Raises:
         ValueError: NaN values can only trail on a ranking.
@@ -52,8 +49,8 @@ def _convert_ranking_cols_to_ranking(
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
     if any(
-        row[col_idx] == frozenset({"~"})
-        and not all(row[idx] == frozenset({"~"}) for idx in ranking_cols_idxs[i:])
+        row[col_idx] == END_OF_RANKING_SET
+        and not all(row[idx] == END_OF_RANKING_SET for idx in ranking_cols_idxs[i:])
         for i, col_idx in enumerate(ranking_cols_idxs)
     ):
         raise ValueError(
@@ -61,7 +58,7 @@ def _convert_ranking_cols_to_ranking(
             "'~' values can only trail on a ranking."
         )
 
-    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")]
+    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != END_OF_RANKING_SET]
 
     return tuple(ranking) if len(ranking) > 0 else None
 
@@ -134,13 +131,8 @@ def _df_to_rank_ballot_tuple(
         return tuple()
 
     return tuple(
-        df.apply(
-            partial(
-                convert_row_to_rank_ballot,
-                max_ranking_length=max_ranking_length,
-            ),
-            axis="columns",
-        )
+        convert_row_to_rank_ballot(row, max_ranking_length=max_ranking_length)
+        for _, row in df.iterrows()
     )
 
 
@@ -197,7 +189,7 @@ def score_profile_to_ballot_dict(
     tot_weight = float(score_profile.total_ballot_wt)
     di: dict = {}
     for ballot in score_profile.ballots:
-        weightless_ballot = Ballot(
+        weightless_ballot = ScoreBallot(
             scores=ballot.scores,
             voter_set=ballot.voter_set,
         )
@@ -302,9 +294,7 @@ def _export_profile_rows(profile: PreferenceProfile, row_indices: NDArray[np.int
     return matrix.to_df(rows=row_indices)
 
 
-def _ordered_profile_rows(
-    profile: PreferenceProfile, sort_by_weight: bool | None
-) -> NDArray[np.intp]:
+def _ordered_profile_rows(profile: PreferenceProfile, sort_by_weight: bool) -> NDArray[np.intp]:
     """
     Select source row order or descending weight order, preserving source order for ties.
     """
@@ -318,18 +308,20 @@ def _ordered_profile_rows(
 def profile_df_head(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool = True,
+    percents: bool = False,
+    totals: bool = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the top-n ballots in profile.
 
     Args:
+        profile (PreferenceProfile): Profile to display; must have a rank or score matrix.
         n (int): Number of ballots to view.
         sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
-            Equal weights retain source order. Source index labels are preserved. Defaults to True.
+            If False, use source row order. Equal weights retain source order. Source index labels
+            are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -341,6 +333,7 @@ def profile_df_head(
 
     Raises:
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
+        NotImplementedError: The profile has no matrix, as with an empty base PreferenceProfile.
     """
 
     rows = _ordered_profile_rows(profile, sort_by_weight)[:n]
@@ -367,18 +360,20 @@ def profile_df_head(
 def profile_df_tail(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool = True,
+    percents: bool = False,
+    totals: bool = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the bottom-n ballots in profile.
 
     Args:
+        profile (PreferenceProfile): Profile to display; must have a rank or score matrix.
         n (int): Number of ballots to view.
         sort_by_weight (bool, optional): If True, select the last rows in descending weight order.
-            Equal weights retain source order. Source index labels are preserved. Defaults to True.
+            If False, select the last rows in source order. Equal weights retain source order.
+            Source index labels are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -390,6 +385,7 @@ def profile_df_tail(
 
     Raises:
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
+        NotImplementedError: The profile has no matrix, as with an empty base PreferenceProfile.
     """
     ordered_rows = _ordered_profile_rows(profile, sort_by_weight)
     rows = ordered_rows[-n:] if n else ordered_rows[:0]
@@ -507,10 +503,9 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
             f"non-RankProfiles found at: {invalid_profiles_str}"
         )
 
-    candidates = list(set().union(*[set(profile.candidates) for profile in rank_profiles]))
-    max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
-
     validated_profiles = cast(Sequence[RankProfile], rank_profiles)
+    candidates = list(set().union(*[set(profile.candidates) for profile in validated_profiles]))
+    max_ranking_length = max([profile.max_ranking_length for profile in validated_profiles])
     matrices = [profile._matrix for profile in validated_profiles]
     matrix = _concatenate_rank_matrices(matrices, tuple(candidates), max_ranking_length)
     return RankProfile._from_matrix(matrix, max_ranking_length=max_ranking_length)

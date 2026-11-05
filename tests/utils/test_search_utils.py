@@ -480,7 +480,7 @@ def test_search_for_ranking_query_with_include_unranked():
 
 def test_search_with_non_rank_profile_raises_error():
     with pytest.raises(TypeError, match="Profile must be a RankProfile"):
-        search_profile_for_rank_pattern(ScoreProfile(), ranking_query=["A", "B"])  # type: ignore[arg-type]
+        search_profile_for_rank_pattern(ScoreProfile(), ranking_query=["A", "B"])  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_validate_ranking_query_raises_errors():
@@ -495,7 +495,7 @@ def test_validate_ranking_query_raises_errors():
         TypeError,
         match=re.escape(f"Use set for {invalid_set}, not frozenset within ranking_query."),
     ):
-        _validate_ranking_query([invalid_set], RankProfile())  # type: ignore[arg-type]
+        _validate_ranking_query([invalid_set], RankProfile())  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_non_candidate_set = {1.0}
     with pytest.raises(TypeError, match="Set items must be 'str' or 'int' candidates"):
@@ -554,11 +554,11 @@ def test_validate_max_cand_pair_dist_raises_errors():
     with pytest.raises(
         TypeError, match="max_cand_pair_dist keys must be a tuple of candidate pairs"
     ):
-        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type]
+        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_dict = {("A", "B"): 1.0}
     with pytest.raises(TypeError, match="max distances of max_cand_pair_dist must be integers"):
-        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type]
+        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_dict = {("A", "B"): -1}
     with pytest.raises(
@@ -583,7 +583,7 @@ def test_search_with_invalid_ranking_query_raises_error():
         TypeError,
         match=re.escape(f"Use set for {invalid_set}, not frozenset within ranking_query."),
     ):
-        search_profile_for_rank_pattern(RankProfile(), ranking_query=[invalid_set])  # type: ignore[arg-type]
+        search_profile_for_rank_pattern(RankProfile(), ranking_query=[invalid_set])  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_search_with_invalid_max_cand_pair_dist_raises_error():

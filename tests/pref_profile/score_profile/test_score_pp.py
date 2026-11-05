@@ -23,6 +23,27 @@ def test_init():
     assert not empty_profile.num_ballots
 
 
+@pytest.mark.parametrize("undeclared_weight", [0, 1])
+def test_undeclared_scored_candidates_require_zero_weight(undeclared_weight: int) -> None:
+    ballots = [
+        ScoreBallot(scores={"X": 2}, weight=0),
+        ScoreBallot(scores={"A": 1}),
+        ScoreBallot(scores={"X": 3}, weight=undeclared_weight),
+    ]
+    if undeclared_weight > 0:
+        with pytest.raises(ProfileError, match="Candidate X found in ballot"):
+            ScoreProfile(ballots=ballots, candidates=["A"])
+        return
+
+    profile = ScoreProfile(ballots=ballots, candidates=["A"])
+    assert profile.candidates == profile.candidates_cast == ("A",)
+    assert profile.to_df()["X"].iloc[::2].tolist() == [2, 3]
+    assert profile.to_df()["Weight"].tolist() == [0, 1, 0]
+
+    from_df = ScoreProfile(df=profile.to_df(), candidates=["A"])
+    pd.testing.assert_frame_equal(profile.to_df(), from_df.to_df())
+
+
 def test_unique_cands_validator():
     with pytest.raises(ProfileError, match="All candidates must be unique."):
         ScoreProfile(candidates=("A", "A", "B"))
@@ -158,7 +179,7 @@ def test_non_int_str_candidate_in_profile_raises_error():
             ballots=[
                 ScoreBallot(scores={1: 1}),
             ],
-            candidates=[1, 1.0],  # type: ignore[arg-type]
+            candidates=[1, 1.0],  # type: ignore[arg-type, ty:invalid-argument-type]
         )
 
 
@@ -385,8 +406,46 @@ def test_ballot_materialization_reads_arrays_and_preserves_values(
     forbid_dataframe_conversion()
 
     assert profile.ballots == expected
+    assert profile.ballots[0].scores == {1: 3.0, "A": 0.0}
+    assert profile.ballots[1].scores is None
+    assert profile.ballots[2].scores == {1: 0.0, "A": 2.0}
     assert profile.ballots is profile.ballots
     assert type(profile.ballots[0].weight) is type(weight)
+
+
+def test_explicit_zero_scores_survive_profile_construction_and_grouping() -> None:
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True, weight=2),
+            ScoreBallot(scores={"A": 1}, weight=3),
+            ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True),
+        ],
+        candidates=("A", "B", "C"),
+    )
+    from_df = ScoreProfile(df=profile.to_df(), candidates=profile.candidates)
+
+    assert list(from_df.iter_ballots()) == list(profile.iter_ballots())
+    assert from_df.get_ballot(0).scores == {"A": 1.0, "B": 0.0}
+    assert from_df.get_ballot(1).scores == {"A": 1.0}
+    assert profile.candidates_cast == from_df.candidates_cast == ("A",)
+
+    grouped = from_df.group_ballots()
+    assert grouped.num_ballots == 2
+    assert grouped.get_ballot(0).scores == {"A": 1.0, "B": 0.0}
+    assert grouped.get_ballot(1).scores == {"A": 1.0}
+    assert [ballot.weight for ballot in grouped.iter_ballots()] == [3, 3]
+
+    reconstructed = ScoreProfile(ballots=grouped.ballots, candidates=grouped.candidates)
+    pd.testing.assert_frame_equal(reconstructed.to_df(), grouped.to_df())
+
+
+def test_inferred_candidates_include_explicit_zero_scores() -> None:
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 0}, include_zero_score=True)])
+
+    assert profile.candidates == ("A",)
+    assert profile.candidates_cast == ()
+    assert profile.get_ballot(0).scores == {"A": 0.0}
+    assert profile.group_ballots().get_ballot(0).scores == {"A": 0.0}
 
 
 def test_empty_ballots_need_no_dataframe_conversion(

@@ -1,6 +1,6 @@
 import random
 from functools import partial
-from typing import Literal, Optional
+from typing import Literal
 
 from votekit.cleaning import remove_and_condense_rank_profile
 from votekit.elections._deprecation import _handle_deprecated_kwargs
@@ -41,7 +41,7 @@ class BoostedRandomDictator(RankingElection):
         profile: RankProfile,
         n_seats: int | None = None,
         fpv_tie_convention: Literal["high", "average", "low"] = "average",
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         kwargs = _handle_deprecated_kwargs(kwargs, {"m": "n_seats"})
@@ -113,8 +113,8 @@ class BoostedRandomDictator(RankingElection):
 
         if store_states:
             elected = (frozenset({winning_candidate}),)
-            if self.score_function:
-                scores = self.score_function(new_profile)
+            assert self.score_function is not None
+            scores = self.score_function(new_profile)
             remaining = score_dict_to_ranking(scores)
 
             new_state = ElectionState(

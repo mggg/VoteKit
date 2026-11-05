@@ -1,19 +1,21 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import numpy as np
 
+from votekit.constants import (
+    EMPTY_CANDIDATE_SET,
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+)
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
 )
 from votekit.pref_profile.pref_profile import _normalize_ranking_set
-from votekit.pref_profile.profile_matrix import (
-    EMPTY_SET_ID,
-    END_OF_RANKING_ID,
-    END_OF_RANKING_SET,
-    RankMatrix,
-)
+from votekit.pref_profile.profile_matrix import RankMatrix
+from votekit.pref_profile.profile_matrix.rank_matrix import _group_ranking_rows
 from votekit.types import Candidate, CandidateList
 from votekit.utils import _validate_candidate_names, sort_candidates_pseudo_lexicographically
 
@@ -55,7 +57,7 @@ def _iterate_and_clean_ranking_tuples(
     }
 
     # Cleaning depends only on the ranking, so clean each distinct ranking once.
-    first_rows_idx, group_ids = matrix._group_ranking_rows()
+    first_rows_idx, group_ids = _group_ranking_rows(matrix.rankings)
     cleaned_groups = np.empty((len(first_rows_idx), num_positions), dtype=np.intp)
     cleaned_candidates: set[Candidate] = set()
 
@@ -271,8 +273,8 @@ def _remove_repeat_cands_from_ranking_row(
     seen_cands = []
 
     for cand_set in ranking_tup:
-        if cand_set == frozenset({"~"}):
-            dedup_ranking.append(frozenset({"~"}))
+        if cand_set == END_OF_RANKING_SET:
+            dedup_ranking.append(END_OF_RANKING_SET)
             continue
         if not isinstance(cand_set, frozenset):
             dedup_ranking.append(np.nan)
@@ -448,10 +450,10 @@ def _condense_ranking_row(
 
     """
     max_ranking_length = len(ranking_tup)
-    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != frozenset()]
+    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != EMPTY_CANDIDATE_SET]
 
     if len(condensed_ranking) < max_ranking_length:
-        condensed_ranking += [frozenset("~")] * (max_ranking_length - len(condensed_ranking))
+        condensed_ranking += [END_OF_RANKING_SET] * (max_ranking_length - len(condensed_ranking))
 
     return tuple(condensed_ranking)
 
