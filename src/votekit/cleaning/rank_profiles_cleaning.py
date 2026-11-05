@@ -277,10 +277,6 @@ def _remove_repeat_cands_from_ranking_row(
         if cand_set == END_OF_RANKING_SET:
             dedup_ranking.append(END_OF_RANKING_SET)
             continue
-        if not isinstance(cand_set, frozenset):
-            dedup_ranking.append(np.nan)
-            continue
-
         new_position = []
         for cand in cand_set:
             if cand not in seen_cands:

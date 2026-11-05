@@ -72,7 +72,10 @@ def test_truncate_at_cand_rank_profile_requires_rank_profile():
     score_profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})])
 
     with pytest.raises(TypeError, match="Profile must be a RankProfile."):
-        truncate_at_cand_rank_profile("overvote", score_profile)  # type: ignore[arg-type]
+        truncate_at_cand_rank_profile(
+            "overvote",
+            score_profile,  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
+        )
 
 
 def test_truncate_at_cand_rank_profile_with_ties(profile_with_ties):
