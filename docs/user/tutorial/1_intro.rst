@@ -216,7 +216,7 @@ collection of ballots in a compact format.
     
     print(profile)
     print()
-    print(profile.df.to_string())
+    print(profile.to_df().to_string())
 
 
 .. parsed-literal::
@@ -264,7 +264,7 @@ profile, as follows.
     grouped_profile = profile.group_ballots()
     print(grouped_profile)
     print()
-    print(grouped_profile.df.to_string())
+    print(grouped_profile.to_df().to_string())
 
 
 .. parsed-literal::
@@ -287,8 +287,11 @@ profile, as follows.
 In these examples, the profiles are very short, so we can print the
 entire profile dataframe. If the profile was very long, we would want to
 view just the head of the dataframe. If you are savvy with the pandas
-library, ``profile.df`` returns a pandas ``DataFrame`` that you can use
-and manipulate. If you aren’t, you can use the VoteKit functions
+library, ``profile.to_df()`` constructs a fresh pandas ``DataFrame`` that you can
+use and manipulate without changing the profile. Save it once with
+``profile_df = profile.to_df()`` when performing several dataframe operations.
+The ``profile.df`` attribute is deprecated as of VoteKit 3.6.0 and will be removed
+in the next major release. If you aren’t familiar with pandas, you can use the VoteKit functions
 ``profile_df_head`` and ``profile_df_tail`` to return the top and bottom
 ballots by weight.
 
@@ -351,7 +354,7 @@ so with an empty set in the ballot, which would look like this.
     
     profile = PreferenceProfile(ballots=(ballot_1, ballot_2), max_ranking_length=3)
     
-    print(profile.df)
+    print(profile.to_df())
 
 
 .. parsed-literal::
@@ -534,21 +537,21 @@ You can also do most of these with the pandas ``DataFrame`` methods.
 .. code:: ipython3
 
     # this will print the top 8 in order of input
-    print(profile.df.head(8))
+    print(profile.to_df().head(8))
     print()
     
     # and the bottom 8
-    print(profile.df.tail(8))
+    print(profile.to_df().tail(8))
     print()
     
     # and the entry indexed 10, which includes the percent of the profile
     # this ballot accounts for
-    print(profile.df.iloc[10])
+    print(profile.to_df().iloc[10])
     print()
     
     # group and sort by by weight
     grouped_profile = profile.group_ballots()
-    print(grouped_profile.df.head(8).sort_values(by="Weight", ascending=False))
+    print(grouped_profile.to_df().head(8).sort_values(by="Weight", ascending=False))
 
 
 .. parsed-literal::
@@ -906,7 +909,7 @@ it should.
     
     profile = profile.group_ballots()
     
-    print(profile.df)
+    print(profile.to_df())
     
     # m is the number of seats to elect
     election = Plurality(profile=profile, n_seats=1)

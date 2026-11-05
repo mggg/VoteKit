@@ -1,10 +1,12 @@
-from typing import Optional, Sequence, Union
+from collections.abc import Sequence
 
 import numpy as np
 from scipy.optimize import linprog
 from scipy.sparse import csr_matrix, identity, kron, vstack
 from scipy.stats import kendalltau
 
+from votekit._df_schema import WEIGHT_COLUMN
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.pref_profile import RankProfile, rank_profile_to_ranking_dict
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
@@ -295,13 +297,12 @@ def __build_simultaneous_profile_distribution(
     profile_distribution_dict = dict()
 
     assert profile1.max_ranking_length is not None
-    profile1_ranking_array = profile1.df[
-        [f"Ranking_{i}" for i in range(1, profile1.max_ranking_length + 1)]
-    ].to_numpy()
-    profile1_wt_vector = profile1.df["Weight"].astype(float).to_numpy()
+    profile1_df = profile1.to_df()
+    profile1_ranking_array = profile1_df[list(profile1._matrix.ranking_columns)].to_numpy()
+    profile1_wt_vector = profile1_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile1_wt_vector = profile1_wt_vector / np.sum(profile1_wt_vector)
 
-    if (profile1_ranking_array == frozenset({})).any():
+    if (profile1_ranking_array == EMPTY_CANDIDATE_SET).any():
         raise ValueError("The first profile contains an empty ranking, which is not allowed.")
 
     for idx, ranking_tuple in enumerate(profile1_ranking_array):
@@ -317,13 +318,12 @@ def __build_simultaneous_profile_distribution(
         profile_distribution_dict[tup] = (float(profile1_wt_vector[idx]), 0.0)
 
     assert profile2.max_ranking_length is not None
-    profile2_ranking_array = profile2.df[
-        [f"Ranking_{i}" for i in range(1, profile2.max_ranking_length + 1)]
-    ].to_numpy()
-    profile2_wt_vector = profile2.df["Weight"].astype(float).to_numpy()
+    profile2_df = profile2.to_df()
+    profile2_ranking_array = profile2_df[list(profile2._matrix.ranking_columns)].to_numpy()
+    profile2_wt_vector = profile2_df[WEIGHT_COLUMN].astype(float).to_numpy()
     profile2_wt_vector = profile2_wt_vector / np.sum(profile2_wt_vector)
 
-    if (profile2_ranking_array == frozenset({})).any():
+    if (profile2_ranking_array == EMPTY_CANDIDATE_SET).any():
         raise ValueError("The second profile contains an empty ranking, which is not allowed.")
 
     for idx, ranking_tuple in enumerate(profile2_ranking_array):
@@ -401,7 +401,7 @@ def earth_mover_dist(pp1: RankProfile, pp2: RankProfile) -> float:
 def lp_dist(
     pp1: RankProfile,
     pp2: RankProfile,
-    p_value: Optional[Union[int, str]] = 1,
+    p_value: int | str | None = 1,
 ) -> int:
     r"""
     Computes the :math:`L_p` distance between two profiles.
@@ -411,7 +411,7 @@ def lp_dist(
     Args:
         pp1 (RankProfile): RankProfile for first profile.
         pp2 (RankProfile): RankProfile for second profile.
-        p_value (Union[int, str], optional): :math:`L_p` distance parameter. Use "inf" for
+        p_value (int | str, optional): :math:`L_p` distance parameter. Use "inf" for
             :math:`\infty`.
 
     Returns:

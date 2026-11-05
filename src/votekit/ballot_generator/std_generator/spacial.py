@@ -12,12 +12,20 @@ The main API functions in this module are:
     clustered multi-dimensional spacial model where voters are clustered around candidates.
 """
 
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, cast
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
+from votekit.constants import EMPTY_VOTER_SET, END_OF_RANKING_SET
 from votekit.metrics import euclidean_dist
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate, CandidateList
@@ -31,7 +39,7 @@ def onedim_spacial_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a 1D spatial rank profile.
@@ -55,7 +63,7 @@ def onedim_spacial_profile_generator(
     candidate_position_dict = {c: rng.normal(0, 1) for c in candidates}
     voter_positions = rng.normal(0, 1, number_of_ballots)
 
-    ballot_pool = np.full((number_of_ballots, n_candidates), frozenset("~"), dtype=object)
+    ballot_pool = np.full((number_of_ballots, n_candidates), END_OF_RANKING_SET, dtype=object)
 
     for i, vp in enumerate(voter_positions):
         distance_tuples = [(c, abs(v - vp)) for c, v in candidate_position_dict.items()]
@@ -65,13 +73,13 @@ def onedim_spacial_profile_generator(
         ballot_pool[i] = candidate_ranking
 
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        VOTER_SET_COLUMN,
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return RankProfile(
         candidates=candidates,
@@ -83,14 +91,14 @@ def onedim_spacial_profile_generator(
 def spacial_profile_and_positions_generator(
     number_of_ballots: int,
     candidates: Sequence[Candidate],
-    voter_dist: Optional[Callable[..., np.ndarray]] = None,
-    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-    candidate_dist: Optional[Callable[..., np.ndarray]] = None,
-    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    voter_dist: Callable[..., np.ndarray] | None = None,
+    voter_dist_kwargs: dict[str, Any] | None = None,
+    candidate_dist: Callable[..., np.ndarray] | None = None,
+    candidate_dist_kwargs: dict[str, Any] | None = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    rng_seed: Optional[int] = None,
-) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
+    rng_seed: int | None = None,
+) -> tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a spatial rank profile and sampled positions.
 
@@ -114,14 +122,14 @@ def spacial_profile_and_positions_generator(
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw each voter position. If none provided, ``np.random.uniform`` with
             rng_seed will be used.
-        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+        voter_dist_kwargs (dict[str, Any] | None, optional): Keyword arguments
             passed to ``voter_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, ``np.random.uniform``
             with rng_seed will be used.
-        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+        candidate_dist_kwargs (dict[str, Any] | None, optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
@@ -133,7 +141,7 @@ def spacial_profile_and_positions_generator(
             non-deterministic results.
 
     Returns:
-        Tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
+        tuple[RankProfile, dict[Candidaate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
@@ -178,7 +186,7 @@ def spacial_profile_and_positions_generator(
     candidate_position_dict = {c: candidate_dist(**candidate_dist_kwargs) for c in candidates}
     voter_positions = np.array([voter_dist(**voter_dist_kwargs) for _ in range(number_of_ballots)])
 
-    ballot_pool = np.full((number_of_ballots, len(candidates)), frozenset("~"))
+    ballot_pool = np.full((number_of_ballots, len(candidates)), END_OF_RANKING_SET)
 
     for i in range(number_of_ballots):
         distance_tuples = [
@@ -192,13 +200,13 @@ def spacial_profile_and_positions_generator(
 
     n_candidates = len(candidates)
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        VOTER_SET_COLUMN,
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return (
         RankProfile(
@@ -214,14 +222,14 @@ def spacial_profile_and_positions_generator(
 def clustered_spacial_profile_and_positions_generator(
     number_of_ballots: dict[Candidate, int] | dict[str, int] | dict[int, int],
     candidates: CandidateList,
-    voter_dist: Optional[Callable[..., np.ndarray]] = None,
-    voter_dist_kwargs: Optional[Dict[str, Any]] = None,
-    candidate_dist: Optional[Callable[..., np.ndarray]] = None,
-    candidate_dist_kwargs: Optional[Dict[str, Any]] = None,
+    voter_dist: Callable[..., np.ndarray] | None = None,
+    voter_dist_kwargs: dict[str, Any] | None = None,
+    candidate_dist: Callable[..., np.ndarray] | None = None,
+    candidate_dist_kwargs: dict[str, Any] | None = None,
     distance: Callable[[np.ndarray, np.ndarray], float] = euclidean_dist,
     *,
-    rng_seed: Optional[int] = None,
-) -> Tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
+    rng_seed: int | None = None,
+) -> tuple[RankProfile, dict[Candidate, np.ndarray], np.ndarray]:
     """
     Generate a clustered spatial rank profile and sampled positions.
 
@@ -247,7 +255,7 @@ def clustered_spacial_profile_and_positions_generator(
         voter_dist (Callable[..., np.ndarray], optional): Distribution sampler used
             to draw voter positions centered at each candidate location. If none provided,
             will use ``np.random.normal`` with rng_seed.
-        voter_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword arguments
+        voter_dist_kwargs (dict[str, Any] | None, optional): Keyword arguments
             passed to ``voter_dist`` while generating voter positions. If None,
             uses ``{"loc": 0, "std": np.array(1.0), "size": np.array(2.0)}``
             for ``np.random.normal`` and ``{}`` for other supported
@@ -255,7 +263,7 @@ def clustered_spacial_profile_and_positions_generator(
         candidate_dist (Callable[..., np.ndarray], optional): Distribution sampler
             used to draw each candidate position. If none provided, will use
             ``np.random.uniform`` with rng_seed.
-        candidate_dist_kwargs (Optional[Dict[str, Any]], optional): Keyword
+        candidate_dist_kwargs (dict[str, Any] | None, optional): Keyword
             arguments passed to ``candidate_dist`` for each sample. If None, uses
             ``{"low": 0.0, "high": 1.0, "size": 2.0}`` for
             ``np.random.uniform`` and ``{}`` for other distributions.
@@ -267,7 +275,7 @@ def clustered_spacial_profile_and_positions_generator(
             non-deterministic results.
 
     Returns:
-        Tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
+        tuple[RankProfile, dict[Candidate, numpy.ndarray], numpy.ndarray]:
             A tuple containing the preference profile object,
             a dictionary with each candidate's position in the metric
             space, and a matrix where each row is a single voter's position
@@ -334,7 +342,7 @@ def clustered_spacial_profile_and_positions_generator(
             vidx += 1
 
     n_candidates = len(_candidates)
-    ballot_pool = np.full((n_voters, n_candidates), frozenset("~"), dtype=object)
+    ballot_pool = np.full((n_voters, n_candidates), END_OF_RANKING_SET, dtype=object)
     for i in range(len(voter_positions)):
         v_position = voter_positions[i]
         distance_tuples = [
@@ -349,13 +357,13 @@ def clustered_spacial_profile_and_positions_generator(
     voter_positions_array = np.vstack(voter_positions)
 
     df = pd.DataFrame(ballot_pool)
-    df.index.name = "Ballot Index"
-    df.columns = [f"Ranking_{i + 1}" for i in range(n_candidates)]
-    df["Weight"] = 1
+    df.index.name = BALLOT_INDEX_NAME
+    df.columns = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(n_candidates)]
+    df[WEIGHT_COLUMN] = 1
     df.insert(
         len(df.columns),
-        "Voter Set",
-        pd.Series([frozenset()] * len(df), dtype=object, index=df.index),
+        VOTER_SET_COLUMN,
+        pd.Series([EMPTY_VOTER_SET] * len(df), dtype=object, index=df.index),
     )
     return (
         RankProfile(

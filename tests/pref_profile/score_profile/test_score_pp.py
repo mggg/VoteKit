@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from collections.abc import Callable
+from fractions import Fraction
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,6 +10,7 @@ import pytest
 from votekit.ballot import ScoreBallot
 from votekit.exceptions import ProfileError
 from votekit.pref_profile import ScoreProfile
+from votekit.pref_profile.utils import convert_row_to_score_ballot
 
 
 def test_init():
@@ -15,6 +21,27 @@ def test_init():
     assert not empty_profile.candidates_cast
     assert not empty_profile.total_ballot_wt
     assert not empty_profile.num_ballots
+
+
+@pytest.mark.parametrize("undeclared_weight", [0, 1])
+def test_undeclared_scored_candidates_require_zero_weight(undeclared_weight: int) -> None:
+    ballots = [
+        ScoreBallot(scores={"X": 2}, weight=0),
+        ScoreBallot(scores={"A": 1}),
+        ScoreBallot(scores={"X": 3}, weight=undeclared_weight),
+    ]
+    if undeclared_weight > 0:
+        with pytest.raises(ProfileError, match="Candidate X found in ballot"):
+            ScoreProfile(ballots=ballots, candidates=["A"])
+        return
+
+    profile = ScoreProfile(ballots=ballots, candidates=["A"])
+    assert profile.candidates == profile.candidates_cast == ("A",)
+    assert profile.to_df()["X"].iloc[::2].tolist() == [2, 3]
+    assert profile.to_df()["Weight"].tolist() == [0, 1, 0]
+
+    from_df = ScoreProfile(df=profile.to_df(), candidates=["A"])
+    pd.testing.assert_frame_equal(profile.to_df(), from_df.to_df())
 
 
 def test_unique_cands_validator():
@@ -148,11 +175,11 @@ def test_non_int_str_candidate_in_profile_raises_error():
     with pytest.raises(
         TypeError, match=r"Non-string/integer candidate\(s\) found in ScoreProfile.candidates"
     ):
-        ScoreProfile(  # type: ignore[arg-type]
+        ScoreProfile(
             ballots=[
                 ScoreBallot(scores={1: 1}),
             ],
-            candidates=[1, 1.0],  # type: ignore[arg-type]
+            candidates=[1, 1.0],  # type: ignore[arg-type, ty:invalid-argument-type]
         )
 
 
@@ -353,3 +380,139 @@ def test_bool_candidate_cast_in_profile_raises_error():
                 1,
             ],
         )
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_ballot_materialization_reads_arrays_and_preserves_values(
+    exact: bool, forbid_dataframe_conversion: Callable[[], None]
+) -> None:
+    weight = Fraction(2, 3) if exact else 0.5
+    score_df = pd.DataFrame(
+        {
+            "A": [0.0, np.nan, 2.0],
+            1: [3.0, np.nan, 0.0],
+            "zero": [np.nan, np.nan, 9.0],
+            "Weight": [weight, weight, 0],
+            "Voter Set": [frozenset({"v"}), frozenset(), frozenset()],
+        }
+    )
+    score_df.index.name = "Ballot Index"
+    profile = ScoreProfile(df=score_df, candidates=(1, "A"))
+    expected = tuple(
+        convert_row_to_score_ballot(row, profile.candidates)
+        for _, row in profile.to_df().iterrows()
+    )
+
+    forbid_dataframe_conversion()
+
+    assert profile.ballots == expected
+    assert profile.ballots[0].scores == {1: 3.0, "A": 0.0}
+    assert profile.ballots[1].scores is None
+    assert profile.ballots[2].scores == {1: 0.0, "A": 2.0}
+    assert profile.ballots is profile.ballots
+    assert type(profile.ballots[0].weight) is type(weight)
+
+
+def test_explicit_zero_scores_survive_profile_construction_and_grouping() -> None:
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True, weight=2),
+            ScoreBallot(scores={"A": 1}, weight=3),
+            ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True),
+        ],
+        candidates=("A", "B", "C"),
+    )
+    from_df = ScoreProfile(df=profile.to_df(), candidates=profile.candidates)
+
+    assert list(from_df.iter_ballots()) == list(profile.iter_ballots())
+    assert from_df.get_ballot(0).scores == {"A": 1.0, "B": 0.0}
+    assert from_df.get_ballot(1).scores == {"A": 1.0}
+    assert profile.candidates_cast == from_df.candidates_cast == ("A",)
+
+    grouped = from_df.group_ballots()
+    assert grouped.num_ballots == 2
+    assert grouped.get_ballot(0).scores == {"A": 1.0, "B": 0.0}
+    assert grouped.get_ballot(1).scores == {"A": 1.0}
+    assert [ballot.weight for ballot in grouped.iter_ballots()] == [3, 3]
+
+    reconstructed = ScoreProfile(ballots=grouped.ballots, candidates=grouped.candidates)
+    pd.testing.assert_frame_equal(reconstructed.to_df(), grouped.to_df())
+
+
+def test_inferred_candidates_include_explicit_zero_scores() -> None:
+    profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 0}, include_zero_score=True)])
+
+    assert profile.candidates == ("A",)
+    assert profile.candidates_cast == ()
+    assert profile.get_ballot(0).scores == {"A": 0.0}
+    assert profile.group_ballots().get_ballot(0).scores == {"A": 0.0}
+
+
+def test_empty_ballots_need_no_dataframe_conversion(
+    forbid_dataframe_conversion: Callable[[], None],
+) -> None:
+    profile = ScoreProfile()
+
+    forbid_dataframe_conversion()
+
+    assert profile.ballots == ()
+
+
+def test_get_ballot_uses_positions_and_does_not_materialize_other_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ballots = [
+        ScoreBallot(scores={"A": 1}),
+        ScoreBallot(scores={"B": 2}, weight=Fraction(2, 3), voter_set={"v"}),
+    ]
+    profile = ScoreProfile(ballots=ballots)
+    source = profile.to_df()
+    source.index = pd.Index([7, 7], name="Ballot Index")
+    profile = ScoreProfile(df=source, candidates=("A", "B"), max_ranking_length=1)
+
+    def reject_materialization(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Single-row access must not materialize the profile")
+
+    monkeypatch.setattr(ScoreProfile, "ballots", property(reject_materialization))
+    monkeypatch.setattr(ScoreProfile, "to_df", reject_materialization)
+
+    assert profile.get_ballot(1) == ballots[1]
+    assert profile.get_ballot(-1) == ballots[1]
+    assert "ballots" not in profile.__dict__
+
+    with pytest.raises(IndexError):
+        profile.get_ballot(2)
+
+
+def test_iter_ballots_is_lazy_and_leaves_cache_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    ballots = [ScoreBallot(scores={"A": 1}), ScoreBallot(weight=0)]
+    profile = ScoreProfile(ballots=ballots)
+
+    requested_rows: list[int] = []
+    get_ballot = profile.get_ballot
+
+    def record_row(self: ScoreProfile, row: int) -> ScoreBallot:
+        assert self is profile
+
+        requested_rows.append(row)
+
+        return get_ballot(row)
+
+    monkeypatch.setattr(ScoreProfile, "get_ballot", record_row)
+
+    iterator = profile.iter_ballots()
+
+    assert requested_rows == []
+
+    assert next(iterator) == ballots[0]
+    assert requested_rows == [0]
+    assert "ballots" not in profile.__dict__
+
+    assert list(iterator) == [ballots[1]]
+    assert requested_rows == [0, 1]
+    assert "ballots" not in profile.__dict__
+
+    assert profile.ballots == tuple(ballots)
+    assert profile.ballots is profile.ballots
+
+    assert next(profile.iter_ballots()) is not profile.ballots[0]

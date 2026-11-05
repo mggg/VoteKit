@@ -1,11 +1,11 @@
 import math
 import random
 from abc import abstractmethod
-from typing import Optional, Tuple, Union
 
 import numpy as np
 
 from votekit.ballot import Ballot
+from votekit.constants import TOL_EPSILON
 from votekit.pref_interval import PreferenceInterval
 from votekit.pref_profile import PreferenceProfile
 
@@ -51,7 +51,9 @@ class BallotGenerator:
             pref_intervals_by_bloc = kwargs["pref_intervals_by_bloc"]
             cohesion_parameters = kwargs["cohesion_parameters"]
 
-            if round(sum(bloc_voter_prop.values()), 8) != 1.0:
+            if not math.isclose(
+                sum(bloc_voter_prop.values()), 1.0, rel_tol=0.0, abs_tol=TOL_EPSILON
+            ):
                 raise ValueError("Voter proportion for blocs must sum to 1")
 
             if bloc_voter_prop.keys() != pref_intervals_by_bloc.keys():
@@ -70,7 +72,9 @@ class BallotGenerator:
                 )
 
             for bloc, cohesion_parameter_dict in cohesion_parameters.items():
-                if round(sum(cohesion_parameter_dict.values()), 8) != 1.0:
+                if not math.isclose(
+                    sum(cohesion_parameter_dict.values()), 1.0, rel_tol=0.0, abs_tol=TOL_EPSILON
+                ):
                     raise ValueError(f"Cohesion parameters for bloc {bloc} must sum to 1.")
 
             self.pref_intervals_by_bloc = pref_intervals_by_bloc
@@ -86,7 +90,7 @@ class BallotGenerator:
         cohesion_parameters: dict,
         alphas: dict,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **data,
     ):
         """
@@ -113,7 +117,7 @@ class BallotGenerator:
         Returns:
             BallotGenerator: Initialized ballot generator.
         """
-        if round(sum(bloc_voter_prop.values()), 8) != 1.0:
+        if not math.isclose(sum(bloc_voter_prop.values()), 1.0, rel_tol=0.0, abs_tol=TOL_EPSILON):
             raise ValueError("Voter proportion for blocs must sum to 1")
 
         if slate_to_candidates.keys() != bloc_voter_prop.keys():
@@ -147,7 +151,7 @@ class BallotGenerator:
     @abstractmethod
     def generate_profile(
         self, number_of_ballots: int, by_bloc: bool = False
-    ) -> Union[PreferenceProfile, Tuple, dict]:
+    ) -> PreferenceProfile | tuple | dict:
         """
         Generates a ``PreferenceProfile``.
 
@@ -159,12 +163,12 @@ class BallotGenerator:
                 you only want the aggregated profile. Defaults to False.
 
         Returns:
-            Union[PreferenceProfile, Tuple]
+            PreferenceProfile | tuple
         """
         pass
 
     @staticmethod
-    def _round_num(num: float, *, rng: Optional[random.Random] = None) -> int:
+    def _round_num(num: float, *, rng: random.Random | None = None) -> int:
         """
 
         Rounds up or down a float randomly.

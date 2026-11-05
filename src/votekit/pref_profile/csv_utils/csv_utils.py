@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+VALID_TYPE_MAP = {"str": str, "int": int}
+
 
 def _validate_csv_ballot_weight(
     ballot_row: list[str],

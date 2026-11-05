@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import random
+from collections.abc import Callable
 from fractions import Fraction
 from functools import partial
-from typing import Callable, Literal, Optional, TypeAlias, Union, cast
+from typing import Literal, TypeAlias, cast
 from warnings import warn
 
 import numpy as np
@@ -13,6 +16,7 @@ from votekit.cleaning import (
     remove_and_condense_rank_profile,
     remove_cand_rank_ballot,
 )
+from votekit.constants import EMPTY_CANDIDATE_SET
 from votekit.elections._deprecation import _handle_deprecated_kwargs
 from votekit.elections.election_state import ElectionState
 from votekit.elections.election_types.ranking.abstract_ranking import RankingElection
@@ -23,13 +27,16 @@ from votekit.elections.election_types.ranking.stv.exact_fraction_ops import (
     to_exact_fraction_weight,
 )
 from votekit.elections.election_types.ranking.stv.numpy_stv_base import (
-    ElectionPlay,
+    DefaultPlay,
+    EliminationPlay,
     NumpyElectionDataTracker,
     NumpySTVBase,
     NumpySTVSentinel,
     QuotaType,
+    STVPlay,
     TiebreakType,
     TransferType,
+    WinnerPlay,
 )
 from votekit.elections.election_types.ranking.stv.utils import numpy_random_transfer
 from votekit.elections.transfers import fractional_transfer, random_transfer
@@ -82,7 +89,7 @@ class NumpyInnerSTV(NumpySTVBase):
         dynamic_threshold: bool = False,
         block_rcv: bool = False,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize an STV election with advanced options.
@@ -430,7 +437,7 @@ class NumpyInnerSTV(NumpySTVBase):
         self, data: NumpyElectionDataTracker
     ) -> tuple[
         list[NDArray],
-        list[ElectionPlay],
+        list[STVPlay],
         list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
@@ -442,7 +449,7 @@ class NumpyInnerSTV(NumpySTVBase):
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the actions
+            play_by_play (list[STVPlay]): List of dictionaries representing the actions
                  taken in each round.
             tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
@@ -455,7 +462,7 @@ class NumpyInnerSTV(NumpySTVBase):
         ncands = len(self.candidates)
 
         fpv_scores_by_round = []
-        play_by_play: list[ElectionPlay] = []
+        play_by_play: list[STVPlay] = []
         round_number = 0
         quota = self.threshold
         ballot_weight_sitting_with_winners = 0.0
@@ -495,7 +502,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 )
                 mutant_engine = self._update_because_winner(winners, tallies, quota, *mutant_engine)
                 play_by_play.append(
-                    ElectionPlay(
+                    WinnerPlay(
                         round_number=int(round_number),
                         winners=[int(c) for c in winners],
                         wt_vec=mutant_engine[1].copy(),
@@ -517,7 +524,7 @@ class NumpyInnerSTV(NumpySTVBase):
                 still_standing = [int(i) for i in range(ncands) if i not in eliminated_or_exhausted]
                 winner_list += still_standing
                 play_by_play.append(
-                    ElectionPlay(
+                    DefaultPlay(
                         round_number=int(round_number),
                         winners=still_standing,
                         round_type="default",
@@ -532,7 +539,7 @@ class NumpyInnerSTV(NumpySTVBase):
             loser_idx, mutant_record = self._find_loser(tallies, round_number, *mutant_record)
             mutant_engine = self._update_because_loser(loser_idx, *mutant_engine)
             play_by_play.append(
-                ElectionPlay(
+                EliminationPlay(
                     round_number=int(round_number),
                     loser=[int(loser_idx)],
                     round_type="elimination",
@@ -558,7 +565,7 @@ class FastSTV(NumpyInnerSTV):
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -618,7 +625,7 @@ class AlbanySTV(NumpyInnerSTV):
         simultaneous: bool = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -674,7 +681,7 @@ class FastIRV(NumpyInnerSTV):
         quota: QuotaType | None = "droop",
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize a fast IRV election.
@@ -720,7 +727,7 @@ class FastSequentialRCV(NumpyInnerSTV):
         simultaneous: bool | None = True,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         **kwargs,
     ):
         """
@@ -760,7 +767,7 @@ class FastSequentialRCV(NumpyInnerSTV):
 
 
 TransferFn: TypeAlias = Callable[
-    [Candidate, Numeric, Union[tuple[RankBallot], list[RankBallot]], int],
+    [Candidate, Numeric, tuple[RankBallot] | list[RankBallot], int],
     tuple[RankBallot, ...],
 ]
 """Signature for STV transfer functions.
@@ -792,7 +799,7 @@ class STV(RankingElection):
         simultaneous: bool = True,
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
         **kwargs,
     ):
@@ -846,7 +853,7 @@ class STV(RankingElection):
                     "or a lexicographic alias."
                 )
             profile = convert_profile_weights(profile, to_exact_fraction_weight)
-        elif any(isinstance(weight, Fraction) for weight in profile._df["Weight"]):
+        elif profile._matrix.voter_weight_data.has_fraction_weights:
             profile = convert_profile_weights(profile, float)
 
         self.threshold = 0
@@ -870,30 +877,26 @@ class STV(RankingElection):
 
     def _stv_validate_profile(self, profile: RankProfile):
         """
-        Validate that each ballot has a ranking, and that there are no ties in ballots.
+        Validate that each ballot ranks at least one candidate and contains no ties.
 
         Args:
             profile (RankProfile): Profile to validate.
         """
         if not isinstance(profile, RankProfile):
             raise ProfileError("Profile must be of type RankProfile.")
-        assert profile.max_ranking_length is not None
-        ranking_rows = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-        try:
-            np_arr = profile.df[ranking_rows].to_numpy()
-            weight_col = profile.df["Weight"]
-        except KeyError:
-            raise TypeError("Ballots must have rankings.")
+        matrix = profile._matrix
+        tied_rows = matrix.has_ties()
+        unranked_rows = ~matrix.has_ranked_candidates()
+        invalid_rows = np.flatnonzero(tied_rows | unranked_rows)
+        if not invalid_rows.size:
+            return
 
-        tilde = frozenset({"~"})
-        for idx, row in enumerate(np_arr):
-            if any(len(s) > 1 for s in row):
-                raise TypeError(
-                    f"Ballot {RankBallot(ranking=tuple(row.tolist()), weight=weight_col[idx])} "
-                    "contains a tied ranking."
-                )
-            if (row == tilde).all():
-                raise TypeError("Ballots must have rankings.")
+        row = int(invalid_rows[0])
+        if tied_rows[row]:
+            ranking = matrix.get_ranking(row)
+            ballot = RankBallot(ranking=ranking, weight=matrix.voter_weight_data.weights[row])
+            raise TypeError(f"Ballot {ballot} contains a tied ranking.")
+        raise TypeError("Ballots must have rankings.")
 
     def get_threshold(self, total_ballot_wt: Numeric) -> int:
         """
@@ -1207,7 +1210,7 @@ class STV(RankingElection):
             else:
                 elected, tiebreaks, new_profile = self._single_elect_step(profile, prev_state)
             # no one eliminated in elect round
-            eliminated: tuple[frozenset[Candidate], ...] = (frozenset(),)
+            eliminated: tuple[frozenset[Candidate], ...] = (EMPTY_CANDIDATE_SET,)
 
         # catches the possibility that we exhaust all ballots
         # without candidates reaching threshold
@@ -1216,7 +1219,7 @@ class STV(RankingElection):
             [c for s in self.get_elected() for c in s]
         ):
             elected = prev_state.remaining
-            eliminated = (frozenset(),)
+            eliminated = (EMPTY_CANDIDATE_SET,)
             new_profile = RankProfile()
 
         else:
@@ -1254,7 +1257,7 @@ class STV(RankingElection):
                 retain_original_candidate_list=False,
             )
 
-            elected = (frozenset(),)
+            elected = (EMPTY_CANDIDATE_SET,)
             eliminated = (frozenset([eliminated_cand]),)
 
         if store_states:
@@ -1293,7 +1296,7 @@ class IRV(STV):
         quota: QuotaType | None = "droop",
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
     ):
         """
@@ -1344,7 +1347,7 @@ class SequentialRCV(STV):
         simultaneous: bool = True,
         tiebreak: BasicSTVTiebreak | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
         exact: bool = False,
         **kwargs,
     ):
@@ -1380,7 +1383,7 @@ class SequentialRCV(STV):
         def _transfer(
             winner: Candidate,
             _fpv: Numeric,
-            ballots: Union[tuple[RankBallot], list[RankBallot]],
+            ballots: tuple[RankBallot] | list[RankBallot],
             _threshold: int,
         ) -> tuple[RankBallot, ...]:
             """
@@ -1390,7 +1393,7 @@ class SequentialRCV(STV):
                 winner (Candidate): The candidate to remove from ballots.
                     Candidate can be a string or integer.
                 _fpv (float): The number of first-place votes the winner had.
-                ballots (Union[tuple[RankBallot], list[RankBallot]]): The ballots to transfer.
+                ballots (tuple[RankBallot] | list[RankBallot]): The ballots to transfer.
                 _threshold (int): The threshold for election in this round.
 
             Returns:

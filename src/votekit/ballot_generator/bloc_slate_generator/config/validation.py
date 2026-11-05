@@ -4,16 +4,16 @@ import math
 import warnings
 from collections.abc import Callable, Mapping, MutableMapping
 from numbers import Real
-from typing import Any, Optional, Union, cast
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 import pandas as pd
 
+from votekit.constants import TOL_EPSILON
 from votekit.pref_interval import PreferenceInterval
 from votekit.types import Candidate
 
 UNSET_VALUE = -1.0
-FLOAT_TOL = 1e-8
 
 
 class ConfigurationWarning(UserWarning):
@@ -24,11 +24,11 @@ _original_formatwarning = warnings.formatwarning
 
 
 def _config_warning_format(
-    message: Union[Warning, str],
+    message: Warning | str,
     category: type[Warning],
     filename: str,
     lineno: int,
-    line: Optional[str] = None,
+    line: str | None = None,
 ) -> str:  # pragma: no cover
     if issubclass(category, ConfigurationWarning):
         return f"{category.__name__}: {message}\n"
@@ -38,20 +38,17 @@ def _config_warning_format(
 warnings.formatwarning = cast(Any, _config_warning_format)
 
 
-BlocProportionMapping = Union[Mapping[str, Union[int, float]], pd.Series]
+BlocProportionMapping: TypeAlias = Mapping[str, int | float] | pd.Series
 # Backward compatibility alias; keep the original misspelling available.
 BlocPropotionMapping = BlocProportionMapping
-CohesionMapping = Union[Mapping[str, Union[Mapping[str, float], pd.Series]], pd.DataFrame]
-PreferenceIntervalLike = Union[
-    Mapping[Candidate, Union[float, int]],
-    Mapping[str, Union[float, int]],
-    Mapping[int, Union[float, int]],
-    PreferenceInterval,
-]
-PreferenceMapping = Union[
-    Mapping[str, Mapping[str, PreferenceIntervalLike]],
-    pd.DataFrame,
-]
+CohesionMapping: TypeAlias = Mapping[str, Mapping[str, float] | pd.Series] | pd.DataFrame
+PreferenceIntervalLike: TypeAlias = (
+    Mapping[Candidate, float | int]
+    | Mapping[str, float | int]
+    | Mapping[int, float | int]
+    | PreferenceInterval
+)
+PreferenceMapping: TypeAlias = Mapping[str, Mapping[str, PreferenceIntervalLike]] | pd.DataFrame
 
 
 def _is_finite_real(x: object) -> bool:
@@ -73,7 +70,7 @@ def _is_finite_real(x: object) -> bool:
 
 
 def _to_finite_float_array(
-    values: Union[pd.Series, pd.DataFrame],
+    values: pd.Series | pd.DataFrame,
     *,
     context: str,
 ) -> np.ndarray:
@@ -81,7 +78,7 @@ def _to_finite_float_array(
     Convert values to float ndarray and enforce finiteness.
 
     Args:
-        values (Union[pd.Series, pd.DataFrame]): The values to convert.
+        values (pd.Series | pd.DataFrame): The values to convert.
         context (str): Description of the values for error messages.
 
     Returns:
@@ -106,7 +103,7 @@ def _unset_mask(values: np.ndarray) -> np.ndarray:
     Returns:
         np.ndarray: A boolean array where True indicates the value is an unset sentinel value.
     """
-    return np.isclose(values, UNSET_VALUE, atol=FLOAT_TOL)
+    return np.isclose(values, UNSET_VALUE, rtol=0.0, atol=TOL_EPSILON)
 
 
 def _invalid_negative_values(values: np.ndarray) -> list[float]:
@@ -133,17 +130,17 @@ def _sum_differs_from_one(value: float) -> bool:
     Returns:
         bool: True if value is not within tolerance of 1.0, False otherwise.
     """
-    return abs(float(value) - 1.0) > FLOAT_TOL
+    return abs(float(value) - 1.0) > TOL_EPSILON
 
 
 def _first_error_probability_row(
-    row_vals: Union[pd.Series, pd.DataFrame],
+    row_vals: pd.Series | pd.DataFrame,
     *,
     context: str,
     invalid_negative_error: Callable[[list[float]], Exception],
     unset_error: Callable[[], Exception],
     sum_error: Callable[[float], Exception],
-) -> Optional[Exception]:
+) -> Exception | None:
     """
     Return the first validation error for a probability row, if any.
 
@@ -155,7 +152,7 @@ def _first_error_probability_row(
 
 
     Args:
-        row_vals (Union[pd.Series, pd.DataFrame]): The values in the row to validate.
+        row_vals (pd.Series | pd.DataFrame): The values in the row to validate.
         context (str): Description of the values for error messages.
         invalid_negative_error (Callable[[list[float]], Exception]): Function that takes a list of
             invalid negative values and returns an Exception to raise.
@@ -165,7 +162,7 @@ def _first_error_probability_row(
             Exception to raise when the sum does not equal 1 within tolerance.
 
     Returns:
-        Optional[Exception]: The first validation error encountered, or None if no errors.
+        Exception | None: The first validation error encountered, or None if no errors.
     """
     try:
         vals = _to_finite_float_array(row_vals, context=context)
@@ -266,7 +263,7 @@ def convert_bloc_proportion_map_to_series(
         raise ValueError(
             "Bloc proportions currently sum to "
             f"{bloc_series.sum():0.6f} when they should sum to 1 within tolerance "
-            f"{FLOAT_TOL:g}."
+            f"{TOL_EPSILON:g}."
         )
 
     # Quick normalize in case of fp errors

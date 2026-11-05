@@ -4,11 +4,13 @@ Installation
 Supported Python Versions
 -------------------------
 
-The most recent version of VoteKit (as of October 2025) supports
+VoteKit supports
 
 - Python 3.11,
-- Python 3.12, and
-- Python 3.13.
+- Python 3.12,
+- Python 3.13,
+- Python 3.14, and
+- Python 3.15.
 
 If you do not have one of these versions installed on your machine, we
 recommend that you go to the 

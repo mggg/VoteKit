@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import numpy as np
 
 from votekit.matrices._utils import _convert_dict_to_matrix
@@ -7,7 +5,7 @@ from votekit.matrices.candidate.comentions import comention
 from votekit.pref_profile import RankProfile
 
 
-def boost_prob(i: str, j: str, pref_profile: RankProfile) -> Tuple[float, float]:
+def boost_prob(i: str, j: str, pref_profile: RankProfile) -> tuple[float, float]:
     """
     Takes candidates i,j and a preference profile and computes the conditional
     P(mention i | mention j) and P(mention i). If candidate j is never mentioned,

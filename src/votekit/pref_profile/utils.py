@@ -5,42 +5,52 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from votekit.pref_profile.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
 
-from functools import partial
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 import pandas as pd
+from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
 from votekit.ballot import Ballot, RankBallot, ScoreBallot
+from votekit.constants import EMPTY_SET_ID, END_OF_RANKING_ID, END_OF_RANKING_SET
+from votekit.pref_profile.profile_matrix import ScoreMatrix
+from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
+from votekit.pref_profile.profile_matrix.score_matrix import _concatenate_score_matrices
 from votekit.types import Candidate
 from votekit.utils import sort_candidates_pseudo_lexicographically
 
 
 def _convert_ranking_cols_to_ranking(
     row: pd.Series, max_ranking_length: int
-) -> Optional[tuple[frozenset, ...]]:
+) -> tuple[frozenset, ...] | None:
     """
-    Convert the ranking cols to a ranking tuple in profile.df.
+    Convert the ranking cols to a ranking tuple in profile.to_df().
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         max_ranking_length (int, optional): The maximum length of a ranking.
 
     Returns:
-        Optional[tuple[frozenset, ...]]: Ranking of ballot.
+        tuple[frozenset, ...] | None: Ranking of ballot.
 
     Raises:
         ValueError: NaN values can only trail on a ranking.
 
     """
-    ranking_cols_idxs = [f"Ranking_{i + 1}" for i in range(max_ranking_length)]
+    ranking_cols_idxs = [f"{RANKING_COLUMN_PREFIX}{i + 1}" for i in range(max_ranking_length)]
 
     if any(idx not in row.index for idx in ranking_cols_idxs):
         raise ValueError(f"Row has improper ranking columns: {row.index}.")
 
     if any(
-        row[col_idx] == frozenset({"~"})
-        and not all(row[idx] == frozenset({"~"}) for idx in ranking_cols_idxs[i:])
+        row[col_idx] == END_OF_RANKING_SET
+        and not all(row[idx] == END_OF_RANKING_SET for idx in ranking_cols_idxs[i:])
         for i, col_idx in enumerate(ranking_cols_idxs)
     ):
         raise ValueError(
@@ -48,17 +58,17 @@ def _convert_ranking_cols_to_ranking(
             "'~' values can only trail on a ranking."
         )
 
-    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != frozenset("~")]
+    ranking = [row[col_idx] for col_idx in ranking_cols_idxs if row[col_idx] != END_OF_RANKING_SET]
 
     return tuple(ranking) if len(ranking) > 0 else None
 
 
 def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> RankBallot:
     """
-    Convert a row of a properly formatted profile.df to a Ballot.
+    Convert a row of a properly formatted profile.to_df() to a Ballot.
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
             is used for ballots with no ranking.
 
@@ -68,8 +78,8 @@ def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> R
     ranking = None
     if max_ranking_length > 0:
         ranking = _convert_ranking_cols_to_ranking(row, max_ranking_length)
-    voter_set = row["Voter Set"]
-    weight = row["Weight"]
+    voter_set = row[VOTER_SET_COLUMN]
+    weight = row[WEIGHT_COLUMN]
 
     return RankBallot(
         ranking=ranking,
@@ -80,10 +90,10 @@ def convert_row_to_rank_ballot(row: pd.Series, max_ranking_length: int = 0) -> R
 
 def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...]) -> ScoreBallot:
     """
-    Convert a row of a properly formatted profile.df to a Ballot.
+    Convert a row of a properly formatted profile.to_df() to a Ballot.
 
     Args:
-        row (pd.Series): Row of a profile.df.
+        row (pd.Series): Row of a profile.to_df().
         candidates (tuple[Candidate,...]): The name of the candidates.
             Candidates can be strings, integers, or mix of both.
 
@@ -91,8 +101,8 @@ def convert_row_to_score_ballot(row: pd.Series, candidates: tuple[Candidate, ...
         ScoreBallot: Ballot corresponding to the row of the df.
     """
     scores = {c: row[c] for c in candidates if c in row and not pd.isna(row[c])}
-    voter_set = row["Voter Set"]
-    weight = row["Weight"]
+    voter_set = row[VOTER_SET_COLUMN]
+    weight = row[WEIGHT_COLUMN]
 
     return ScoreBallot(
         scores=scores if scores != dict() else None,
@@ -105,10 +115,10 @@ def _df_to_rank_ballot_tuple(
     df: pd.DataFrame, candidates: tuple[Candidate, ...], max_ranking_length: int = 0
 ) -> tuple[RankBallot, ...]:
     """
-    Convert a properly formatted profile.df into a list of ballots.
+    Convert a properly formatted profile.to_df() into a list of ballots.
 
     Args:
-        df (pd.DataFrame): A profile.df.
+        df (pd.DataFrame): A profile.to_df().
         candidates (tuple[Candidate,...]): The candidates.
             Candidates can be strings, integers, or mix of both.
         max_ranking_length (int, optional): The maximum length of a ranking. Defaults to 0, which
@@ -121,13 +131,8 @@ def _df_to_rank_ballot_tuple(
         return tuple()
 
     return tuple(
-        df.apply(
-            partial(
-                convert_row_to_rank_ballot,
-                max_ranking_length=max_ranking_length,
-            ),
-            axis="columns",
-        )
+        convert_row_to_rank_ballot(row, max_ranking_length=max_ranking_length)
+        for _, row in df.iterrows()
     )
 
 
@@ -184,7 +189,7 @@ def score_profile_to_ballot_dict(
     tot_weight = float(score_profile.total_ballot_wt)
     di: dict = {}
     for ballot in score_profile.ballots:
-        weightless_ballot = Ballot(
+        weightless_ballot = ScoreBallot(
             scores=ballot.scores,
             voter_set=ballot.voter_set,
         )
@@ -272,21 +277,51 @@ def score_profile_to_scores_dict(
     return di
 
 
+def _export_profile_rows(profile: PreferenceProfile, row_indices: NDArray[np.intp]) -> pd.DataFrame:
+    """
+    Export selected matrix rows, retaining their source ballot labels.
+
+    Args:
+        profile (PreferenceProfile): Profile whose rows are selected.
+        row_indices (NDArray[np.intp]): Positional row indices in the requested output order.
+
+    Returns:
+        pd.DataFrame: Independent export of the selected rows, including repeated index labels.
+    """
+    matrix = profile._matrix
+    if matrix is None:
+        raise NotImplementedError
+    return matrix.to_df(rows=row_indices)
+
+
+def _ordered_profile_rows(profile: PreferenceProfile, sort_by_weight: bool) -> NDArray[np.intp]:
+    """
+    Select source row order or descending weight order, preserving source order for ties.
+    """
+    matrix = profile._matrix
+    if matrix is None:
+        raise NotImplementedError
+    weights = matrix.voter_weight_data.weights
+    return np.argsort(-weights, kind="stable") if sort_by_weight else np.arange(len(weights))
+
+
 def profile_df_head(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool = True,
+    percents: bool = False,
+    totals: bool = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the top-n ballots in profile.
 
     Args:
+        profile (PreferenceProfile): Profile to display; must have a rank or score matrix.
         n (int): Number of ballots to view.
         sort_by_weight (bool, optional): If True, rank ballot from most to least votes.
-            If sorting by weight, index resets. Defaults to True.
+            If False, use source row order. Equal weights retain source order. Source index labels
+            are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -298,22 +333,20 @@ def profile_df_head(
 
     Raises:
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
+        NotImplementedError: The profile has no matrix, as with an empty base PreferenceProfile.
     """
 
-    if sort_by_weight:
-        df = profile.df.sort_values(by="Weight", ascending=False).head(n).copy()
-
-    else:
-        df = profile.df.head(n).copy()
+    rows = _ordered_profile_rows(profile, sort_by_weight)[:n]
+    df = _export_profile_rows(profile, rows)
 
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
             raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
-        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
+        df["Percent"] = df[WEIGHT_COLUMN] / float(profile.total_ballot_wt)
 
     if totals:
-        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        total_row = [""] * (df_col_num - 1) + [df[WEIGHT_COLUMN].sum()]
         if percents:
             total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
@@ -327,18 +360,20 @@ def profile_df_head(
 def profile_df_tail(
     profile: PreferenceProfile,
     n: int,
-    sort_by_weight: Optional[bool] = True,
-    percents: Optional[bool] = False,
-    totals: Optional[bool] = False,
+    sort_by_weight: bool = True,
+    percents: bool = False,
+    totals: bool = False,
     n_decimals: int = 1,
 ) -> pd.DataFrame:
     """
     Returns a pd.DataFrame with the bottom-n ballots in profile.
 
     Args:
+        profile (PreferenceProfile): Profile to display; must have a rank or score matrix.
         n (int): Number of ballots to view.
-        sort_by_weight (bool, optional): If True, rank ballot from least to most votes.
-            Defaults to True.
+        sort_by_weight (bool, optional): If True, select the last rows in descending weight order.
+            If False, select the last rows in source order. Equal weights retain source order.
+            Source index labels are preserved. Defaults to True.
         percents (bool, optional): If True, show voter share for a given ballot.
             Defaults to False.
         totals (bool, optional): If True, show total values for Percent and Weight.
@@ -350,20 +385,20 @@ def profile_df_tail(
 
     Raises:
         ZeroDivisionError: Profile has 0 total ballot weight; cannot show percentages.
+        NotImplementedError: The profile has no matrix, as with an empty base PreferenceProfile.
     """
-    if sort_by_weight:
-        df = profile.df.sort_values(by="Weight", ascending=False).tail(n).copy()
-    else:
-        df = profile.df.tail(n).copy()
+    ordered_rows = _ordered_profile_rows(profile, sort_by_weight)
+    rows = ordered_rows[-n:] if n else ordered_rows[:0]
+    df = _export_profile_rows(profile, rows)
 
     df_col_num = len(df.columns)
     if percents:
         if profile.total_ballot_wt == 0:
             raise ZeroDivisionError("Profile has 0 total ballot weight; cannot show percentages.")
-        df["Percent"] = df["Weight"] / float(profile.total_ballot_wt)
+        df["Percent"] = df[WEIGHT_COLUMN] / float(profile.total_ballot_wt)
 
     if totals:
-        total_row = [""] * (df_col_num - 1) + [df["Weight"].sum()]
+        total_row = [""] * (df_col_num - 1) + [df[WEIGHT_COLUMN].sum()]
         if percents:
             total_row += [df["Percent"].sum()]
         df.loc["Total"] = total_row
@@ -388,7 +423,8 @@ def convert_rank_profile_to_score_profile_via_score_vector(
         score_vector (Sequence[float]): Score vector to use.
 
     Returns:
-        ScoreProfile: Score profile.
+        ScoreProfile: Score profile retaining ballot row order, index labels, voters, and weights
+            converted to floats.
 
     Raises:
         ValueError: Ballots must not contain ties.
@@ -405,33 +441,37 @@ def convert_rank_profile_to_score_profile_via_score_vector(
     if len(score_vector) < rank_profile.max_ranking_length:
         score_vector += [0] * (rank_profile.max_ranking_length - len(score_vector))
 
-    ranking_cols = [f"Ranking_{i}" for i in range(1, rank_profile.max_ranking_length + 1)]
-    rankings_arr = rank_profile.df[ranking_cols].to_numpy(dtype=object).ravel(order="K")
-    if any(len(x) > 1 for x in rankings_arr):
-        raise ValueError("Ballots must not contain ties.")
-
-    cand_to_score_list = {
-        cand: [np.nan for _ in range(len(rank_profile.df))] for cand in rank_profile.candidates
+    matrix = rank_profile._matrix
+    candidate_columns = {
+        candidate: column for column, candidate in enumerate(rank_profile.candidates)
     }
+    score_columns_by_set = np.full(len(matrix.cand_sets), -1, dtype=np.intp)
+    referenced_ids = np.unique(matrix.rankings)
+    if any(len(matrix.get_cand_set_from_id(int(set_id))) > 1 for set_id in referenced_ids):
+        raise ValueError("Ballots must not contain ties.")
+    for set_id in referenced_ids:
+        if set_id == END_OF_RANKING_ID:
+            continue
+        candidate_set = matrix.get_cand_set_from_id(int(set_id))
+        candidate = next(iter(candidate_set))
+        score_columns_by_set[set_id - EMPTY_SET_ID] = candidate_columns[candidate]
 
-    for df_tuple in rank_profile.df[ranking_cols].itertuples():
-        ballot_idx, ranking = df_tuple[0], df_tuple[1:]
-        for ranking_pos, cand_set in enumerate(ranking):
-            if cand_set == frozenset({"~"}):
-                continue
-            cand = next(iter(cand_set))  # no ties so this is unique
-            cand_to_score_list[cand][ballot_idx] = (
-                score_vector[ranking_pos] if score_vector[ranking_pos] > 0 else np.nan
-            )
+    scores = np.full((len(matrix), len(rank_profile.candidates)), np.nan)
+    for position, set_ids in enumerate(matrix.rankings.T):
+        columns = score_columns_by_set[set_ids - EMPTY_SET_ID]
+        rows = np.flatnonzero(columns >= 0)
+        scores[rows, columns[rows]] = (
+            score_vector[position] if score_vector[position] > 0 else np.nan
+        )
 
-    new_df = pd.DataFrame(cand_to_score_list)
-    new_df.index.name = "Ballot Index"
-    new_df["Voter Set"] = rank_profile.df["Voter Set"]
-    new_df["Weight"] = rank_profile.df["Weight"].map(float)
-
-    return ScoreProfile(
-        df=new_df,
-        candidates=rank_profile.candidates,
+    data = matrix.voter_weight_data.with_weights(matrix.voter_weight_data.weights.astype(float))
+    return ScoreProfile._from_matrix(
+        ScoreMatrix(
+            voter_weight_data=data,
+            scores=scores,
+            score_columns=rank_profile.candidates,
+            candidates=rank_profile.candidates,
+        )
     )
 
 
@@ -463,36 +503,12 @@ def _sum_rank_profiles(rank_profiles: Sequence[PreferenceProfile]) -> RankProfil
             f"non-RankProfiles found at: {invalid_profiles_str}"
         )
 
-    candidates = list(set().union(*[set(profile.candidates) for profile in rank_profiles]))
-    max_ranking_length = max([profile.max_ranking_length for profile in rank_profiles])
-
-    total_dfs = []
-    for profile in rank_profiles:
-        assert profile.max_ranking_length is not None
-        curr_df = (
-            profile.df.copy() if profile.max_ranking_length < max_ranking_length else profile.df
-        )
-        for i in range(profile.max_ranking_length, max_ranking_length):
-            curr_df.insert(
-                len(curr_df.columns),
-                f"Ranking_{i + 1}",
-                pd.Series([frozenset("~")] * len(curr_df), dtype=object, index=curr_df.index),
-            )
-        total_dfs.append(curr_df)
-
-    new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = "Ballot Index"
-    ranking_cols = [col for col in new_df.columns if "Ranking_" in col]
-    new_df[ranking_cols] = new_df[ranking_cols].astype("object")
-    new_df = new_df[
-        [f"Ranking_{i + 1}" for i in range(max_ranking_length)] + ["Weight", "Voter Set"]
-    ]
-
-    return RankProfile(
-        candidates=candidates,
-        df=new_df,
-        max_ranking_length=max_ranking_length,
-    )
+    validated_profiles = cast(Sequence[RankProfile], rank_profiles)
+    candidates = list(set().union(*[set(profile.candidates) for profile in validated_profiles]))
+    max_ranking_length = max([profile.max_ranking_length for profile in validated_profiles])
+    matrices = [profile._matrix for profile in validated_profiles]
+    matrix = _concatenate_rank_matrices(matrices, tuple(candidates), max_ranking_length)
+    return RankProfile._from_matrix(matrix, max_ranking_length=max_ranking_length)
 
 
 def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScoreProfile:
@@ -523,29 +539,19 @@ def _sum_score_profiles(score_profiles: Sequence[PreferenceProfile]) -> ScorePro
             f"non-ScoreProfiles found at: {invalid_profiles_str}"
         )
 
-    total_cand = set().union(*[set(profile.candidates) for profile in score_profiles])
-    total_dfs = []
-    for profile in score_profiles:
-        curr_cand = set(profile.candidates)
-        curr_df = profile.df.copy() if curr_cand < total_cand else profile.df
-        for cand in total_cand - curr_cand:
-            curr_df[cand] = [np.nan] * len(curr_df)
-        total_dfs.append(curr_df)
-
-    new_df = pd.concat(total_dfs, ignore_index=True)
-    new_df.index.name = "Ballot Index"
-    new_candidates = sort_candidates_pseudo_lexicographically(total_cand)
-    new_df = new_df[new_candidates + ["Weight", "Voter Set"]]
-
-    return ScoreProfile(
-        candidates=new_candidates,
-        df=new_df,
+    candidates = tuple(
+        sort_candidates_pseudo_lexicographically(
+            set().union(*(set(profile.candidates) for profile in score_profiles))
+        )
     )
+    validated_profiles = cast(Sequence[ScoreProfile], score_profiles)
+    matrices = [profile._matrix for profile in validated_profiles]
+    return ScoreProfile._from_matrix(_concatenate_score_matrices(matrices, candidates))
 
 
 def sum_profiles(profiles: Sequence[PreferenceProfile]) -> PreferenceProfile:
     """
-    Combines multiple PreferenceProfiles by combining their ball lists.
+    Combine profiles of the same type by concatenating their matrix rows.
 
     Args:
         profiles (Sequence[PreferenceProfile]): The profiles to sum.

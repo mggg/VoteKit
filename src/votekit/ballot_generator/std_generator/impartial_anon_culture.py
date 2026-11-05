@@ -9,9 +9,10 @@ The main API functions in this module are:
 import math
 import random
 from collections import Counter
+from collections.abc import Sequence
 from functools import lru_cache
-from typing import Optional, Sequence
 
+from votekit._df_schema import BALLOT_INDEX_NAME, RANKING_COLUMN_PREFIX
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import build_df_from_ballot_samples, index_to_lexicographic_ballot
@@ -45,7 +46,7 @@ def _sample_uniform_profile_counts(
     num_ballot_types: int,
     number_of_ballots: int,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> list[int]:
     """
     Sample a weak composition of ``number_of_ballots`` into ``num_ballot_types`` parts uniformly.
@@ -143,7 +144,7 @@ def _sample_anonymous_profile_ballot_counts(
     number_of_ballots: int,
     max_ballot_length: int,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> list[int]:
     """
     Sample anonymous-profile frequencies over lexicographically indexed ballot types.
@@ -171,9 +172,9 @@ def _sample_anonymous_profile_ballot_counts(
 def iac_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
-    max_ballot_length: Optional[int] = None,
+    max_ballot_length: int | None = None,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Generate a profile according to the Impartial Anonymous Culture (IAC) model where each profile
@@ -183,7 +184,7 @@ def iac_profile_generator(
         candidates (Sequence[Candidate]): List of candidate strings.
             Candidates can be strings, integers, or mix of both.
         number_of_ballots (int): Number of ballots to generate.
-        max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
+        max_ballot_length (int | None): Maximum length of each ballot. If None, defaults to
             the number of candidates.
         rng_seed (optional[int]): Seed for random number generator. An integer seed produces the
             same output given identical inputs; By default, seed is None which gives
@@ -214,7 +215,11 @@ def iac_profile_generator(
         }
     )
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    unused_ranking_columns = [
+        f"{RANKING_COLUMN_PREFIX}{rank}" for rank in range(max_ballot_length + 1, num_cands + 1)
+    ]
+    pp_df = pp_df.drop(columns=unused_ranking_columns)
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=max_ballot_length,

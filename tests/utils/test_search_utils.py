@@ -43,7 +43,7 @@ def test_search_profile_for_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["B", "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -66,7 +66,7 @@ def test_search_for_set_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=[{"B"}, "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -94,7 +94,7 @@ def test_search_for_tuple_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=[("A", 2), "C"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -120,7 +120,7 @@ def test_search_for_singleton_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A"])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -143,7 +143,7 @@ def test_search_for_multiple_elements_rank_pattern():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A", "C", 1])
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -166,7 +166,7 @@ def test_search_returns_empty_df():
 
     pd.testing.assert_frame_equal(
         search_profile_for_rank_pattern(profile, ranking_query=["B", "D"]).reset_index(drop=True),
-        empty_profile.df.reset_index(drop=True),
+        empty_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -194,7 +194,7 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings():
 
     pd.testing.assert_frame_equal(
         search_profile_for_rank_pattern(profile, ranking_query=["B", "A"]).reset_index(drop=True),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -220,7 +220,7 @@ def test_search_with_ranking_query_with_duplicate_candidate_rankings_for_multipl
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -245,7 +245,7 @@ def test_search_with_ranking_query_for_multiple_ranking_elements_returns_one_bal
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -276,7 +276,7 @@ def test_search_with_ranking_query_for_multiple_ranking_elements_returns_mult_ba
         search_profile_for_rank_pattern(profile, ranking_query=["A", "B", "C"]).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -307,7 +307,7 @@ def test_search_with_ranking_query_unranked_tuple():
         search_profile_for_rank_pattern(
             profile, ranking_query=["B", ("A", "C")], include_unranked=True
         ).reset_index(drop=True),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -350,14 +350,14 @@ def test_search_with_max_cand_pair_dist():
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0)
         .reset_index(drop=True)
-        .equals(profile_match_dist_0.df.reset_index(drop=True))
+        .equals(profile_match_dist_0.to_df().reset_index(drop=True))
     )
 
     max_sep_dist_1 = {("B", "C"): 1}
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_1)
         .reset_index(drop=True)
-        .equals(profile_match_dist_1.df.reset_index(drop=True))
+        .equals(profile_match_dist_1.to_df().reset_index(drop=True))
     )
 
 
@@ -383,7 +383,7 @@ def test_search_with_max_cand_pair_dist_with_multiple_cand_pairs():
     assert (
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=max_sep_dist_0)
         .reset_index(drop=True)
-        .equals(profile_match_dist_0.df.reset_index(drop=True))
+        .equals(profile_match_dist_0.to_df().reset_index(drop=True))
     )
 
 
@@ -412,7 +412,7 @@ def test_search_with_max_cand_pair_dist_with_duplicate_candidate_rankings():
         search_profile_for_rank_pattern(profile, max_cand_pair_dist=cand_pair_dict).reset_index(
             drop=True
         ),
-        true_profile.df.reset_index(drop=True),
+        true_profile.to_df().reset_index(drop=True),
         check_dtype=False,
     )
 
@@ -442,7 +442,7 @@ def test_search_with_matching_ranking_query_and_max_cand_pair_dist():
             profile, ranking_query=[2, "C"], max_cand_pair_dist=max_sep_dist
         )
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -471,7 +471,7 @@ def test_search_for_ranking_query_with_include_unranked():
     assert (
         search_profile_for_rank_pattern(profile, ranking_query=["A", 1], include_unranked=True)
         .reset_index(drop=True)
-        .equals(profile_match.df.reset_index(drop=True))
+        .equals(profile_match.to_df().reset_index(drop=True))
     )
 
 
@@ -480,7 +480,7 @@ def test_search_for_ranking_query_with_include_unranked():
 
 def test_search_with_non_rank_profile_raises_error():
     with pytest.raises(TypeError, match="Profile must be a RankProfile"):
-        search_profile_for_rank_pattern(ScoreProfile(), ranking_query=["A", "B"])  # type: ignore[arg-type]
+        search_profile_for_rank_pattern(ScoreProfile(), ranking_query=["A", "B"])  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_validate_ranking_query_raises_errors():
@@ -495,7 +495,7 @@ def test_validate_ranking_query_raises_errors():
         TypeError,
         match=re.escape(f"Use set for {invalid_set}, not frozenset within ranking_query."),
     ):
-        _validate_ranking_query([invalid_set], RankProfile())  # type: ignore[arg-type]
+        _validate_ranking_query([invalid_set], RankProfile())  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_non_candidate_set = {1.0}
     with pytest.raises(TypeError, match="Set items must be 'str' or 'int' candidates"):
@@ -554,11 +554,11 @@ def test_validate_max_cand_pair_dist_raises_errors():
     with pytest.raises(
         TypeError, match="max_cand_pair_dist keys must be a tuple of candidate pairs"
     ):
-        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type]
+        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_dict = {("A", "B"): 1.0}
     with pytest.raises(TypeError, match="max distances of max_cand_pair_dist must be integers"):
-        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type]
+        _validate_max_cand_pair_dist(invalid_dict, profile)  # type: ignore[arg-type, ty:invalid-argument-type]
 
     invalid_dict = {("A", "B"): -1}
     with pytest.raises(
@@ -583,7 +583,7 @@ def test_search_with_invalid_ranking_query_raises_error():
         TypeError,
         match=re.escape(f"Use set for {invalid_set}, not frozenset within ranking_query."),
     ):
-        search_profile_for_rank_pattern(RankProfile(), ranking_query=[invalid_set])  # type: ignore[arg-type]
+        search_profile_for_rank_pattern(RankProfile(), ranking_query=[invalid_set])  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_search_with_invalid_max_cand_pair_dist_raises_error():

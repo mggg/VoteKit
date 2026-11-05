@@ -3,12 +3,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import groupby
-from typing import Any, Literal, NotRequired, Optional, TypeAlias, TypedDict
+from typing import Any, Literal, NotRequired, TypeAlias, TypedDict, cast
 
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
 
+from votekit._df_schema import (
+    BALLOT_INDEX_NAME,
+    RANKING_COLUMN_PREFIX,
+    VOTER_SET_COLUMN,
+    WEIGHT_COLUMN,
+)
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.elections.election_state import ElectionState
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
@@ -26,6 +33,30 @@ class ElectionPlay(TypedDict):
     loser: NotRequired[list[int]]
     wt_vec: NotRequired[NDArray]
     threshold: NotRequired[float]
+
+
+class _RoundPlay(TypedDict):
+    round_number: int
+    threshold: NotRequired[float]
+
+
+class WinnerPlay(_RoundPlay):
+    round_type: Literal["election"]
+    winners: list[int]
+    wt_vec: NDArray
+
+
+class DefaultPlay(_RoundPlay):
+    round_type: Literal["default"]
+    winners: list[int]
+
+
+class EliminationPlay(_RoundPlay):
+    round_type: Literal["elimination"]
+    loser: list[int]
+
+
+STVPlay: TypeAlias = WinnerPlay | DefaultPlay | EliminationPlay
 
 
 class NumpySTVSentinel(Enum):
@@ -53,7 +84,7 @@ class NumpyElectionDataTracker:
         wt_vec (NDArray): Starting weight vector for each ballot row.
         initial_fpv_scores (NDArray): Initial first-preference vote tallies, used for tiebreaking.
         fpv_by_round (list[NDArray]): First-preference tallies by round, used for reporting.
-        play_by_play (list[ElectionPlay]): Per-round action log used for legacy outputs.
+        play_by_play (list[STVPlay]): Per-round action log used for legacy outputs.
         tiebreak_record (list[dict[frozenset[str], tuple[frozenset[str], ...]]]):
             Tiebreak resolutions by round.
         candidate_sets_by_fpv (list[set[int]], optional): Cached FPV clusters for tiebreaking.
@@ -64,7 +95,7 @@ class NumpyElectionDataTracker:
     wt_vec: NDArray
     initial_fpv_scores: NDArray
     fpv_by_round: list[NDArray] = field(default_factory=list)
-    play_by_play: list[ElectionPlay] = field(default_factory=list)
+    play_by_play: list[STVPlay] = field(default_factory=list)
     tiebreak_record: list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]] = field(
         default_factory=list
     )
@@ -108,7 +139,7 @@ class NumpySTVBase(ABC):
         n_seats: int = 1,
         tiebreak: TiebreakType | None = None,
         *,
-        rng_seed: Optional[int] = None,
+        rng_seed: int | None = None,
     ):
         """
         Initialize the numpy STV base.
@@ -153,9 +184,9 @@ class NumpySTVBase(ABC):
         Returns:
             tuple[NDArray, NDArray]: The ballot matrix and weights vector.
         """
-        df = pf.df.copy()
+        df = pf.to_df()
         candidate_to_index = {frozenset([name]): i for i, name in enumerate(self.candidates)}
-        candidate_to_index[frozenset(["~"])] = int(
+        candidate_to_index[END_OF_RANKING_SET] = int(
             NumpySTVSentinel.BLANK_RANKING.value
         )  # sentinel for blank/empty rankings after padding
 
@@ -173,7 +204,7 @@ class NumpySTVBase(ABC):
             except KeyError:
                 raise TypeError(f"Found invalid entry: {cell}")
 
-        mapped = np.frompyfunc(map_cell, 1, 1)(cells).astype(np.int8)
+        mapped = cast(NDArray, np.frompyfunc(map_cell, 1, 1)(cells)).astype(np.int8)
 
         # Add padding. A lot of the election logic needs at least one entry in each row of the
         # ballot matrix to be negative.
@@ -188,7 +219,7 @@ class NumpySTVBase(ABC):
         )
         ballot_matrix[:, :num_cols] = mapped
 
-        wt_vec: NDArray = df["Weight"].astype(np.float64).to_numpy()
+        wt_vec: NDArray = df[WEIGHT_COLUMN].astype(np.float64).to_numpy()
 
         return ballot_matrix, wt_vec
 
@@ -215,12 +246,12 @@ class NumpySTVBase(ABC):
             packaged_elected = (
                 tuple([frozenset([self.candidates[c]]) for c in play["winners"]])
                 if play["round_type"] != "elimination"
-                else (frozenset(),)
+                else (EMPTY_CANDIDATE_SET,)
             )
             packaged_eliminated = (
                 (frozenset([self.candidates[c] for c in play["loser"]]),)
                 if play["round_type"] == "elimination"
-                else (frozenset(),)
+                else (EMPTY_CANDIDATE_SET,)
             )
             packaged_scores = {
                 self.candidates[int(c)]: float(self._data.fpv_by_round[i + 1][c])
@@ -261,7 +292,7 @@ class NumpySTVBase(ABC):
         self, data: NumpyElectionDataTracker
     ) -> tuple[
         list[NDArray],
-        list[ElectionPlay],
+        list[STVPlay],
         list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]],
     ]:
         """
@@ -277,7 +308,7 @@ class NumpySTVBase(ABC):
 
         Returns:
             fpv_by_round (list[NDArray]): List of first-preference vote tallies by round.
-            play_by_play (list[ElectionPlay]): List of dictionaries representing the
+            play_by_play (list[STVPlay]): List of dictionaries representing the
                 actions taken in each round.
             tiebreak_record (list[dict[frozenset[Candidate], tuple[frozenset[Candidate], ...]]]):
                 List of dictionaries representing tiebreak resolutions for each round.
@@ -332,7 +363,7 @@ class NumpySTVBase(ABC):
         return (
             tuple(frozenset(value) for value in tallies_to_cands.values())
             if len(tallies_to_cands) > 0
-            else (frozenset(),)
+            else (EMPTY_CANDIDATE_SET,)
         )
 
     def get_elected(self, round_number: int = -1) -> tuple[frozenset[Candidate], ...]:
@@ -358,7 +389,7 @@ class NumpySTVBase(ABC):
         list_of_winners = [
             [c for c in play["winners"]]
             for play in self._data.play_by_play[:round_number]
-            if play["round_type"] in {"election", "default"}
+            if play["round_type"] == "election" or play["round_type"] == "default"
         ]
         return tuple(frozenset([self.candidates[c] for c in w_list]) for w_list in list_of_winners)
 
@@ -447,7 +478,7 @@ class NumpySTVBase(ABC):
             if play["round_type"] == "elimination":
                 status_df.at[self.candidates[play["loser"][0]], "Status"] = "Eliminated"
                 status_df.at[self.candidates[play["loser"][0]], "Round"] = play["round_number"] + 1
-            elif play["round_type"] in {"election", "default"}:
+            elif play["round_type"] == "election" or play["round_type"] == "default":
                 for c in play["winners"]:
                     status_df.at[self.candidates[c], "Status"] = "Elected"
                     status_df.at[self.candidates[c], "Round"] = play["round_number"] + 1
@@ -512,25 +543,27 @@ class NumpySTVBase(ABC):
         # --- 4) int8 -> frozenset mapping via 256-entry LUT ---
         # default for anything missing (including -127): frozenset("~")
         lut: np.ndarray = np.empty(256, dtype=object)
-        lut[:] = frozenset(["~"])
+        lut[:] = END_OF_RANKING_SET
         for k, v in idx_to_fset.items():
             lut[int(np.int16(k)) + 128] = v
         # index into LUT (shift by +128 to map [-128,127] -> [0,255])
         obj = lut[out.astype(np.int16, copy=False) + 128]  # dtype=object, frozensets
 
         # --- 5) to DataFrame with Ranking_i columns ---
-        data = {f"Ranking_{i + 1}": obj[:, i] for i in range(n_cols)}
+        data = {f"{RANKING_COLUMN_PREFIX}{i + 1}": obj[:, i] for i in range(n_cols)}
         df = pd.DataFrame(data)
 
         # --- 6) Ballot Index column & set as index ---
-        df.insert(0, "Ballot Index", np.arange(n_rows, dtype=int))
-        df.set_index("Ballot Index", inplace=True)
+        df.insert(0, BALLOT_INDEX_NAME, np.arange(n_rows, dtype=int))
+        df.set_index(BALLOT_INDEX_NAME, inplace=True)
 
         # --- 7) Voter Set: empty set per row (distinct objects) ---
-        df["Voter Set"] = pd.Series([set() for _ in range(n_rows)], dtype=object, index=df.index)
+        df[VOTER_SET_COLUMN] = pd.Series(
+            [set() for _ in range(n_rows)], dtype=object, index=df.index
+        )
 
         # --- 8) Weight column ---
-        df["Weight"] = wt_vec.astype(np.float64, copy=False)
+        df[WEIGHT_COLUMN] = wt_vec.astype(np.float64, copy=False)
 
         return RankProfile(
             max_ranking_length=self.profile.max_ranking_length,

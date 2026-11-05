@@ -57,13 +57,10 @@ def test_ic_allow_short_ballots_uses_lexicographic_indices():
         rng_seed=0,
     )
 
-    ballot_weights = {
-        tuple(
-            next(iter(rank))
-            for rank in ballot.ranking  # ty: ignore[not-iterable]
-        ): ballot.weight
-        for ballot in profile.ballots
-    }
+    ballot_weights = {}
+    for ballot in profile.ballots:
+        assert ballot.ranking is not None
+        ballot_weights[tuple(next(iter(rank)) for rank in ballot.ranking)] = ballot.weight
 
     assert ballot_weights == {("C",): 2, ("A",): 1}
     assert profile.max_ranking_length == 3

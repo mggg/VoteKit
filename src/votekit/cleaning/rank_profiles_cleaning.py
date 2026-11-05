@@ -1,9 +1,11 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import numpy as np
 import pandas as pd
 
+from votekit._df_schema import WEIGHT_COLUMN
+from votekit.constants import EMPTY_CANDIDATE_SET, END_OF_RANKING_SET
 from votekit.pref_profile import (
     CleanedRankProfile,
     RankProfile,
@@ -28,9 +30,9 @@ def _iterate_and_clean_ranking_tuples(
         tuple[pd.DataFrame, set[int], set[int], set[int], set[int]]: cleaned_df, unaltr_idxs,
             nonempty_altr_idxs, no_wt_altr_idxs, no_rank_altr_idxs
     """
-    cleaned_df = profile.df.copy()
+    cleaned_df = profile.to_df()
     assert profile.max_ranking_length is not None
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+    ranking_cols = list(profile._matrix.ranking_columns)
 
     orig_rows = [
         tuple(vals) for vals in cleaned_df[ranking_cols].itertuples(index=False, name=None)
@@ -39,8 +41,6 @@ def _iterate_and_clean_ranking_tuples(
 
     cleaned_df[ranking_cols] = pd.DataFrame(cleaned_rows, index=cleaned_df.index)
 
-    tilde = frozenset({"~"})
-    empty = frozenset()
     idxs = cleaned_df.index
 
     unaltr_idxs = {
@@ -51,7 +51,10 @@ def _iterate_and_clean_ranking_tuples(
     no_rank_altr_idxs = {
         idx
         for idx, cleaned_row in zip(idxs, cleaned_rows)
-        if all(cand_set == tilde or cand_set == empty for cand_set in cleaned_row)
+        if all(
+            cand_set == END_OF_RANKING_SET or cand_set == EMPTY_CANDIDATE_SET
+            for cand_set in cleaned_row
+        )
     }
     no_rank_altr_idxs = no_rank_altr_idxs - unaltr_idxs
     nonempty_altr_idxs = set(idxs) - unaltr_idxs - no_rank_altr_idxs
@@ -98,6 +101,37 @@ def clean_rank_profile(
     if not isinstance(profile, RankProfile):
         raise TypeError("Profile must be a RankProfile.")
 
+    return _clean_rank_profile_with_candidates(
+        profile,
+        clean_ranking_func,
+        candidates=profile.candidates if retain_original_candidate_list else (),
+        remove_null_ballots=remove_null_ballots,
+        remove_zero_weight_ballots=remove_zero_weight_ballots,
+    )
+
+
+def _clean_rank_profile_with_candidates(
+    profile: RankProfile,
+    clean_ranking_func: Callable[[tuple], tuple],
+    *,
+    candidates: tuple[Candidate, ...],
+    remove_null_ballots: bool,
+    remove_zero_weight_ballots: bool,
+) -> CleanedRankProfile:
+    """
+    Clean and filter rankings, then construct one profile with the final candidate universe.
+
+    Args:
+        profile (RankProfile): Source profile whose labels and cleaning provenance are retained.
+        clean_ranking_func (Callable[[tuple], tuple]): Transformation applied to each ranking row.
+        candidates (tuple[Candidate, ...]): Candidate universe for the result. An empty tuple
+            infers candidates from retained positive-weight ballots.
+        remove_null_ballots (bool): Whether to discard rankings containing only end markers.
+        remove_zero_weight_ballots (bool): Whether to discard rows with zero weight.
+
+    Returns:
+        CleanedRankProfile: Cleaned profile with the source as its immediate parent.
+    """
     (
         cleaned_df,
         unaltr_idxs,
@@ -108,18 +142,18 @@ def clean_rank_profile(
 
     if remove_null_ballots:
         assert profile.max_ranking_length is not None
-        ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
+        ranking_cols = list(profile._matrix.ranking_columns)
 
-        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        mask = cleaned_df[ranking_cols].map(lambda x: x == END_OF_RANKING_SET).all(axis=1)
 
         cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:
-        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+        cleaned_df = cleaned_df[cleaned_df[WEIGHT_COLUMN] > 0]
 
     return CleanedRankProfile(
         df=cleaned_df,
-        candidates=(profile.candidates if retain_original_candidate_list else tuple()),
+        candidates=candidates,
         max_ranking_length=profile.max_ranking_length,
         no_wt_altr_idxs=no_wt_altr_idxs,
         no_rank_altr_idxs=no_rank_altr_idxs,
@@ -148,8 +182,8 @@ def remove_repeat_cands_from_ranking_row(
     seen_cands = []
 
     for cand_set in ranking_tup:
-        if cand_set == frozenset({"~"}):
-            dedup_ranking.append(frozenset({"~"}))
+        if cand_set == END_OF_RANKING_SET:
+            dedup_ranking.append(END_OF_RANKING_SET)
             continue
         if not isinstance(cand_set, frozenset):
             dedup_ranking.append(np.nan)
@@ -286,7 +320,7 @@ def remove_cand_rank_profile(
     )
 
     return CleanedRankProfile(
-        df=cleaned_profile.df,
+        df=cleaned_profile.to_df(),
         candidates=new_candidates,
         max_ranking_length=cleaned_profile.max_ranking_length,
         parent_profile=cleaned_profile.parent_profile,
@@ -312,10 +346,10 @@ def condense_ranking_row(
 
     """
     max_ranking_length = len(ranking_tup)
-    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != frozenset()]
+    condensed_ranking = [cand_set for cand_set in ranking_tup if cand_set != EMPTY_CANDIDATE_SET]
 
     if len(condensed_ranking) < max_ranking_length:
-        condensed_ranking += [frozenset("~")] * (max_ranking_length - len(condensed_ranking))
+        condensed_ranking += [END_OF_RANKING_SET] * (max_ranking_length - len(condensed_ranking))
 
     return tuple(condensed_ranking)
 
@@ -367,7 +401,7 @@ def condense_rank_profile(
     )
 
     return CleanedRankProfile(
-        df=condensed_profile.df,
+        df=condensed_profile.to_df(),
         candidates=condensed_profile.candidates,
         max_ranking_length=condensed_profile.max_ranking_length,
         parent_profile=profile,
@@ -404,8 +438,7 @@ def remove_and_condense_rank_profile(
     and condensing happen frequently. Researches interested in the difference between
     removing and condensing should use ``remove_cand`` and ``condense_profile`` in series.
 
-    Wrapper for clean_rank_profile that does some extra processing to ensure the candidate list
-    is handled correctly, and that ballot equivalence is checked.
+    Cleans and filters rankings before constructing one profile with the final candidate list.
 
     Args:
         removed (Candidate | list[Candidate] | list[str] | list[int]):
@@ -425,16 +458,11 @@ def remove_and_condense_rank_profile(
         CleanedRankProfile: A cleaned ``RankProfile``.
     """
 
+    if not isinstance(profile, RankProfile):
+        raise TypeError("Profile must be a RankProfile.")
+
     if isinstance(removed, Candidate):
         removed = [removed]
-
-    cleaned_profile = clean_rank_profile(
-        profile,
-        lambda b: condense_ranking_row(remove_cand_from_ranking_row(removed, b)),
-        remove_null_ballots,
-        remove_zero_weight_ballots,
-        retain_original_candidate_list=True,
-    )
 
     new_candidates = (
         profile.candidates
@@ -442,16 +470,12 @@ def remove_and_condense_rank_profile(
         else tuple(set(profile.candidates) - set(removed))
     )
 
-    return CleanedRankProfile(
-        df=cleaned_profile.df,
+    return _clean_rank_profile_with_candidates(
+        profile,
+        lambda ranking: condense_ranking_row(remove_cand_from_ranking_row(removed, ranking)),
         candidates=new_candidates,
-        max_ranking_length=cleaned_profile.max_ranking_length,
-        parent_profile=cleaned_profile.parent_profile,
-        df_index_column=cleaned_profile.df_index_column,
-        no_wt_altr_idxs=cleaned_profile.no_wt_altr_idxs,
-        no_rank_altr_idxs=cleaned_profile.no_rank_altr_idxs,
-        nonempty_altr_idxs=cleaned_profile.nonempty_altr_idxs,
-        unaltr_idxs=cleaned_profile.unaltr_idxs,
+        remove_null_ballots=remove_null_ballots,
+        remove_zero_weight_ballots=remove_zero_weight_ballots,
     )
 
 
@@ -499,25 +523,26 @@ def remove_ballots_with_cand_rank_profile(
         removed = [removed]
     _validate_candidate_names(removed, "removed")
 
-    cand_ids = []
+    cand_set_ids = []
     for cand in removed:
-        cand_ids.extend(
+        cand_set_ids.extend(
             [
-                profile.candidate_id_map[cand_set]
-                for cand_set in profile.candidate_id_map
+                cand_set_id
+                for cand_set_id, cand_set in profile._matrix.iter_candidate_sets()
                 if cand in cand_set
             ]
         )
-    ranking_cols = [f"Ranking_{i}" for i in range(1, profile.max_ranking_length + 1)]
-    ballots_to_remove = profile._df[ranking_cols].isin(cand_ids).any(axis=1)
-    cleaned_df = profile.df[~ballots_to_remove]
+    ranking_cols = list(profile._matrix.ranking_columns)
+    ballots_to_remove = np.any(np.isin(profile._matrix.rankings, cand_set_ids), axis=1)
+    profile_df = profile.to_df()
+    cleaned_df = profile_df[~ballots_to_remove]
 
     if remove_null_ballots:
-        mask = cleaned_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+        mask = cleaned_df[ranking_cols].map(lambda x: x == END_OF_RANKING_SET).all(axis=1)
         cleaned_df = cleaned_df[~mask]
 
     if remove_zero_weight_ballots:
-        cleaned_df = cleaned_df[cleaned_df["Weight"] > 0]
+        cleaned_df = cleaned_df[cleaned_df[WEIGHT_COLUMN] > 0]
 
     candidates = (
         profile.candidates
@@ -534,5 +559,5 @@ def remove_ballots_with_cand_rank_profile(
         no_wt_altr_idxs=set(),
         no_rank_altr_idxs=set(),
         nonempty_altr_idxs=set(),
-        unaltr_idxs=set(profile.df.index),  # ballots are only dropped, never altered
+        unaltr_idxs=set(profile_df.index),  # ballots are only dropped, never altered
     )

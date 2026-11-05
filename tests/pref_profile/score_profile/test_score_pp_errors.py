@@ -26,3 +26,15 @@ def test_pp_candidate_list():
             ballots=(ScoreBallot(scores={"Ranking_0": 1}),),
             candidates=["Peter", "Ranking_0"],
         )
+
+
+@pytest.mark.parametrize("candidates", [("A", " A "), (" A", "A ")])
+def test_declared_candidate_normalization_rejects_collisions(candidates):
+    with pytest.raises(ProfileError, match="same identity after stripping whitespace"):
+        ScoreProfile(candidates=candidates)
+
+
+@pytest.mark.parametrize("candidate", [" ~ ", " Ranking_0 "])
+def test_declared_candidate_normalization_rejects_reserved_names(candidate):
+    with pytest.raises((ValueError, ProfileError), match="reserved"):
+        ScoreProfile(candidates=[candidate])

@@ -1,5 +1,7 @@
 """Collection wrapper tests for bloc-slate config."""
 
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
@@ -8,9 +10,11 @@ import pytest
 
 from votekit.ballot_generator.bloc_slate_generator.config import (
     BlocProportions,
+    BlocSlateConfig,
     ConfigurationWarning,
     SlateCandMap,
 )
+from votekit.constants import TOL_EPSILON
 
 #   _CandListProxy
 # ==================
@@ -23,7 +27,7 @@ def slate_map():
         slate_to_candidates = None  # satisfies SourceWithAttribute check
 
         def __init__(self):
-            self._map = None
+            self._map: SlateCandMap | None = None
             self._current_preference_df_slate_cand_mapping = None
 
         @property
@@ -36,7 +40,7 @@ def slate_map():
             pass
 
     parent = Parent()
-    sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
+    sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type, ty:invalid-argument-type]
     parent._map = sm
     yield sm
 
@@ -63,6 +67,19 @@ def test_delitem_updates_via_setitem(slate_map):
     p = slate_map["s1"]
     del p[1]
     assert slate_map["s1"] == ["A"]
+
+
+def test_slice_assignment_preserves_generator_values(slate_map):
+    slate_map["s1"][0:1] = (candidate for candidate in ["X", "Y"])
+
+    assert slate_map["s1"] == ["X", "Y", "B"]
+
+
+def test_index_assignment_rejects_candidate_list_without_changing_slate(slate_map):
+    with pytest.raises(TypeError, match="Index assignment requires a str or int candidate"):
+        slate_map["s1"][0] = ["X", "Y"]
+
+    assert slate_map["s1"] == ["A", "B"]
 
 
 def test_insert_type_checks_and_dedup_within_slate(slate_map):
@@ -145,7 +162,7 @@ def parent_and_map():
         slate_to_candidates = None  # satisfies SourceWithAttribute check
 
         def __init__(self):
-            self._map = None
+            self._map: SlateCandMap | None = None
             self._current_preference_df_slate_cand_mapping = None
 
         @property
@@ -158,7 +175,7 @@ def parent_and_map():
             pass
 
     parent = Parent()
-    smap = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
+    smap = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type, ty:invalid-argument-type]
     parent._map = smap
     yield parent, smap
 
@@ -186,7 +203,7 @@ def test_init_raises_attributeerror_if_init_has_no_items(parent_and_map):
     with pytest.raises(AttributeError, match=r"does not implement the '\.items\(\)' method"):
         SlateCandMap(
             parent,
-            [("x", ["A"])],  # type: ignore[arg-type]
+            [("x", ["A"])],  # type: ignore[arg-type, ty:invalid-argument-type]
         )  # list has no .items()
 
 
@@ -216,7 +233,7 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
         slate_to_candidates = None  # satisfies SourceWithAttribute check
 
         def __init__(self):
-            self._map = None
+            self._map: SlateCandMap | None = None
             self._current_preference_df_slate_cand_mapping = None
 
         @property
@@ -230,7 +247,7 @@ def test_setitem_rollback_on_parent_keyerror_existing_slate():
             raise KeyError("Preference mapping columns do not match candidates")
 
     parent = Parent()
-    sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type]
+    sm = SlateCandMap(parent, {"s1": ["A", "B"], "s2": ["C"]})  # type: ignore[arg-type, ty:invalid-argument-type]
     parent._map = sm
 
     before = sm.to_dict()["s1"].copy()
@@ -251,7 +268,7 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
         slate_to_candidates = None  # satisfies SourceWithAttribute check
 
         def __init__(self):
-            self._map = None
+            self._map: SlateCandMap | None = None
             self._current_preference_df_slate_cand_mapping = None
 
         @property
@@ -265,7 +282,7 @@ def test_setitem_rollback_on_parent_keyerror_new_slate_removes_key():
             raise KeyError("Preference mapping columns do not match candidates")
 
     parent = Parent()
-    sm = SlateCandMap(parent, {"s1": ["A", "B"]})  # type: ignore[arg-type]
+    sm = SlateCandMap(parent, {"s1": ["A", "B"]})  # type: ignore[arg-type, ty:invalid-argument-type]
     parent._map = sm
 
     with pytest.raises(KeyError, match="You may have tried to modify the candidate list directly"):
@@ -372,12 +389,8 @@ def test_copy_returns_plain_dict_copy_independent(sm):
 # ===================
 
 
-def _make_parent(silent: bool):
-    class Parent:
-        def __init__(self, silent):
-            self.silent = silent
-
-    return Parent(silent)
+def _make_parent(silent: bool) -> BlocSlateConfig:
+    return BlocSlateConfig(n_voters=1, bloc_proportions={"b1": 1.0}, silent=silent)
 
 
 @pytest.fixture
@@ -399,17 +412,21 @@ def bp_silent_true():
 
 def test_init_from_dict_valid_normalized_to_series_float():
     parent = _make_parent(False)
-    bp = BlocProportions(parent, {"b1": 0.3000000004, "b2": 0.699999996})
+    bp = BlocProportions(parent, {"b1": 0.3, "b2": 0.7 - TOL_EPSILON / 2})
     s = bp.to_series()
     assert s.dtype == float
     assert set(s.index) == {"b1", "b2"}
     assert pytest.approx(float(s.sum()), rel=0, abs=1e-12) == 1.0
 
 
-def test_init_from_dict_sum_not_one_raises():
+@pytest.mark.parametrize(
+    "proportions", [{"b1": 0.2, "b2": 0.2}, {"b1": 0.3000000004, "b2": 0.699999996}]
+)
+def test_init_from_dict_sum_not_one_raises(proportions: dict[str, float]) -> None:
     parent = _make_parent(False)
+
     with pytest.raises(ValueError, match="sum to 1"):
-        BlocProportions(parent, {"b1": 0.2, "b2": 0.2})
+        BlocProportions(parent, proportions)
 
 
 def test_init_from_series_casts_to_float_and_accepts_numeric():
@@ -448,7 +465,7 @@ def test_to_series_and_copy_are_independent(bp_silent_false):
 def test_setitem_key_type_and_value_finiteness_errors():
     parent = _make_parent(silent=False)
     with pytest.raises(TypeError, match="Bloc keys must be a 'str'"):
-        _ = BlocProportions(parent, {1: 0.5, "b2": 0.5})  # type: ignore[index]
+        _ = BlocProportions(parent, {1: 0.5, "b2": 0.5})  # type: ignore[index, ty:invalid-argument-type]
     with pytest.raises(TypeError, match="finite real"):
         _ = BlocProportions(parent, {"b1": float("inf"), "b2": 0.0})
     with pytest.raises(TypeError, match="finite real"):

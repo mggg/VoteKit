@@ -1,10 +1,10 @@
 import itertools
 import random
+from collections.abc import Sequence
 
 import numpy as np
 import pytest
 from joblib import Parallel, delayed
-from typing_extensions import Sequence
 
 from votekit.ballot import RankBallot
 from votekit.elections import PluralityVeto, SerialVeto
@@ -97,6 +97,7 @@ def test_plurality_veto_4_candidates_deterministic_tiebreaking():
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(TEST_PROFILE, tiebreak="first_place") for _ in range(TRIALS)
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in CANDIDATES}
     # first_place tiebreak is indecisive, so we break ties alphabetically,
@@ -119,6 +120,7 @@ def test_plurality_veto_4_candidates_random_tiebreaking():
     results = Parallel(n_jobs=n_jobs)(
         delayed(run_election_once)(TEST_PROFILE, tiebreak="random") for _ in range(TRIALS)
     )
+    assert isinstance(results, list)
 
     winner_counts = {c: results.count(c) for c in CANDIDATES}
     assert np.allclose(1 / 4, winner_counts["A"] / TRIALS, atol=8e-2)

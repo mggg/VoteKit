@@ -45,9 +45,8 @@ def test_validate_profile():
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3, "B": 2})])
         GeneralRating(profile, n_seats=2, per_candidate_limit=2)
 
-    with pytest.raises(TypeError, match="must have non-negative scores."):
+    with pytest.raises(ValueError, match="Scores must be non-negative."):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3, "B": 2, "C": 2})])
-        GeneralRating(profile, n_seats=2, per_candidate_limit=2)
 
     with pytest.raises(TypeError, match="All ballots must have score dictionary."):
         profile = ScoreProfile(ballots=[ScoreBallot(), ScoreBallot(scores={"A": 2, "B": 2})])

@@ -10,6 +10,7 @@ from votekit.pref_profile import (
     RankProfile,
     ScoreProfile,
 )
+from votekit.utils import borda_scores
 
 profile_no_tied_borda = RankProfile(
     ballots=[
@@ -55,6 +56,20 @@ states = [
 def test_init():
     e = Borda(profile_no_tied_borda)
     assert e.get_elected() == (frozenset({"A"}),)
+
+
+def test_borda_scores_repeated_candidate_after_exhausted_tie() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=({"A", "B"}, {"A"}))],
+        max_ranking_length=2,
+    )
+
+    assert borda_scores(profile) == {"A": 1.0, "B": 1.0}
+
+    election = Borda(profile, n_seats=2)
+
+    assert election.election_states[0].scores == {"A": 1.0, "B": 1.0}
+    assert election.get_elected() == (frozenset({"A", "B"}),)
 
 
 def test_alt_score_vector():

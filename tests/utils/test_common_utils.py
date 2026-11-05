@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import math
 import random
 from fractions import Fraction
 from itertools import permutations
@@ -9,6 +12,8 @@ import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
 from votekit.pref_profile import RankProfile, ScoreProfile
+from votekit.pref_profile.profile_matrix import RankMatrix
+from votekit.types import Candidate
 from votekit.utils import (
     _validate_candidate_names,
     add_missing_cands,
@@ -29,7 +34,7 @@ from votekit.utils import (
     tiebroken_ranking,
     validate_score_vector,
 )
-from votekit.utils.common_utils import _mentions_from_ballots, _mentions_from_df
+from votekit.utils.common_utils import _score_dict_from_rankings_df_no_ties
 
 CSV_DIR = Path(__file__).resolve().parents[1] / "data" / "csv"
 
@@ -102,6 +107,16 @@ class TestShortBallot:
         assert profile.max_candidates_ranked == profile.max_ranking_length
 
 
+def _reject_profile_materialization(*args: object, **kwargs: object) -> None:
+    raise AssertionError("Use matrix storage without calling to_df() or constructing all ballots")
+
+
+@pytest.fixture
+def forbid_dataframe_conversion(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(RankProfile, "to_df", _reject_profile_materialization)
+    monkeypatch.setattr(RankMatrix, "to_df", _reject_profile_materialization)
+
+
 def test_ballots_by_first_cand():
     profile = RankProfile(
         ballots=(
@@ -131,6 +146,34 @@ def test_ballots_by_first_cand_error():
         ballots_by_first_cand(
             cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),)))
         )
+
+
+def test_partition_preserves_empty_positions_before_end_sentinel() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, set(), {"B"}])],
+        max_ranking_length=4,
+    )
+    expected = (frozenset({"A"}), frozenset(), frozenset({"B"}))
+
+    assert ballots_by_first_cand(profile)["A"][0].ranking == expected
+
+
+def test_partition_preserves_row_order_voters_and_fraction_weights(
+    forbid_dataframe_conversion: None,
+) -> None:
+    ballots = [
+        RankBallot(ranking=[{"A"}, {1}], weight=Fraction(1, 3), voter_set={"one"}),
+        RankBallot(ranking=[{1}], weight=Fraction(2, 3)),
+        RankBallot(ranking=[{"A"}], weight=Fraction(0), voter_set={"zero"}),
+        RankBallot(weight=Fraction(1)),
+    ]
+    profile = RankProfile(ballots=ballots, candidates=(1, "A", "unused"))
+
+    assert ballots_by_first_cand(profile) == {
+        1: [ballots[1]],
+        "A": [ballots[0], ballots[2]],
+        "unused": [],
+    }
 
 
 def test_add_missing_cands():
@@ -219,6 +262,30 @@ def test_score_profile_from_rankings_avg():
     assert isinstance(comp_scores["A"], float)
 
 
+@pytest.mark.parametrize("tie_convention, expected", [("high", 6), ("average", 5), ("low", 4)])
+def test_positional_scoring_ignores_zero_weight_candidates(
+    tie_convention: Literal["high", "average", "low"], expected: float
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"X"}], weight=0),
+            RankBallot(ranking=[{"A", "B"}], weight=2),
+        ],
+        max_ranking_length=3,
+    )
+    scores = {"A": expected, "B": expected}
+    assert score_dict_from_score_vector(profile, [3, 2, 1], tie_convention) == scores
+    assert borda_scores(profile, tie_convention=tie_convention) == scores
+
+
+def test_positional_scoring_rejects_empty_positions_on_zero_weight_ballots() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}]), RankBallot(ranking=[set()], weight=0)]
+    )
+    with pytest.raises(TypeError, match="has an empty ranking position"):
+        score_dict_from_score_vector(profile, [1])
+
+
 def test_score_profile_from_rankings_errors():
     with pytest.raises(ValueError, match="Score vector must be non-negative."):
         score_dict_from_score_vector(RankProfile(), [3, 2, -1])
@@ -248,6 +315,106 @@ def test_score_profile_from_rankings_errors():
         )
 
 
+@pytest.mark.parametrize("tie_convention,expected", [("low", 1.0), ("average", 1.5), ("high", 2.0)])
+def test_scoring_uses_matrix_with_ties_and_repeated_candidates(
+    tie_convention: Literal["low", "average", "high"],
+    expected: float,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A", 1}, {"A"}], weight=Fraction(1, 2))],
+        candidates=(1, "A", "unused"),
+        max_ranking_length=3,
+    )
+    source = profile.to_df()
+    source.index = pd.Index([37], name="Ballot Index")
+    profile = RankProfile(df=source, candidates=profile.candidates, max_ranking_length=3)
+
+    monkeypatch.setattr(RankProfile, "to_df", _reject_profile_materialization)
+    monkeypatch.setattr(RankProfile, "ballots", property(_reject_profile_materialization))
+
+    assert score_dict_from_score_vector(profile, [4, 2, 1], tie_convention) == {
+        1: expected,
+        "A": expected + 0.5,
+    }
+
+
+@pytest.mark.parametrize(
+    "max_ranking_length,tie_convention,expected",
+    [
+        (2, "low", 1.0),
+        (2, "high", 2.0),
+        (2, "average", 1.5),
+        (3, "low", 2.0),
+        (3, "high", 4.0),
+        (3, "average", 3.0),
+    ],
+)
+def test_scoring_pads_exhausted_tie_slices_with_zeros(
+    max_ranking_length: int,
+    tie_convention: Literal["low", "high", "average"],
+    expected: float,
+) -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=({"A", "B"}, {"A", "B"}))],
+        max_ranking_length=max_ranking_length,
+    )
+    score_vector = tuple(range(max_ranking_length, 0, -1))
+
+    assert score_dict_from_score_vector(profile, score_vector, tie_convention) == {
+        "A": expected,
+        "B": expected,
+    }
+
+
+def test_scorers_retain_their_distinct_rounding_rules(forbid_dataframe_conversion: None) -> None:
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=4e-11)] * 2)
+
+    assert score_dict_from_score_vector(profile, [1]) == {"A": 0.0}
+    assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1e-10}
+
+
+@pytest.mark.parametrize("tie_convention", ["low", "average", "high"])
+def test_positional_scoring_preserves_small_contributions(
+    tie_convention: Literal["low", "average", "high"],
+) -> None:
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A", "B"}, {"A"}], weight=weight) for weight in (1e8, 5e-9, 5e-9)
+        ],
+        max_ranking_length=3,
+    )
+
+    assert score_dict_from_score_vector(profile, [1, 1, 1], tie_convention) == {
+        "A": 200000000.00000003,
+        "B": 100000000.00000001,
+    }
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_no_ties_scorer_skips_reserved_ids_and_undeclared_zero_weight_candidates(
+    exact: bool,
+    forbid_dataframe_conversion: None,
+) -> None:
+    weight = Fraction(1, 3) if exact else 0.5
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[set(), {"A"}], weight=weight),
+            RankBallot(ranking=[{"A"}], weight=weight),
+            RankBallot(ranking=[{"zero"}], weight=0),
+        ]
+    )
+
+    assert _score_dict_from_rankings_df_no_ties(profile, [1, 0]) == {"A": round(float(weight), 10)}
+
+
+def test_no_ties_scoring_preserves_numpy_rounding(forbid_dataframe_conversion: None) -> None:
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1.00000000005)])
+
+    assert _score_dict_from_rankings_df_no_ties(profile, [1]) == {"A": 1.0}
+    assert score_dict_from_score_vector(profile, [1]) == {"A": 1.0}
+
+
 def test_first_place_votes():
     votes = first_place_votes(profile_no_ties)
     true_votes = {"A": 3 / 2, "B": 0, "C": 3}
@@ -261,57 +428,55 @@ def test_fpv_errors():
         first_place_votes(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
 
 
-def test_mentions_from_ballots():
+def test_mentions():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = _mentions_from_ballots(profile_no_ties)
+    test = mentions(profile_no_ties)
+
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_mentions_from_ballots_with_ties():
+def test_mentions_with_ties():
     correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = _mentions_from_ballots(profile_with_ties)
+    test = mentions(profile_with_ties)
+
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_mentions_from_ballots_with_duplicates():
+def test_mentions_with_duplicates():
     correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
-    test = _mentions_from_ballots(profile_with_duplicates)
+    test = mentions(profile_with_duplicates)
+
     assert correct == test
     assert isinstance(test["A"], float)
 
 
-def test_mentions_from_df():
-    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = _mentions_from_df(profile_no_ties)
-    assert correct == test
-    assert isinstance(test["A"], float)
+def _sum_mentions_from_ballots(profile: RankProfile) -> dict[Candidate, float]:
+    totals = {candidate: Fraction(0) for candidate in profile.candidates}
 
+    for ballot in profile.ballots:
+        if ballot.weight == 0:
+            continue
 
-def test_mentions_from_df_with_ties():
-    correct = {"A": 9 / 2, "B": 9 / 2, "C": 7 / 2}
-    test = _mentions_from_df(profile_with_ties)
-    assert correct == test
-    assert isinstance(test["A"], float)
+        assert ballot.ranking is not None
 
+        for candidate_set in ballot.ranking:
+            for candidate in candidate_set:
+                totals[candidate] += Fraction(ballot.weight)
 
-def test_mentions_from_df_with_duplicates():
-    correct = {"A": 3 / 2, "B": 23 / 2, "C": 1 / 2}
-    test = _mentions_from_df(profile_with_duplicates)
-    assert correct == test
-    assert isinstance(test["A"], float)
+    return {candidate: float(total) for candidate, total in totals.items()}
 
 
 @pytest.mark.slow
-def test_fast_and_slow_mentions_are_same():
-    profile = cast(RankProfile, RankProfile.from_csv(CSV_DIR / "albany_profile.csv"))
-    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
+def test_mentions_large_profile_matches_ballot_reference():
+    profile = RankProfile.from_csv(CSV_DIR / "albany_profile.csv")
+
+    assert mentions(profile) == _sum_mentions_from_ballots(profile)
 
 
 def test_mentions_zero_weight_ballots():
-    # "A" appears only on a zero-weight ballot, so it is not in profile.candidates; both
-    # mentions paths must skip it rather than raise KeyError
+    # Candidates appearing only on zero-weight ballots need not be declared.
     profile = RankProfile(
         ballots=(
             RankBallot(ranking=tuple(map(frozenset, [{"A"}])), weight=0),
@@ -319,46 +484,41 @@ def test_mentions_zero_weight_ballots():
         )
     )
     correct = {"B": 2.0}
-    assert _mentions_from_ballots(profile) == correct
-    assert _mentions_from_df(profile) == correct
+
+    assert mentions(profile) == correct
 
 
-def test_mentions_from_df_returns_python_floats():
-    assert all(type(v) is float for v in _mentions_from_df(profile_no_ties).values())
+def test_mentions_returns_python_floats():
+    assert all(type(v) is float for v in mentions(profile_no_ties).values())
 
 
-def test_mentions_no_ranking_ballot_raises_in_both_paths():
-    # an unranked ballot materializes with ranking=None, so both paths must raise the same error
+def test_mentions_no_ranking_ballot_raises():
     profile = RankProfile(ballots=(RankBallot(weight=2), RankBallot(ranking=({"A"},), weight=1)))
+
     with pytest.raises(TypeError, match="Ballots must have rankings."):
-        _mentions_from_df(profile)
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
-        _mentions_from_ballots(profile)
+        mentions(profile)
 
 
-def test_mentions_all_unranked_profile_raises_in_both_paths():
+def test_mentions_all_unranked_profile_raises():
     # every ballot has ranking=None, so the profile has no ranking columns at all
     profile = RankProfile(ballots=(RankBallot(weight=2),))
+
     with pytest.raises(TypeError, match="Ballots must have rankings."):
-        _mentions_from_df(profile)
-    with pytest.raises(TypeError, match="Ballots must have rankings."):
-        _mentions_from_ballots(profile)
+        mentions(profile)
 
 
 def test_mentions_empty_frozenset_ranking_consistent():
-    # a present-but-empty frozenset ranking is not ranking=None; neither path should raise
     profile = RankProfile(ballots=(RankBallot(ranking=(frozenset(),), weight=1),))
-    assert _mentions_from_df(profile) == {}
-    assert _mentions_from_ballots(profile) == {}
+
+    assert mentions(profile) == {}
 
 
-def test_mentions_from_df_duplicate_ballot_index():
-    # profiles built from a df keep the given index; duplicate labels must not break the df path
-    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).df
+def test_mentions_duplicate_ballot_index():
+    df = RankProfile(ballots=(RankBallot(ranking=({"A"}, {"B"}), weight=1),)).to_df()
     profile = RankProfile(df=pd.concat([df, df]), candidates=("A", "B"), max_ranking_length=2)
     correct = {"A": 2.0, "B": 2.0}
-    assert _mentions_from_df(profile) == correct
-    assert _mentions_from_ballots(profile) == correct
+
+    assert mentions(profile) == correct
 
 
 def _random_mentions_profile(rng: random.Random) -> RankProfile:
@@ -373,7 +533,7 @@ def _random_mentions_profile(rng: random.Random) -> RankProfile:
             n = rng.randint(1, min(2, len(pool)))
             ranking.append(frozenset(pool[:n]))
             pool = pool[n:]
-        weight = rng.choice([0, 1, 3, 1 / 2, Fraction(1, 3)])
+        weight = rng.choice([0, 1, 3, Fraction(1, 2), Fraction(1, 3)])
         ballots.append(RankBallot(ranking=tuple(ranking), weight=weight))
     # sometimes omit the explicit candidate list so profile.candidates can exclude candidates
     # that appear only on zero-weight ballots
@@ -383,14 +543,73 @@ def _random_mentions_profile(rng: random.Random) -> RankProfile:
 
 
 @pytest.mark.parametrize("seed", range(25))
-def test_mentions_paths_stay_in_sync(seed):
+def test_mentions_agree_with_ballot_reference(seed):
     profile = _random_mentions_profile(random.Random(seed))
-    assert _mentions_from_ballots(profile) == _mentions_from_df(profile)
+
+    assert mentions(profile) == _sum_mentions_from_ballots(profile)
 
 
 def test_mentions_errors():
     with pytest.raises(TypeError, match="Profile must be of type RankProfile"):
         mentions(cast(RankProfile, ScoreProfile(ballots=(ScoreBallot(scores={"A": 3}),))))
+
+
+def test_mentions_ignore_empty_positions_before_end_sentinel() -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, set(), {"B"}])],
+        max_ranking_length=4,
+    )
+
+    assert mentions(profile) == {"A": 1.0, "B": 1.0}
+
+
+def test_mentions_handle_ties_repeats_and_unused_candidates_without_materialization(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A", 1}, {"A"}], weight=Fraction(1, 2))],
+        candidates=(1, "A", "unused"),
+        max_ranking_length=3,
+    )
+    source = profile.to_df()
+    source.index = pd.Index([37], name="Ballot Index")
+    profile = RankProfile(df=source, candidates=profile.candidates, max_ranking_length=3)
+
+    monkeypatch.setattr(RankProfile, "to_df", _reject_profile_materialization)
+    monkeypatch.setattr(RankProfile, "ballots", property(_reject_profile_materialization))
+
+    assert mentions(profile) == {1: 0.5, "A": 1.0, "unused": 0.0}
+
+
+def test_mentions_preserve_fraction_arithmetic_and_count_every_position(
+    forbid_dataframe_conversion: None,
+) -> None:
+    weight = Fraction(1_000_000_001, 3)
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"A", 1}], weight=weight),
+            RankBallot(ranking=[{1}], weight=Fraction(1, 7)),
+            RankBallot(ranking=[{"zero"}], weight=0),
+        ],
+        max_ranking_length=3,
+    )
+    expected = {"A": float(2 * weight), 1: float(weight + Fraction(1, 7))}
+
+    assert mentions(profile) == expected
+
+    _ = profile.ballots
+
+    assert mentions(profile) == expected
+
+
+def test_float_mentions_do_not_depend_on_ballot_cache(forbid_dataframe_conversion: None) -> None:
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=w) for w in [0.1, 0.2, 0.3]])
+
+    assert mentions(profile) == {"A": 0.6}
+
+    _ = profile.ballots
+
+    assert mentions(profile) == {"A": 0.6}
 
 
 def test_borda_no_ties():
@@ -789,17 +1008,62 @@ def test_resolve_profile_ties():
     assert resolve_profile_ties(profile_with_ties) == no_ties
 
 
-def test_score_profile_from_ballot_scores_float():
+@pytest.mark.parametrize("score", [3.0, 1.00000000005])
+def test_score_profile_from_ballot_scores_float(score: float):
     profile = ScoreProfile(
         ballots=[
             ScoreBallot(
-                scores={"A": 3},
+                scores={"A": score},
             ),
         ]
     )
     scores = score_profile_from_ballot_scores(profile)
-    assert scores == {"A": 3}
+    assert scores == {"A": score}
     assert isinstance(scores["A"], float)
+
+
+@pytest.mark.parametrize("exact", [False, True])
+def test_score_profile_tally_preserves_small_contributions(exact: bool) -> None:
+    weights = (Fraction(100_000_000), Fraction(1, 200_000_000), Fraction(1, 200_000_000))
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, weight=weight if exact else float(weight))
+            for weight in weights
+        ],
+        candidates=("A", "B", "unused"),
+    )
+
+    assert score_profile_from_ballot_scores(profile) == {
+        "A": 100000000.00000001,
+        "B": 0.0,
+        "unused": 0.0,
+    }
+
+
+@pytest.mark.parametrize(
+    "scores, weights, expected",
+    [
+        ([1e308, 1e308], [1.0, 1.0], math.inf),
+        ([math.inf, math.inf], [1.0, 0.0], math.nan),
+        ([1e308, 1e308, math.inf], [1.0, 1.0, 0.0], math.nan),
+    ],
+    ids=["overflow", "zero-times-infinity", "overflow-before-nan"],
+)
+def test_score_profile_tally_preserves_nonfinite_results(
+    scores: list[float], weights: list[float], expected: float
+) -> None:
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": score}, weight=weight)
+            for score, weight in zip(scores, weights, strict=True)
+        ]
+    )
+
+    result = score_profile_from_ballot_scores(profile)["A"]
+    if math.isnan(expected):
+        assert math.isnan(result)
+    else:
+        assert result == expected
 
 
 def test_score_profile_from_ballot_scores_error():
@@ -838,7 +1102,7 @@ def test_sort_mixed_cands_lexicographically():
 def test_sort_non_valid_type_cand_raises_error():
     cands = ["1", 1, 1.0]
     with pytest.raises(TypeError, match="Candidates can only be strings or integers."):
-        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type]
+        sort_candidates_pseudo_lexicographically(cands)  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_sort_nan_cand_at_end_of_list():
@@ -861,7 +1125,7 @@ def test_validate_candidate_names_errors_on_colon_in_candidate():
 def test_validate_candidate_names_errors_non_str_int_candidate():
     invalid_candidates_list = ["A", 1.0]
     with pytest.raises(TypeError, match=r"Non-string/integer candidate\(s\) found in"):
-        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type]
+        _validate_candidate_names(invalid_candidates_list, "candidates")  # type: ignore[arg-type, ty:invalid-argument-type]
 
 
 def test_validate_candidate_names_errors_on_negative_int_candidate():

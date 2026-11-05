@@ -145,7 +145,7 @@ def test_validate_profile():
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 3})])
         Approval(profile, n_seats=1)
 
-    with pytest.raises(TypeError, match="must have non-negative scores."):
+    with pytest.raises(ValueError, match="Scores must be non-negative."):
         profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": -3})])
         Approval(profile, n_seats=1)
 

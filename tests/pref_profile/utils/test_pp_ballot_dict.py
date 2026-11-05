@@ -37,3 +37,18 @@ def test_score_to_ballot_dict():
     rv = score_profile_to_ballot_dict(profile, standardize=True)
     assert rv[ScoreBallot(scores={"A": 4})] == 2 / 3
     assert rv[ScoreBallot(scores={"A": 3})] == 1 / 3
+
+
+def test_score_ballot_dict_distinguishes_zero_from_unscored():
+    profile = ScoreProfile(
+        ballots=[
+            ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True, weight=2),
+            ScoreBallot(scores={"A": 1}, weight=3),
+        ]
+    )
+
+    ballot_weights = score_profile_to_ballot_dict(profile)
+
+    assert len(ballot_weights) == 2
+    assert ballot_weights[ScoreBallot(scores={"A": 1, "B": 0}, include_zero_score=True)] == 2
+    assert ballot_weights[ScoreBallot(scores={"A": 1})] == 3

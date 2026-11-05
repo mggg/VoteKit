@@ -8,8 +8,9 @@ The main API functions in this module are:
 
 import random
 from collections import Counter
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
+from votekit._df_schema import BALLOT_INDEX_NAME
 from votekit.pref_profile import RankProfile
 from votekit.types import Candidate
 from votekit.utils import (
@@ -31,9 +32,9 @@ from votekit.utils import (
 def _generate_profile_optimized_non_short(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
-    max_ballot_length: Optional[int] = None,
+    max_ballot_length: int | None = None,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> RankProfile:
     """
     Generate an IC preference profile using Fisher-Yates shuffle
@@ -44,7 +45,7 @@ def _generate_profile_optimized_non_short(
         candidates (Sequence[Candidate]): the list of candidates in the election.
             Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate
-        max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
+        max_ballot_length (int | None): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.
@@ -67,7 +68,7 @@ def _generate_profile_optimized_non_short(
     ]
     ballots_as_counter = Counter(ballots_as_ind)
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=len(candidates),
@@ -78,9 +79,9 @@ def _generate_profile_optimized_non_short(
 def _generate_profile_optimized_with_short(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
-    max_ballot_length: Optional[int] = None,
+    max_ballot_length: int | None = None,
     *,
-    rng: Optional[random.Random] = None,
+    rng: random.Random | None = None,
 ) -> RankProfile:
     """
     Generate an IC profile in the case where short ballots are
@@ -93,7 +94,7 @@ def _generate_profile_optimized_with_short(
             Candidates can be strings or integers.
         number_of_ballots (int): the number of ballots to generate for
             the profile
-        max_ballot_length (Optional[int]): the maximum length allowed in the profile. If None,
+        max_ballot_length (int | None): the maximum length allowed in the profile. If None,
             defaults to the number of candidates. Defaults to None.
         rng (random.Random, optional): Standard library random number generator. Pass a seeded
             instance for reproducible results. Defaults to None for non-deterministic results.
@@ -119,7 +120,7 @@ def _generate_profile_optimized_with_short(
     # Instantiate the preference profile using a dataframe
     ballots_as_counter = Counter(ballots_as_cand_ind)
     pp_df = build_df_from_ballot_samples(dict(ballots_as_counter), candidates)
-    pp_df.index.name = "Ballot Index"
+    pp_df.index.name = BALLOT_INDEX_NAME
     return RankProfile(
         df=pp_df,
         max_ranking_length=len(candidates),
@@ -135,10 +136,10 @@ def _generate_profile_optimized_with_short(
 def ic_profile_generator(
     candidates: Sequence[Candidate],
     number_of_ballots: int,
-    max_ballot_length: Optional[int] = None,
+    max_ballot_length: int | None = None,
     allow_short_ballots: bool = False,
     *,
-    rng_seed: Optional[int] = None,
+    rng_seed: int | None = None,
 ) -> RankProfile:
     """
     Impartial Culture model where each ballot is equally likely.
@@ -148,7 +149,7 @@ def ic_profile_generator(
         candidates (Sequence[Candidate]): The list of candidates in the election.
             Candidates can be strings or integers.
         number_of_ballots (int): The number of ballots to generate for the profile.
-        max_ballot_length (Optional[int]): Maximum length of each ballot. If None, defaults to
+        max_ballot_length (int | None): Maximum length of each ballot. If None, defaults to
             the number of candidates.
         allow_short_ballots (bool, optional): Whether to allow short ballots.
             Defaults to False.
