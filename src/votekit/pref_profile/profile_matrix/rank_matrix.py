@@ -277,25 +277,61 @@ class RankMatrix:
                 key=lambda col: int(col.removeprefix(RANKING_COLUMN_PREFIX)),
             )
         )
-        cells = df[list(ranking_columns)].to_numpy()
+        return cls.from_array(
+            df[list(ranking_columns)].to_numpy(),
+            voter_weight_data=ProfileVoterWeightData.from_df(df),
+            ranking_columns=ranking_columns,
+            candidates=candidates,
+        )
 
+    @classmethod
+    def from_array(
+        cls,
+        cand_set_array: NDArray[np.object_],
+        *,
+        voter_weight_data: ProfileVoterWeightData,
+        ranking_columns: Sequence[str],
+        candidates: Sequence[Candidate],
+    ) -> Self:
+        """
+        Encode a two-dimensional array of candidate sets as ranking IDs.
+
+        Real IDs are assigned in order of first appearance, scanning ballots top to bottom and
+        ranking positions left to right.
+
+        Args:
+            cand_set_array (NDArray[np.object_]): Two-dimensional array of frozenset candidate
+                names, one row per ballot and one column per ranking position. Tilde sets pad the
+                end of a ranking. Names must already be normalized.
+            voter_weight_data (ProfileVoterWeightData): Shared data with one entry per ballot.
+            ranking_columns (Sequence[str]): Ranking_i labels, one per column of the array.
+            candidates (Sequence[Candidate]): Profile candidate universe in declared order.
+
+        Returns:
+            Self: Matrix with an owned ranking array and dense candidate-set lookup table.
+
+        Raises:
+            TypeError: Array cells are unhashable or candidate sets contain unsupported types.
+            ValueError: The array is not two-dimensional, or ranking labels, candidate sets, or
+                sentinel placement are invalid, as checked by the constructor.
+        """
         cand_set_to_id: dict[frozenset[Candidate], int] = {
             EMPTY_CANDIDATE_SET: EMPTY_SET_ID,
             END_OF_RANKING_SET: END_OF_RANKING_ID,
         }
-        for cand_set in cells.ravel():
+        for cand_set in cand_set_array.ravel():
             if cand_set not in cand_set_to_id:
                 cand_set_to_id[cand_set] = len(cand_set_to_id) + EMPTY_SET_ID
 
-        rankings = np.vectorize(cand_set_to_id.__getitem__, otypes=[int])(cells).reshape(
-            cells.shape
+        rankings = np.vectorize(cand_set_to_id.__getitem__, otypes=[int])(cand_set_array).reshape(
+            cand_set_array.shape
         )
 
         return cls(
-            voter_weight_data=ProfileVoterWeightData.from_df(df),
+            voter_weight_data=voter_weight_data,
             rankings=rankings,
             cand_sets=tuple(cand_set_to_id),  # insertion order is ID order
-            ranking_columns=ranking_columns,
+            ranking_columns=tuple(ranking_columns),
             candidates=tuple(candidates),
         )
 
@@ -401,6 +437,26 @@ class RankMatrix:
             for set_id in self.rankings[row]
             if set_id != END_OF_RANKING_ID
         )
+
+    def get_ranking_array(self, rows: NDArray[np.intp] | None = None) -> NDArray[np.object_]:
+        """
+        Decode rankings into an array of candidate sets.
+
+        Includes trailing tilde padding and preserves empty ranking positions.
+
+        Args:
+            rows (NDArray[np.intp], optional): Rows to decode, repeats allowed. Defaults to None,
+                which decodes every row.
+
+        Returns:
+            NDArray[np.object_]: One row of frozensets per decoded ballot, one column per ranking
+                position.
+        """
+        lookup = np.empty(len(self.cand_sets), dtype=object)
+        lookup[:] = self.cand_sets
+        rankings = self.rankings if rows is None else self.rankings[rows]
+
+        return lookup[rankings - EMPTY_SET_ID]
 
     def max_candidates_ranked(self) -> int:
         """

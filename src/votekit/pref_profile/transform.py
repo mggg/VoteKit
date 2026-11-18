@@ -1,744 +1,944 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
+from numbers import Real
 from typing import (
     Any,
-    Callable,
-    Optional,
     Protocol,
     TypeVar,
-    cast,
     overload,
     runtime_checkable,
 )
 
 import numpy as np
-import pandas as pd
+from numpy.typing import NDArray
 
-from votekit.ballot import Ballot, RankBallot, ScoreBallot
-from votekit.pref_profile import PreferenceProfile, RankProfile, ScoreProfile
+from votekit.constants import (
+    EMPTY_SET_ID,
+    END_OF_RANKING_ID,
+    END_OF_RANKING_SET,
+)
+from votekit.exceptions import TransformContractError
+from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
+from votekit.pref_profile.profile_matrix import RankMatrix, ScoreMatrix, WeightKind
+from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
+from votekit.pref_profile.profile_matrix.shared_data import (
+    ProfileVoterWeightData,
+    _concatenate_voter_weight_data,
+)
 from votekit.types import Candidate
 
-RankBallotFunc = Callable[[RankBallot], RankBallot]
-ScoreBallotFunc = Callable[[ScoreBallot], ScoreBallot]
-BallotFunc = Callable[[Ballot], Ballot]
+RankingRow = NDArray[np.object_]
+ScoresRow = NDArray[np.float64]
 
-ProfileT_contra = TypeVar("ProfileT_contra", RankProfile, ScoreProfile, contravariant=True)
-
-
-class TransformContractError(Exception):
-    """
-    A value passed to ``transform()`` broke its contract.
-    """
-
-    pass
+MatrixT = TypeVar("MatrixT", RankMatrix, ScoreMatrix)
+ProfileT = TypeVar("ProfileT", RankProfile, ScoreProfile)
 
 
 @runtime_checkable
-class ProfileTransform(Protocol[ProfileT_contra]):
+class ProfileTransform(Protocol[MatrixT]):
     """
-    Contract for profile transformations.
+    Contract for profile transformations that act on all selected voters at once.
 
-    Any object with a ``transform_df`` method can be passed to ``transform()`` and is assignable
-    to this protocol. ``transform_df`` consumes a profile and its df and returns a transformed df
-    with the candidate id translation.
-    """
-
-    def transform_df(
-        self, df: pd.DataFrame, profile: ProfileT_contra
-    ) -> tuple[pd.DataFrame, dict[int, frozenset[Candidate] | dict[int, Candidate]]]: ...
-
-
-class _ProfileTransformOperation(ABC):
-    """
-    Internal abstract class for transform operations.
-
-    Requires all transform operation classes to implement ``transformed_df`` that takes
-    a profile and returns the transformed df.
+    Any object with a ``transform_matrix`` method can be passed to ``perturb()`` and is assignable
+    to this protocol. ``transform_matrix`` consumes a matrix of the selected rows, of the same kind
+    as the profile's matrix. Each row's weight is its number of selected voters, stored as
+    float64 whatever the profile's weight kind. It returns a matrix of the same kind, must
+    conserve total weight, and must keep the same ranking or score columns, so rankings keep the
+    profile's ``max_ranking_length`` positions. A transform may be deterministic or random; a random
+    transform owns its randomness, e.g. by holding an ``np.random.Generator``,
+    and should treat each unit of weight as an independent voter, e.g. by splitting each row into
+    one row per unit of weight.
     """
 
-    @abstractmethod
-    def transformed_df(
-        self, profile: PreferenceProfile, ballot_wt_to_transform_mask: Optional[Any] = None
-    ) -> pd.DataFrame: ...
+    def transform_matrix(self, matrix: MatrixT) -> MatrixT: ...
 
 
 @dataclass(frozen=True)
-class _DataFrameOperation(_ProfileTransformOperation):
+class _PerVoterTransformFn:
     """
-    A lifted user-defined ProfileTransform.
+    A per-voter transform function lifted to the ProfileTransform contract.
 
-    transform() enforces symmetric aggrement on profile type with overloads, so Any is the parameter
-    internally.
-    An error is thrown if the ProfileTransform operation does not return a pd.DataFrame.
+    ``transform_matrix`` splits each row of the selected voters' matrix into one row per unit of
+    weight, calls the function once per unit on a writeable copy of that unit's ballot, checks
+    each result, and constructs a matrix of the same kind from the results. The output has one row
+    of weight 1 per unit of input weight, so total weight is conserved.
 
-    ``transform_df`` acts upon the internal df where candidate sets are represented as integer IDs.
-    A mask is applied to the df prior to transform if given. The mask specifies the weight of each
-    ballot within the profile to transform. The untransformed weight of the ballot will be added
-    back to the end of the profile's internal df.
-
-    ``transform_df`` can only act upon the profile's df and cannot create a new profile object. The
-    candidate integer IDs are not guaranteed to aligned with the original profile.
+    The RankMatrix ballots are transformed from IDs to candidate sets for the transform_fn.
     """
 
-    transform: ProfileTransform[Any]
+    transform_vote_fn: Callable[[NDArray], Any]
 
-    def transformed_df(
-        self, profile: PreferenceProfile, ballot_wt_to_transform_mask: Optional[Any] = None
-    ) -> pd.DataFrame:
-        df_to_transform = profile._df.copy()
-        if ballot_wt_to_transform_mask is not None:
-            df_untouched = profile._df.copy()
-            df_to_transform["Weight"] = ballot_wt_to_transform_mask
-            df_untouched["Weight"] = profile._df["Weight"] - ballot_wt_to_transform_mask
-        result, id_candidate_map = self.transform.transform_df(df_to_transform, profile)
-        class_name = type(self.transform).__name__
-        if not isinstance(result, pd.DataFrame):
-            raise TransformContractError(
-                f"Transform {class_name} must return a pd.DataFrame, received {type(result)}."
+    def transform_matrix(self, matrix: MatrixT) -> MatrixT:
+        unit_row_labels, unit_data = _expand_to_units(matrix)
+
+        ballot_index = matrix.voter_weight_data.ballot_index
+        unit_rows = _decode_rows(matrix, unit_row_labels)
+
+        for unit_idx, source_row_label in enumerate(unit_row_labels):
+            perturbed_row = self.transform_vote_fn(unit_rows[unit_idx])
+            ballot_label = (
+                source_row_label if ballot_index is None else ballot_index[source_row_label]
             )
+            unit_rows[unit_idx] = _check_row(perturbed_row, matrix, ballot_label)
 
-        if ballot_wt_to_transform_mask is not None:
-            result = pd.concat([result, df_untouched], ignore_index=True)
-            result.index.name = "Ballot Index"
-        if isinstance(profile, RankProfile):
-            id_candidate_map = cast(dict[int, frozenset[Candidate]], id_candidate_map)
-            return profile._translate_df_ranking_values(result, id_candidate_map)
-        elif isinstance(profile, ScoreProfile):
-            id_candidate_map = cast(dict[int, Candidate], id_candidate_map)
-            return profile._translate_df_score_values(result, id_candidate_map)
+        if isinstance(matrix, RankMatrix):
+            _check_declared_candidates(unit_rows, unit_row_labels, matrix)
+            return RankMatrix.from_array(
+                unit_rows,
+                voter_weight_data=unit_data,
+                ranking_columns=matrix.ranking_columns,
+                candidates=matrix.candidates,
+            )
         else:
-            raise TransformContractError(
-                f"Profile must be a RankProfile or ScoreProfile, got {type(profile)}."
+            return ScoreMatrix(
+                voter_weight_data=unit_data,
+                scores=unit_rows,
+                score_columns=matrix.score_columns,
+                candidates=matrix.candidates,
             )
 
 
-@dataclass(frozen=True)
-class _BallotOperation(_ProfileTransformOperation):
+def _expand_to_units(
+    matrix: RankMatrix | ScoreMatrix,
+) -> tuple[NDArray[np.intp], ProfileVoterWeightData]:
     """
-    A lifted user-defined ballot transformation function.
+    Splits each row of the matrix into one row per unit of weight.
 
-    A transformed df is constructed from the transformed ballots using PreferenceProfile's
-    initialization. For ballot operations that act upon a RankProfile, max_ranking_length is set to
-    the value of the original profile.
-    If the transformed ballots are longer than the original profile's max_ranking_length, an error
-    will be thrown. If the max_ranking_length is not set, then the profile's max_ranking_length is
-    to the length of the longest ranking amongst the transformed ballots. However, an error will be
-    thrown if that value is less than the maximum number of unique candidates ranked of any ballot.
-    So, the original max_ranking_length is passed to avoid throwing this error that was
-    corrected in the original profile but the ballot transformation function cannot return ballots
-    with rankings longer than the original max_ranking_length.
-    """
+    If a row has weight greater than 1 and a non-empty voter set, the set must be split. Each unit
+    is assigned one voter from its row's voter set, in sorted order. Voters were already sampled
+    without replacement when the profile was masked. Else, the voter set is left untouched.
 
-    ballot_func: BallotFunc
-
-    def transformed_df(
-        self, profile: PreferenceProfile, ballot_wt_to_transform_mask: Optional[Any] = None
-    ) -> pd.DataFrame:
-        """
-        Transforms the profile's df via a user-defined ballot transformation operation.
-
-        Args:
-            profile (PreferenceProfile): profile to transform.
-            ballot_wt_to_transform_mask (Optional(Sequence[list])): ...
-
-        Returns:
-            pd.DataFrame: transformed df consisting of the transformed ballots.
-        """
-        transformed_ballots: list[Ballot] = []
-        untouched_ballots: list[Ballot] = []
-        for ballot_idx, ballot in enumerate(profile.ballots):
-            if ballot_wt_to_transform_mask is not None:
-                untouched_ballots.append(
-                    _ballot_with_new_weight(
-                        ballot, ballot.weight - ballot_wt_to_transform_mask[ballot_idx]
-                    )
-                )
-                ballot = _ballot_with_new_weight(ballot, ballot_wt_to_transform_mask[ballot_idx])
-            transformed_ballots.append(self.ballot_func(ballot))
-        transformed_ballots.extend(untouched_ballots)
-        if isinstance(profile, RankProfile):
-            return RankProfile(
-                ballots=transformed_ballots,
-                max_ranking_length=profile.max_ranking_length,
-            ).df
-        else:
-            return PreferenceProfile(ballots=transformed_ballots).df
-
-
-def _ballot_with_new_weight(ballot: Ballot, new_weight: Any) -> Ballot:
-    kwargs = {
-        k: getattr(ballot, k)
-        for k in Ballot.__slots__
-        if k not in ("weight", "_frozen") and hasattr(ballot, k)
-    }
-    return Ballot(weight=new_weight, **kwargs)
-
-
-def _with_return_contract(
-    ballot_func: BallotFunc, expected_ballot_type: type[Ballot]
-) -> BallotFunc:
-    """
-    Wraps ballot_func to verify its result adheres to the expected ballot type.
+    A non-empty voter set must have one voter per unit of weight. ``perturb`` checks this for
+    every row when masking, before any rows are selected, so it is not checked again here.
 
     Args:
-        ballot_func (BallotFunc): ballot transformation function.
-        expected_ballot_type (type[Ballot]): expected type of ballot returned by ballot_func.
+        matrix (RankMatrix | ScoreMatrix): Matrix with integral weights.
 
     Returns:
-        BallotFunc: wrapped ballot_func.
+        tuple[NDArray[np.intp], ProfileVoterWeightData]: Source row label of each unit, and
+            voter weight data with weight 1 and at most one voter per unit.
 
     Raises:
-        TransformContractError: ballot_func did not return the expected ballot type.
+        ValueError: The matrix has non-integral weights. The row cannot be split per unit of weight.
     """
+    matrix_data = matrix.voter_weight_data
+    weights = _integral_weights(matrix_data)
+    # every row is already one voter, and a non-empty voter set already has its one voter
+    if np.all(weights == 1):
+        return np.arange(len(matrix)), matrix_data
+    unit_row_labels = np.repeat(np.arange(len(matrix)), weights)
 
-    func_name = getattr(ballot_func, "__name__", repr(ballot_func))
+    unit_voter_sets = None
+    if matrix_data.voter_sets is not None:
+        unit_voter_sets = np.empty(len(unit_row_labels), dtype=object)
+        unit_idx = 0
+        for voter_set, weight in zip(matrix_data.voter_sets, weights):
+            end_unit = unit_idx + weight
+            if voter_set == frozenset():
+                unit_voter_sets[unit_idx:end_unit] = voter_set
+            else:
+                unit_voter_sets[unit_idx:end_unit] = [
+                    frozenset({voter}) for voter in sorted(voter_set, key=str)
+                ]
+            unit_idx = end_unit
 
-    def checked(ballot: Ballot) -> Ballot:
-        returned_ballot = ballot_func(ballot)
-        if not isinstance(returned_ballot, expected_ballot_type):
-            raise TransformContractError(
-                f"transform function {func_name} returned {type(returned_ballot).__name__},"
-                f" expected {expected_ballot_type.__name__}. Offending input ballot: {ballot}"
-                f" returned {returned_ballot}."
-            )
-        return returned_ballot
-
-    return checked
+    # weights stay float64 until perturb restores the profile's weight kind at the end
+    unit_matrix_data = ProfileVoterWeightData(
+        weights=np.ones(len(unit_row_labels), dtype=np.float64),
+        voter_sets=unit_voter_sets,
+        weight_kind=WeightKind.FLOAT,
+    )
+    return unit_row_labels, unit_matrix_data
 
 
-def _lift_to_operation(
-    transformation: object, profile: PreferenceProfile
-) -> _ProfileTransformOperation:
+def _decode_rows(matrix: RankMatrix | ScoreMatrix, rows: NDArray[np.intp]) -> NDArray:
     """
-    Lifts the user-defined transformation to _ProfileTransformOperation.
-
-    If the transformation object has a `transform_df` method, then its assignable to
-    ProfileTransform and lifted to _DataFrameOperation.
-    If the transformation object is callable, then its lifted to _BallotTransformOperation after
-    being wrapped in method that verifies its return type is equivalent to the expected ballot type
-    per the profile passed.
+    Writeable copy of the given rows: candidate sets for rankings, floats for scores.
 
     Args:
-        transformation (object): ProfileTransform object or ballot transformation function.
-        profile (PreferenceProfile): profile to transform.
+        matrix (RankMatrix | ScoreMatrix): Source matrix.
+        rows (NDArray[np.intp]): Rows to decode, repeats allowed.
 
     Returns:
-        _ProfileTransformOperation: object with transformed_df method.
+        NDArray: One decoded row per entry of ``rows``.
+    """
+    if isinstance(matrix, RankMatrix):
+        return matrix.get_ranking_array(rows)
+    return matrix.scores[rows]
+
+
+def _read_only_rows(matrix: RankMatrix | ScoreMatrix) -> NDArray:
+    """
+    Read-only rows of the matrix, in the same form a per-voter transform function receives.
+
+    Args:
+        matrix (RankMatrix | ScoreMatrix): Source matrix.
+
+    Returns:
+        NDArray: Candidate sets for rankings, or the matrix's own read-only scores.
+    """
+    if isinstance(matrix, RankMatrix):
+        rows = matrix.get_ranking_array()
+        rows.setflags(write=False)
+        return rows
+    return matrix.scores
+
+
+def _check_row(perturbed_row: Any, matrix: RankMatrix | ScoreMatrix, ballot_label: Any) -> NDArray:
+    """
+    Converts one row returned by a per-voter transform function to a 1D array and checks it.
+
+    A list or tuple is converted with ``np.asarray``; an array is used as is, without a copy.
+    Ranking entries may be sets or frozensets, and sets are converted to frozensets as
+    ``RankProfile`` does. Score entries must be real numbers.
+
+    Args:
+        perturbed_row (Any): Row returned by the function.
+        matrix (RankMatrix | ScoreMatrix): Matrix the function's input was decoded from.
+        ballot_label (Any): Ballot Index of the input row in the profile, as shown by
+            ``profile.to_df()``.
+
+    Returns:
+        NDArray: The row as a 1D array.
 
     Raises:
-        TransformContractError: transformation is not a valid ballot transformation function nor a
-            ProfileTransform instance.
+        TransformContractError: The row is not a 1D array of the matrix's width, a ranking row
+            holds entries other than sets or frozensets, or a score row holds non-numeric or
+            negative scores.
     """
-    if isinstance(transformation, type):
+    row = np.asarray(perturbed_row)
+
+    width = (
+        matrix.num_ranking_positions
+        if isinstance(matrix, RankMatrix)
+        else len(matrix.score_columns)
+    )
+    if row.shape != (width,):
         raise TransformContractError(
-            f"Transformation was given the class {transformation.__name__}, not an instance."
-            f" Did you mean to construct it like {transformation.__name__}(...)?"
-        )
-    if isinstance(transformation, ProfileTransform):
-        return _DataFrameOperation(transform=transformation)
-    elif callable(transformation):  # function
-        expected_ballot_type: type[Ballot]
-        if isinstance(profile, RankProfile):
-            expected_ballot_type = RankBallot
-        elif isinstance(profile, ScoreProfile):
-            expected_ballot_type = ScoreBallot
-        else:
-            raise TransformContractError(
-                f"profile must be a RankProfile or ScoreProfile, received {type(profile)}."
-            )
-        ballot_func = cast(BallotFunc, transformation)
-        return _BallotOperation(_with_return_contract(ballot_func, expected_ballot_type))
-    else:
-        raise TypeError(
-            "Transformation must be a ballot function or ProfileTransform instance. Got"
-            f" {transformation}."
+            f"transform_fn must return a 1D array of length {width}, one entry per"
+            f" {'ranking position' if isinstance(matrix, RankMatrix) else 'score column'}."
+            f" Returned {perturbed_row} for Ballot Index {ballot_label}."
         )
 
-
-@runtime_checkable
-class DataFrameProbability(Protocol):
-    def transform_mask(
-        self,
-        df: pd.DataFrame,
-        id_cand_set_map: dict[int, frozenset[Candidate]] | dict[int, Candidate],
-    ) -> Any: ...
-
-
-def _lift_to_transform_mask(probability: object) -> Callable:
-    if isinstance(probability, type):
-        raise TransformContractError(
-            f"Probability was given the class {probability.__name__}"
-            " Did you mean to construct it like"
-            f" {probability.__name__}(...)?"
-        )
-    if isinstance(probability, DataFrameProbability):
-
-        def dataframe_probability(profile: PreferenceProfile):
-            assert isinstance(profile, (RankProfile, ScoreProfile))
-            result = probability.transform_mask(profile._df.copy(), profile.id_candidate_map.copy())
-            result = np.asarray(result)
-            if any(not isinstance(ballot_result, (bool, np.bool_)) for ballot_result in result):
+    if isinstance(matrix, RankMatrix):
+        for position, cand_set in enumerate(row):
+            if not isinstance(cand_set, (set, frozenset)):
                 raise TransformContractError(
-                    f"Probability {probability.__class__} must return a list of boolean values."
+                    "transform_fn must return an array of sets or frozensets of candidates,"
+                    " padding the end with frozenset({'~'}). Returned"
+                    f" {perturbed_row} for Ballot Index {ballot_label}."
                 )
-            if len(result) != profile.total_ballot_wt:
-                raise TransformContractError(
-                    f"Probability {probability.__class__} must return"
-                    " a list with length equal to the total ballot weight"
-                    f" of the profile. Expected {profile.total_ballot_wt},"
-                    f" got {len(result)}."
-                )
-            return result
+            # as RankProfile does, sets become frozensets; frozensets are kept without a copy
+            if isinstance(cand_set, set):
+                row[position] = frozenset(cand_set)
+        return row
 
-        return dataframe_probability
-    elif isinstance(probability, Callable):
-        prob_func = cast(Callable[[Ballot], np.bool_ | bool], probability)
-
-        def ballot_probability(profile: PreferenceProfile):
-            result = []
-            for ballot in profile.ballots:
-                for _ in range(int(ballot.weight)):
-                    ballot_result = prob_func(ballot)
-                    if not isinstance(ballot_result, (np.bool_, bool)):
-                        raise TransformContractError(
-                            f"Probability {probability.__class__}"
-                            " must return a bool, got"
-                            f" {type(ballot_result)}."
-                        )
-                    result.append(ballot_result)
-            return result
-
-        return ballot_probability
-    else:
+    # ScoreMatrix
+    if row.dtype.kind not in "iuf":
         raise TransformContractError(
-            "Probability must follow the DataFrameProbability protocol or"
-            " be a callable that accepts a ballot and returns a bool, Got"
-            f" {probability}."
+            f"transform_fn returned a non-numeric score. Returned {perturbed_row} for Ballot"
+            f" Index {ballot_label}."
         )
+    if np.any(row < 0):
+        raise TransformContractError(
+            f"transform_fn returned a negative score. Returned {perturbed_row} for Ballot Index"
+            f" {ballot_label}."
+        )
+    return row
+
+
+def _check_declared_candidates(
+    unit_rows: NDArray[np.object_], unit_row_labels: NDArray[np.intp], matrix: RankMatrix
+) -> None:
+    """
+    Checks once, over every perturbed ranking, that only the profile's candidates are ranked.
+
+    Args:
+        unit_rows (NDArray[np.object_]): Perturbed rankings of candidate sets, one row per unit.
+        unit_row_labels (NDArray[np.intp]): Row of ``matrix`` each unit was decoded from.
+        matrix (RankMatrix): Matrix the units were decoded from.
+
+    Raises:
+        TransformContractError: A ranking ranks a candidate outside the profile's candidates.
+    """
+    # a Python set keeps one copy of each distinct candidate set, so the union is over few sets
+    distinct_cand_sets = set(unit_rows.ravel())
+    cands_cast = frozenset().union(*distinct_cand_sets) - END_OF_RANKING_SET
+    undeclared_cands = cands_cast - frozenset(matrix.candidates)
+    if not undeclared_cands:
+        return
+
+    # only on failure: find the first ranking with an undeclared candidate to name its ballot
+    unit_idx = next(
+        idx
+        for idx, row in enumerate(unit_rows)
+        if any(cand_set & undeclared_cands for cand_set in row)
+    )
+    source_row = unit_row_labels[unit_idx]
+    ballot_index = matrix.voter_weight_data.ballot_index
+    ballot_label = source_row if ballot_index is None else ballot_index[source_row]
+    raise TransformContractError(
+        f"transform_fn returned candidates {set(undeclared_cands)} not in the profile's"
+        " candidates. Declare them in the profile's candidates before perturbing. Returned"
+        f" {unit_rows[unit_idx]} for Ballot Index {ballot_label}."
+    )
+
+
+def _lift_to_operation(transform_fn: Any) -> ProfileTransform:
+    """
+    Lifts the transform function to the ProfileTransform interface.
+
+    A ProfileTransform is returned unchanged. Any other callable is a per-voter transform function
+    and is wrapped so that it is called once per unit of weight. Lifting does not run the
+    transformation.
+
+    Args:
+        transform_fn (ProfileTransform | Callable[[NDArray], NDArray]): ProfileTransform instance
+            or per-voter transform function.
+
+    Returns:
+        ProfileTransform: ``transform_fn`` itself, or the per-voter function lifted to a
+            ProfileTransform.
+
+    Raises:
+        TransformContractError: ``transform_fn`` is a class, or neither callable nor a
+            ProfileTransform.
+    """
+
+    if isinstance(transform_fn, type):
+        raise TransformContractError(
+            f"transform_fn was given the class {transform_fn.__name__}, not an instance."
+            f" Did you mean to construct it like {transform_fn.__name__}(...)?"
+        )
+
+    if isinstance(transform_fn, ProfileTransform):
+        return transform_fn
+    if callable(transform_fn):
+        return _PerVoterTransformFn(transform_fn)
+    raise TransformContractError(
+        "transform_fn must be a per-voter transform function or ProfileTransform instance,"
+        f" received {transform_fn}."
+    )
 
 
 @overload
-def transform(
+def perturb(
     profile: RankProfile,
-    transformation: object,
+    transform_fn: ProfileTransform[RankMatrix] | Callable[[RankingRow], RankingRow],
+    per_voter_probability: float | Callable[[RankingRow], float] = 1.0,
     *,
-    probability: Optional[object] = None,
-    group_ballots_first: bool = True,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    reduce_max_ranking_length: bool = False,
+    group_ballots: bool = False,
+    rng_seed: int | None = None,
 ) -> RankProfile: ...
 
 
 @overload
-def transform(
+def perturb(
     profile: ScoreProfile,
-    transformation: object,
+    transform_fn: ProfileTransform[ScoreMatrix] | Callable[[ScoresRow], ScoresRow],
+    per_voter_probability: float | Callable[[ScoresRow], float] = 1.0,
     *,
-    probability: Optional[object] = None,
-    group_ballots_first: bool = True,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    reduce_max_ranking_length: bool = False,
+    group_ballots: bool = False,
+    rng_seed: int | None = None,
 ) -> ScoreProfile: ...
 
 
-def transform(
-    profile: PreferenceProfile,
-    transformation: object,
+def perturb(
+    profile: ProfileT,
+    transform_fn: Any,
+    per_voter_probability: Any = 1.0,
     *,
-    probability: Optional[object] = None,
-    group_ballots_first: bool = True,
-    remove_empty_ballots: bool = True,
-    remove_zero_weight_ballots: bool = True,
-    retain_original_candidate_list: bool = True,
-    reduce_max_ranking_length: bool = False,
-) -> Any:
+    group_ballots: bool = False,
+    rng_seed: int | None = None,
+) -> ProfileT:
     """
-    Transformas a profile.
+    Perturb voters in the profile, each independently with some probability.
+
+    Each unit of ballot weight is treated as one voter and is selected independently with
+    probability p, so a row of weight w has Binomial(w, p) of its weight perturbed. A row with only
+    part of its weight selected is split into an unperturbed row with the remaining weight and a
+    selected row with the selected weight. Set ``group_ballots`` to regroup the output by ranking
+    or scores.
+
+    A ``ProfileTransform`` receives the matrix of selected rows, each weighted by its number of
+    selected voters. A per-voter transform function is called once per selected voter, so any
+    randomness in it is independent across voters, and each selected voter becomes its own row of
+    weight 1.
+
+    A per-voter transform function receives one voter's ballot as a writeable 1D array copy. It
+    may modify the array in place and return it, or return a new 1D array, list, or tuple of the
+    same length. For a RankProfile, the array holds one frozenset of candidates per ranking
+    position, as in the ranking columns of ``profile.to_df()``: ``frozenset()`` marks an explicit
+    empty position and ``frozenset({"~"})`` marks trailing unranked positions. Frozensets cannot be
+    edited in place, so replace an entry to change it; a replacement may be a set or frozenset,
+    and sets are converted to frozensets as ``RankProfile`` does. A function that shortens a
+    ranking writes ``frozenset({"~"})`` into the positions it frees. For a ScoreProfile, the array
+    holds the voter's scores in the order of the score columns of ``profile.to_df()``, with NaN
+    meaning unscored. Keep in mind that score columns can include undeclared candidates beyond
+    ``profile.candidates`` that have a score of 0 or NaN.
+
+    Perturbed ballots may only use the profile's candidates. To add a candidate, declare it in the
+    profile's candidates before perturbing.
+
+    User functions only receive the ballot, not its weight or row index. To pass extra arguments,
+    curry them first, e.g. ``functools.partial(fn, candidate="A")``. If a per-voter transform
+    function, a ``ProfileTransform``, or a probability function is random, it is responsible for
+    its own randomness: give it an ``np.random.Generator``, not a seed, since re-seeding on each
+    call gives every voter the same outcome. ``rng_seed`` only seeds voter selection and voter set
+    sampling. A per-voter transform function should not depend on the order of its calls: a row's
+    selected voters are assigned to its calls in sorted order.
+
+    If a row has a non-empty voter set, its size must equal the row's weight. Selected voters are
+    sampled without replacement from the row's voter set, and the remaining voters stay with the
+    unperturbed row.
 
     Args:
-        profile (PreferenceProfile): profile to transform.
-        transformation (object): Object with ``transform_df`` func assignable to ProfileTransform or
-            a ballot transform function assignable to Callable[[Ballot], Ballot]. Must return the
-            ballot type it consumes.
-        probability (Optional[object]):  Object with ``transform_mask`` func assignable to
-            DataFrameProbability or a ballot probability function assignable to
-            Callable[[Ballot], bool]. Must return a boolean value indicating whether a given ballot
-            will be passed to the transformation.
-        group_ballots_first (bool, optional): whether to group profile's ballots by unique ballot
-            type. True by default.
-        remove_empty_ballots (bool, optional): whether to remove ballots with an empty ranking. An
-            empty ranking means all positions contain ``frozenset("~")``. True by default.
-        remove_zero_weight_ballots (bool, optional): whether to remove ballots with zero weight.
-            True by default.
-        retain_original_candidate_list (bool, optional): whether to keep the original profile's
-            candidate list or set it to the ``candidates_cast`` of the transformed profile if False.
-            True by default.
-        reduce_max_ranking_length (bool, optional): whether to keep the original profile's
-            ``max_ranking_length`` or if True, set it to the minimum number of df columns to
-            represent any of the transformed profile's rankings, given its at least the maximum
-            number of unique candidates ranked amongst all ballots. Only applicable to RankProfiles.
-            False by default.
+        profile (RankProfile | ScoreProfile): Profile to perturb.
+        transform_fn (ProfileTransform | Callable[[NDArray], NDArray]): A ``ProfileTransform``
+            operates on the matrix of all selected rows at once and is the fast path for large
+            profiles. A per-voter transform function takes one voter's ranking or scores and
+            returns the perturbed ones; it is called once per selected voter.
+        per_voter_probability (float | Callable[[NDArray], float], optional): Probability that
+            each voter is perturbed. A float applies to all voters. A callable is evaluated once
+            per row on a read-only array of that row's ballot, in the same form a per-voter
+            transform function receives. If the callable is random, the drawn probability is
+            shared by all voters in that row, so results can depend on how the profile is grouped.
+            Values must lie in [0, 1]. Defaults to 1.0.
+        group_ballots (bool, optional): Whether to group the output ballots by ranking or scores,
+            summing weights and joining voter sets. Defaults to False.
+        rng_seed (int, optional): Seed for voter selection and voter set sampling. Defaults to
+            None.
 
-        Returns:
-            Any: transformed profile.
+    Returns:
+        RankProfile | ScoreProfile: The perturbed profile, including unperturbed voters.
 
-        Raises:
-            TypeError: profile to transform must be a RankProfile or ScoreProfile.
-
+    Raises:
+        TypeError: The profile is not a RankProfile or ScoreProfile.
+        TypeError: A probability is not a real number.
+        ValueError: A probability lies outside [0, 1].
+        ValueError: The profile has non-integral weights.
+        ProfileError: A row's non-empty voter set does not match its weight.
+        TransformContractError: ``transform_fn`` is a class, or neither callable nor a
+            ``ProfileTransform``.
+        TransformContractError: The transformation returns an invalid ranking or scores, uses a
+            candidate not declared on the profile, does not conserve weight, or changes the score
+            columns.
     """
+    # TODO: remove once its an instance method of the Profile class. Self calls it
     if not isinstance(profile, (RankProfile, ScoreProfile)):
         raise TypeError(f"profile must be a RankProfile or ScoreProfile, received {type(profile)}.")
-    operation = _lift_to_operation(transformation, profile)
-    profile = profile.group_ballots() if group_ballots_first else profile
-    ballot_wt_transform_mask = None
-    if probability is not None:
-        if any(isinstance(weight, Fraction) for weight in profile._df["Weight"]):
-            raise ValueError(
-                "Transform does not support fractional weights. Convert a copy of the"
-                " profile to integer weights."
-            )
-        if any(weight % 1 != 0 for weight in profile._df["Weight"]):
-            raise ValueError(
-                "Transform does not support non-integer weights. Convert a copy of the"
-                " profile to integer weights."
-            )
-        probability_func = _lift_to_transform_mask(probability)
-        transform_mask = probability_func(profile)
-        ballot_wt_transform_mask = _ballot_weight_to_transform(transform_mask, profile)
 
-    transformed_df = operation.transformed_df(profile, ballot_wt_transform_mask)
+    # validate functions and lift to the same interface
+    transform = _lift_to_operation(transform_fn)
 
-    if remove_empty_ballots and isinstance(profile, RankProfile):
-        ranking_cols = [col for col in transformed_df.columns if "Ranking_" in col]
-        empty_ballot_mask = (
-            transformed_df[ranking_cols].map(lambda x: x == frozenset({"~"})).all(axis=1)
+    if len(profile._matrix) == 0:
+        return profile
+
+    # mask matrix with probability function
+    rng = np.random.default_rng(rng_seed)
+    matrix_data = profile._matrix.voter_weight_data
+    total_weights = _integral_weights(matrix_data)
+    _check_voter_sets_match_weights(matrix_data, total_weights)
+    probabilities = _row_probabilities(per_voter_probability, profile._matrix)
+    weight_selected = rng.binomial(total_weights, probabilities)
+
+    selected_voter_sets, remaining_voter_sets = _split_voter_sets(
+        matrix_data.voter_sets, total_weights, weight_selected, rng
+    )
+
+    remaining_rows = (weight_selected == 0) | (weight_selected < total_weights)
+    selected_rows = weight_selected > 0
+    unperturbed_matrix = _select_rows(
+        profile._matrix, remaining_rows, total_weights - weight_selected, remaining_voter_sets
+    )
+    selected_matrix = _select_rows(
+        profile._matrix, selected_rows, weight_selected, selected_voter_sets
+    )
+
+    perturbed_matrix = _apply_profile_transform(transform, selected_matrix)
+
+    # combine perturbed and unperturbed matrices
+    if isinstance(profile, RankProfile):
+        assert isinstance(unperturbed_matrix, RankMatrix) and isinstance(
+            perturbed_matrix, RankMatrix
         )
-        transformed_df = transformed_df[~empty_ballot_mask]
-    if remove_zero_weight_ballots:
-        transformed_df = transformed_df[transformed_df["Weight"] != 0]
+        _validate_perturbed_rankings(perturbed_matrix, profile)
+        result_matrix = _concatenate_rank_matrices(
+            [unperturbed_matrix, perturbed_matrix], profile.candidates, profile.max_ranking_length
+        )
+    else:
+        assert isinstance(unperturbed_matrix, ScoreMatrix) and isinstance(
+            perturbed_matrix, ScoreMatrix
+        )
+        _validate_perturbed_scores(perturbed_matrix, profile)
+        result_matrix = _stack_score_matrices(
+            unperturbed_matrix, perturbed_matrix, profile.candidates
+        )
 
-    assert profile.max_ranking_length is not None
-    return PreferenceProfile(
-        df=transformed_df,
-        candidates=profile.candidates if retain_original_candidate_list else tuple(),
-        max_ranking_length=profile.max_ranking_length
-        if not reduce_max_ranking_length
-        else _reduced_max_ranking_length(transformed_df),
+    # group matrix if set
+    if group_ballots:
+        result_matrix = result_matrix.group_ballots()
+
+    if matrix_data.weight_kind is WeightKind.FRACTION:
+        result_matrix = _as_fraction_weights(result_matrix)
+
+    # create profile from matrix
+    if isinstance(profile, RankProfile):
+        assert isinstance(result_matrix, RankMatrix)
+        return RankProfile._from_matrix(
+            result_matrix, max_ranking_length=profile.max_ranking_length
+        )
+    assert isinstance(result_matrix, ScoreMatrix)
+    return ScoreProfile._from_matrix(result_matrix)
+
+
+def _integral_weights(data: ProfileVoterWeightData) -> NDArray[np.int64]:
+    """
+    Converts the profile's weights to integers, one per voter.
+
+    Args:
+        data (ProfileVoterWeightData): Shared ballot data of the profile's matrix.
+
+    Returns:
+        NDArray[np.int64]: Integer weight of each row.
+
+    Raises:
+        ValueError: The profile has non-integral weights.
+    """
+    if data.has_fraction_weights:
+        integral = all(weight.denominator == 1 for weight in data.weights)
+    else:
+        integral = bool(np.all(data.weights % 1 == 0))
+    if not integral:
+        raise ValueError(
+            "perturb treats each unit of weight as one voter and does not support non-integral"
+            " weights. Convert a copy of the profile to integer weights."
+        )
+    return np.array([int(weight) for weight in data.weights], dtype=np.int64)
+
+
+def _as_fraction_weights(matrix: MatrixT) -> MatrixT:
+    """
+    Stores the matrix's weights as Fractions, converting each float64 weight exactly.
+
+    Args:
+        matrix (RankMatrix | ScoreMatrix): Matrix with float64 weights.
+
+    Returns:
+        RankMatrix | ScoreMatrix: The same rows with Fraction weights.
+    """
+    fractions = np.empty(len(matrix), dtype=object)
+    fractions[:] = [Fraction(weight) for weight in matrix.voter_weight_data.weights]
+    if isinstance(matrix, RankMatrix):
+        return matrix.with_weights(fractions)
+    return ScoreMatrix(
+        voter_weight_data=matrix.voter_weight_data.with_weights(fractions),
+        scores=matrix.scores,
+        score_columns=matrix.score_columns,
+        candidates=matrix.candidates,
     )
 
 
-def _ballot_weight_to_transform(per_wt_transform_mask: Any, profile) -> Any:
+def _row_probabilities(
+    per_voter_probability: float | Callable[[NDArray], float], matrix: RankMatrix | ScoreMatrix
+) -> NDArray[np.float64]:
     """
-    Determines the weight per ballot of a profile to apply transformation.
+    The probability that each voter of each row is perturbed.
 
-    Ballots with zero weight stay at zero weight.
     Args:
-        per_wt_transform_mask (Any): list or numpy array of boolean values. Length of the total
-            weight of the profile. Indicates the amount of weight to transform per ballot.
-        profile (PreferenceProfile): profile to transform
+        per_voter_probability (float | Callable[[NDArray], float]): Probability for all voters,
+            or a function evaluated once per row on a read-only array of its ballot.
+        matrix (RankMatrix | ScoreMatrix): Matrix of the profile to perturb.
+
     Returns:
-        np.NDArray(bool): 1d array of amount of weight to transform per ballot in profile.
-            Index of array maps to the index of the ballot within the profile.
+        NDArray[np.float64]: Probability of each row.
+
+    Raises:
+        TypeError: A probability is not a real number.
+        ValueError: A probability lies outside [0, 1].
     """
-    mask_counts = np.cumsum(np.asarray(per_wt_transform_mask))
-    ballot_wt_to_transform = np.zeros(profile.num_ballots, dtype=int)
-    bin_start = 0
-    prev_bin_count = 0
-    for ballot_idx, ballot_weight in enumerate(profile._df["Weight"]):
-        if ballot_weight == 0:
-            continue
+    if callable(per_voter_probability):
+        probabilities = []
+        for row in _read_only_rows(matrix):
+            probability = per_voter_probability(row)
+            _validate_probability(probability, f"per_voter_probability({row})")
+            probabilities.append(float(probability))
+        return np.asarray(probabilities, dtype=np.float64)
+
+    _validate_probability(per_voter_probability, "per_voter_probability")
+    return np.full(len(matrix), float(per_voter_probability))
+
+
+def _validate_probability(probability: Any, source: str) -> None:
+    if not isinstance(probability, Real):
+        raise TypeError(f"{source} must be a real number, received {type(probability)}.")
+    if not 0.0 <= float(probability) <= 1.0:
+        raise ValueError(f"{source} must lie in [0, 1], received {probability}.")
+
+
+def _check_voter_sets_match_weights(
+    matrix_data: ProfileVoterWeightData, weights: NDArray[np.int64]
+) -> None:
+    """
+    Checks that every non-empty voter set has one voter per unit of weight.
+
+    Every row is checked before any voters are selected, so whether a profile can be perturbed
+    does not depend on the probability or the seed.
+
+    Args:
+        matrix_data (ProfileVoterWeightData): Shared ballot data of the profile's matrix.
+        weights (NDArray[np.int64]): Integer weight of each row.
+
+    Raises:
+        ProfileError: A row's non-empty voter set does not match its weight.
+    """
+    if matrix_data.voter_sets is None:
+        return
+
+    voter_set_sizes = np.fromiter(
+        map(len, matrix_data.voter_sets), dtype=np.int64, count=len(matrix_data.voter_sets)
+    )
+    mismatched = np.flatnonzero((voter_set_sizes > 0) & (voter_set_sizes != weights))
+    if len(mismatched):
+        row_label = mismatched[0]
+        raise ProfileError(
+            "Cannot perturb a profile whose voter sets do not match their weights. Ballot at index"
+            f" {row_label} has a voter set of size {voter_set_sizes[row_label]} but weight"
+            f" {weights[row_label]}."
+        )
+
+
+def _split_voter_sets(
+    voter_sets: NDArray[np.object_] | None,
+    weights: NDArray[np.int64],
+    weight_selected: NDArray[np.int64],
+    rng: np.random.Generator,
+) -> tuple[NDArray[np.object_] | None, NDArray[np.object_] | None]:
+    """
+    Splits each row's voter set between its selected and remaining voters.
+
+    Only rows with a non-empty voter set are split; rows without voters keep their empty set on
+    both sides. Voters are sampled without replacement only when part of a row is selected, and
+    are sorted before sampling so a seed gives the same split across runs. Voter set sizes must
+    already match their weights.
+
+    Args:
+        voter_sets (Optional[NDArray[np.object_]]): Voter set of each row, or None when the
+            profile has no voter data.
+        weights (NDArray[np.int64]): Integer weight of each row.
+        weight_selected (NDArray[np.int64]): Weight selected from each row.
+        rng (np.random.Generator): Generator for sampling voters.
+
+    Returns:
+        tuple[Optional[NDArray[np.object_]], Optional[NDArray[np.object_]]]: Selected voters and
+            remaining voters of each row. Both are None when the profile has no voter data.
+    """
+    if voter_sets is None:
+        return None, None
+
+    selected_voter_set = voter_sets.copy()
+    remaining_voter_set = voter_sets.copy()
+    has_voters = np.fromiter(map(len, voter_sets), dtype=np.int64, count=len(voter_sets)) > 0
+    for row_label in np.flatnonzero(has_voters):
+        voter_set, perturb_weight = voter_sets[row_label], weight_selected[row_label]
+        if perturb_weight == 0:
+            selected_voter_set[row_label] = frozenset()
+        elif perturb_weight == weights[row_label]:
+            remaining_voter_set[row_label] = frozenset()
         else:
-            bin_end = bin_start + int(ballot_weight) - 1
-            ballot_wt_to_transform[ballot_idx] = (
-                mask_counts[bin_end] - prev_bin_count if ballot_weight > 0 else 0
+            voters = sorted(voter_set, key=str)
+            selected_voters = set(
+                rng.choice(len(voters), size=perturb_weight, replace=False).tolist()
             )
-            prev_bin_count = mask_counts[bin_end]
-            bin_start = bin_end + 1
-    return ballot_wt_to_transform
+            selected_voter_set[row_label] = frozenset(
+                v for i, v in enumerate(voters) if i in selected_voters
+            )
+            remaining_voter_set[row_label] = frozenset(
+                v for i, v in enumerate(voters) if i not in selected_voters
+            )
+
+    return selected_voter_set, remaining_voter_set
 
 
-def _max_candidates_ranked(profile: RankProfile | pd.DataFrame) -> int:
+def _select_rows(
+    matrix: MatrixT,
+    mask: NDArray[np.bool_],
+    weights: NDArray[np.int64],
+    voter_sets: NDArray[np.object_] | None,
+) -> MatrixT:
     """
-    The maximum number of unique candidates ranked on any ballot in the profile.
+    Masks the matrix's rows and replaces their weights and voter sets.
 
-    Can be longer than the number of ranking columns in df if candidates are tied.
+    Rows keep the source's Ballot Index labels, so errors can name the profile's row. Weights
+    are stored as float64; perturb restores the profile's weight kind at the end.
 
     Args:
-        profile (RankProfile | pd.DataFrame): rank profile or the profile's df.
+        matrix (RankMatrix | ScoreMatrix): Source matrix.
+        mask (NDArray[np.bool_]): One flag per source row; True rows are kept in source order.
+        weights (NDArray[np.int64]): New integer weight of each source row.
+        voter_sets (Optional[NDArray[np.object_]]): New voter set of each source row, or None
+            when the profile has no voter data.
 
     Returns:
-        int: Maximum number of candidates ranked amongst all ballots within profile.
+        RankMatrix | ScoreMatrix: Matrix of the kept rows with their new weights and voter sets.
     """
-    df = profile.df if isinstance(profile, RankProfile) else profile
+    data = matrix.voter_weight_data
+    labels = data.ballot_index if data.ballot_index is not None else np.arange(len(matrix))
+    masked_data = ProfileVoterWeightData(
+        weights=weights[mask].astype(np.float64),
+        voter_sets=None if voter_sets is None else voter_sets[mask],
+        weight_kind=WeightKind.FLOAT,
+        ballot_index=labels[mask],
+    )
+    if isinstance(matrix, RankMatrix):
+        return replace(matrix, voter_weight_data=masked_data, rankings=matrix.rankings[mask])
+    return ScoreMatrix(
+        voter_weight_data=masked_data,
+        scores=matrix.scores[mask],
+        score_columns=matrix.score_columns,
+        candidates=matrix.candidates,
+    )
 
-    if df.empty:
-        return 0
 
-    tilde = frozenset("~")
+def _apply_profile_transform(
+    transform: ProfileTransform[MatrixT], selected_matrix: MatrixT
+) -> MatrixT:
+    """
+    Applies a ProfileTransform to the matrix of selected voters.
 
-    ranking_cols = [col for col in df.columns if "Ranking_" in col]
-    return (
-        df[ranking_cols]
-        .apply(
-            lambda row: len(frozenset.union(*row) - tilde),
-            axis=1,
+    Args:
+        transform (ProfileTransform): Transform to apply.
+        selected_matrix (RankMatrix | ScoreMatrix): Matrix of the selected rows, each weighted by
+            its number of selected voters.
+
+    Returns:
+        RankMatrix | ScoreMatrix: Perturbed voters.
+
+    Raises:
+        TransformContractError: The transform does not return a matrix of the same kind, does
+            not conserve weight, or changes the ranking or score columns.
+    """
+    result = transform.transform_matrix(selected_matrix)
+    if not isinstance(result, type(selected_matrix)):
+        raise TransformContractError(
+            f"transform_fn.transform_matrix must return a {type(selected_matrix).__name__}, got"
+            f" {type(result)}."
         )
-        .max()
-    )
+    received = sum(selected_matrix.voter_weight_data.weights)
+    returned = sum(result.voter_weight_data.weights)
+    if returned != received:
+        raise TransformContractError(
+            "transform_fn.transform_matrix must conserve weight. Received total weight"
+            f" {received}, returned {returned}."
+        )
+    if isinstance(selected_matrix, RankMatrix) and isinstance(result, RankMatrix):
+        if result.ranking_columns != selected_matrix.ranking_columns:
+            raise TransformContractError(
+                "transform_fn.transform_matrix must keep the ranking columns"
+                f" {selected_matrix.ranking_columns}, one per position up to the profile's"
+                f" max_ranking_length, returned {result.ranking_columns}."
+            )
+    if isinstance(selected_matrix, ScoreMatrix) and isinstance(result, ScoreMatrix):
+        if result.score_columns != selected_matrix.score_columns:
+            raise TransformContractError(
+                "transform_fn.transform_matrix must keep the score columns"
+                f" {selected_matrix.score_columns}, returned {result.score_columns}."
+            )
+    return result
 
 
-def _reduced_max_ranking_length(profile: RankProfile | pd.DataFrame) -> int:
+def _validate_perturbed_rankings(perturbed_matrix: RankMatrix, profile: RankProfile) -> None:
     """
-    The minimum max_ranking_length to represent all ballots of the profile after cleaning.
+    Checks that perturbed rankings fit the profile they are returned to.
 
-    After cleaning, the max_ranking_length can be reduced to the minimum number of columns necessary
-    to represent all rankings. A profile's max_ranking_length has a lower bound: maximum number of
-    unique candidates ranked on any ballot. When there are tied candidates within a ballot, the
-    number of candidates ranked can be greater than the minimum number of ranking columns to
-    represent all ballots. This function returns the maximum of these two values.
+    The ranking columns were already checked against the selected matrix's, so the rankings
+    have the profile's max_ranking_length positions.
 
     Args:
-        profile (RankProfile | pd.DataFrame): rank profile or the profile's df.
+        perturbed_matrix (RankMatrix): Perturbed voters.
+        profile (RankProfile): Profile to perturb.
+
+    Raises:
+        TransformContractError: The rankings rank more candidates than the profile's
+            max_ranking_length allows, or rank candidates outside the profile's candidates.
+    """
+
+    if perturbed_matrix.has_ties().any():
+        max_ranked = perturbed_matrix.max_candidates_ranked()
+        if max_ranked > profile.max_ranking_length:
+            raise TransformContractError(
+                f"transform_fn returned a ranking of {max_ranked} candidates, more than the"
+                f" profile's max_ranking_length {profile.max_ranking_length}."
+            )
+
+    undeclared_cands = perturbed_matrix.get_candidates_cast() - frozenset(profile.candidates)
+    if undeclared_cands:
+        raise TransformContractError(
+            f"transform_fn returned candidates {set(undeclared_cands)} not in the profile."
+            " Declare them in the profile's candidates before perturbing."
+        )
+
+
+def _validate_perturbed_scores(perturbed_matrix: ScoreMatrix, profile: ScoreProfile) -> None:
+    """
+    Checks that perturbed scores only score the profile's candidates.
+
+    Args:
+        perturbed_matrix (ScoreMatrix): Perturbed voters.
+        profile (ScoreProfile): Profile to perturb.
+
+    Raises:
+        TransformContractError: A candidate outside the profile's candidates is scored.
+    """
+    undeclared_cands = perturbed_matrix.get_candidates_cast() - frozenset(profile.candidates)
+    if undeclared_cands:
+        raise TransformContractError(
+            f"transform_fn returned scores for candidates {set(undeclared_cands)} not in the"
+            " profile. Declare them in the profile's candidates before perturbing."
+        )
+
+
+def _stack_score_matrices(
+    unperturbed_matrix: ScoreMatrix,
+    perturbed_matrix: ScoreMatrix,
+    candidates: tuple[Candidate, ...],
+) -> ScoreMatrix:
+    """
+    Stacks unperturbed and perturbed voters, which share the source's score columns.
+
+    Args:
+        unperturbed_matrix (ScoreMatrix): Unperturbed voters.
+        perturbed_matrix (ScoreMatrix): Perturbed voters, with the same score columns.
+        candidates (tuple[Candidate, ...]): Candidates of the profile to perturb.
 
     Returns:
-        int: Maximum ranking length.
+        ScoreMatrix: Unperturbed rows followed by perturbed rows, with reset labels.
     """
-    df = profile.df if isinstance(profile, RankProfile) else profile
-    tilde = frozenset("~")
-
-    ranking_cols = [col for col in df.columns if "Ranking_" in col]
-    last_col_with_cands = max(
-        (i + 1 for i, col in enumerate(ranking_cols) if (df[col] != tilde).any()),
-        default=0,
+    return ScoreMatrix(
+        voter_weight_data=_concatenate_voter_weight_data(
+            [unperturbed_matrix.voter_weight_data, perturbed_matrix.voter_weight_data]
+        ),
+        scores=np.concatenate([unperturbed_matrix.scores, perturbed_matrix.scores]),
+        score_columns=unperturbed_matrix.score_columns,
+        candidates=candidates,
     )
-    return max(last_col_with_cands, _max_candidates_ranked(profile))
 
 
 @dataclass
 class SwapCandidates:
     """
-    ProfileTransform class to swap candidates using the profile's internal df with candidate IDs.
+    ProfileTransform class to swap two candidates on every ballot.
 
-    Swapping of the specified candidates within a ballot's ranking will only occur if certain
-    criteria is met. Criteria includes the distance between the candidates' ranking positions, their
-    rank order in relation to each other, and whether swapping includes rank slots with the
-    candidates to swap being tied with another candidate. Distance between the candidates is
-    the number of ranking slots between them. Thus, a distance of 0 means the candidates'
-    rank positions are directly adjacent to each other.
+    Every candidate set holding one of the two candidates has it replaced by the other, so a tie
+    with one becomes a tie with the other. A set holding both, or neither, is unchanged. The swap
+    is a mapping over the matrix's candidate-set table, applied to all ballots at once,
+    regardless of the candidates' distance or order. Swapped sets that are not already in the
+    table are appended to it, and sets that are no longer used stay in the table.
 
     Attributes:
         candidate_a (Candidate): Candidate to swap with candidate_b.
         candidate_b (Candidate): Candidate to swap with candidate_a.
-        min_distance (Optional[int]): minimum distance between candidate ranking slots to perform
-            swap. If the candidates' ranked positions are separated by less than the minimum
-            distance, then the ballot will not be altered.
-        max_distance (Optional[int]): maximum distance between candidate ranking slots to perform a
-            swap. If the candidates' ranked positions are separated by more than the maximum
-            distance, then the ballot will not be altered.
-        strict_order (bool): whether to only swap the specified candidates based on their rank
-            order. If True, candidate a and b will only be swapped if a is ranked before b. Else,
-            candidate a and b will be swapped regardless of their rank in relation to each other.
-            False by default.
-        swap_ties (bool): whether to swap the specified candidates when either one appears in a tie.
-            False by default.
 
     Raises:
-        ValueError: Cannot swap candidates a and b if either is repeated within a ballot.
+        ValueError: A ballot ranks candidate_a or candidate_b in more than one position, so the
+            swap is ambiguous.
     """
 
     candidate_a: Candidate
     candidate_b: Candidate
-    min_distance: Optional[int] = None
-    max_distance: Optional[int] = None
-    strict_order: bool = False
-    swap_ties: bool = False  # TODO: need to implement
 
-    def transform_df(
-        self, df: pd.DataFrame, profile: RankProfile
-    ) -> tuple[pd.DataFrame, dict[int, frozenset[Candidate]]]:
-        if self.swap_ties:
-            cand_a_ids = [
-                id
-                for id, cand_set in profile.id_candidate_map.items()
-                if self.candidate_a in cand_set
-            ]
-            cand_b_ids = [
-                id
-                for id, cand_set in profile.id_candidate_map.items()
-                if self.candidate_b in cand_set
-            ]
-        else:
-            cand_a_ids = [
-                id
-                for id, cand_set in profile.id_candidate_map.items()
-                if frozenset({self.candidate_a}) == cand_set
-            ]
-            cand_b_ids = [
-                id
-                for id, cand_set in profile.id_candidate_map.items()
-                if frozenset({self.candidate_b}) == cand_set
-            ]
+    def transform_matrix(self, matrix: RankMatrix) -> RankMatrix:
+        cand_sets = matrix.cand_sets
+        has_a = np.fromiter((self.candidate_a in s for s in cand_sets), bool, len(cand_sets))
+        has_b = np.fromiter((self.candidate_b in s for s in cand_sets), bool, len(cand_sets))
 
-        ranking_cols = [col for col in df.columns if "Ranking_" in col]
-        ranking_arr = df[ranking_cols].to_numpy().copy()
-
-        cand_a_positions = np.isin(ranking_arr, cand_a_ids)
-        cand_b_positions = np.isin(ranking_arr, cand_b_ids)
-        cand_a_counts = np.count_nonzero(cand_a_positions, axis=1)
-        cand_b_counts = np.count_nonzero(cand_b_positions, axis=1)
-        swapable_row_mask = (cand_a_counts == 1) & (cand_b_counts == 1)
-        if np.any((cand_a_counts > 1) & (cand_b_counts > 0)):
+        # fail before swapping if a ballot ranks either candidate in more than one position
+        slots = matrix.rankings - EMPTY_SET_ID
+        repeated = (np.count_nonzero(has_a[slots], axis=1) > 1) | (
+            np.count_nonzero(has_b[slots], axis=1) > 1
+        )
+        if np.any(repeated):
+            row = int(np.flatnonzero(repeated)[0])
+            ballot_index = matrix.voter_weight_data.ballot_index
+            ballot_label = row if ballot_index is None else ballot_index[row]
             raise ValueError(
-                f"Profile contains rankings with candidate {str(self.candidate_a)}"
-                " Cannot deterministically swap."
-            )
-        if np.any((cand_b_counts > 1) & (cand_a_counts > 0)):
-            raise ValueError(
-                f"Profile contains rankings with candidate {str(self.candidate_b)}"
-                " Cannot deterministically swap."
+                f"Cannot swap {self.candidate_a} and {self.candidate_b}: Ballot Index"
+                f" {ballot_label} ranks one of them in more than one position."
             )
 
-        cand_a_rank_idxs = np.argmax(cand_a_positions, axis=1)
-        cand_b_rank_idxs = np.argmax(cand_b_positions, axis=1)
+        # identity map from each candidate-set ID to its swapped ID; only sets holding exactly
+        # one of the two candidates change, and new swapped sets are appended to the table
+        id_mapping = np.arange(EMPTY_SET_ID, EMPTY_SET_ID + len(cand_sets), dtype=np.intp)
+        cand_set_to_id = {
+            cand_set: cand_set_id for cand_set_id, cand_set in matrix.iter_candidate_sets()
+        }
+        swap = {self.candidate_a: self.candidate_b, self.candidate_b: self.candidate_a}
+        for slot in np.flatnonzero(has_a != has_b):
+            swapped_set = frozenset(swap.get(candidate, candidate) for candidate in cand_sets[slot])
+            id_mapping[slot] = cand_set_to_id.setdefault(
+                swapped_set, len(cand_set_to_id) + EMPTY_SET_ID
+            )
 
-        cand_dists = cand_a_rank_idxs - cand_b_rank_idxs
-        swap_cand_mask = np.ones(len(cand_a_rank_idxs), dtype=bool) & swapable_row_mask
-        if self.strict_order:
-            swap_cand_mask &= cand_dists < 0
-        abs_cand_dists = np.abs(cand_dists)
-        if self.min_distance is not None:
-            swap_cand_mask &= abs_cand_dists >= (self.min_distance + 1)
-        if self.max_distance is not None:
-            swap_cand_mask &= abs_cand_dists <= (self.max_distance + 1)
-
-        swap_rows = np.nonzero(swap_cand_mask)[0]
-        cand_a_idxs, cand_b_idxs = cand_a_rank_idxs[swap_rows], cand_b_rank_idxs[swap_rows]
-        cand_a_id_vals = ranking_arr[swap_rows, cand_a_idxs]
-        cand_b_id_vals = ranking_arr[swap_rows, cand_b_idxs]
-        ranking_arr[swap_rows, cand_a_idxs] = cand_b_id_vals
-        ranking_arr[swap_rows, cand_b_idxs] = cand_a_id_vals
-
-        df[ranking_cols] = ranking_arr
-
-        return df, profile.id_candidate_map
+        return replace(
+            matrix,
+            rankings=id_mapping[slots],
+            cand_sets=tuple(cand_set_to_id),  # insertion order is ID order
+        )
 
 
 @dataclass
-class SwapRankPositions:
+class SwapAdjacentRankPositions:
     """
-    ProfileTransform class to swap ranking positions.
+    ProfileTransform class to swap one random pair of adjacent ranking positions on each ballot.
 
-    Rank positions are based on the profile df's columns which start at 1.
+    Follows the rank jitter in ``JitterTest`` of
+    https://github.com/peterrrock2/divij-rticle-4/blob/main/sensitivity.py. For each ballot, a
+    position is drawn uniformly from the profile's ranking positions and a direction, left or
+    right, is drawn uniformly. The ballot's candidate sets at that position and its neighbor are
+    swapped. If the neighbor falls off either end of the ranking positions, or either position is
+    unranked padding, the ballot is unchanged. An explicit empty ranking position is swapped like
+    any other position.
+
+    Use with ``perturb``, whose ``per_voter_probability`` selects the ballots to jitter. Each
+    selected voter receives its own swap, so rows are split into one row per unit of weight.
+
+    The generator is created once from ``rng_seed``, so repeated calls, such as repeated
+    ``perturb`` runs with the same transform, continue its random stream instead of repeating
+    the same swaps.
 
     Attributes:
-        ranking_col_a_idx (int): Ranking column index to swap with the b index.
-        ranking_col_b_idx (int): Ranking column index to swap with the a index.
+        rng_seed (int, optional): Seed for the positions and directions. Pass a seed for
+            reproducible swaps. Defaults to None, which creates an unseeded generator.
     """
 
-    ranking_col_a_idx: int
-    ranking_col_b_idx: int
+    rng_seed: int | None = None
+    _rng: np.random.Generator = field(init=False, repr=False)
 
-    def transform_df(self, df: pd.DataFrame, profile: RankProfile):
-        ranking_cols = [col for col in df.columns if "Ranking_" in col]
-        ranking_arr = df[ranking_cols].to_numpy().copy()
-        ranking_arr_a_idx = self.ranking_col_a_idx - 1
-        ranking_arr_b_idx = self.ranking_col_b_idx - 1
-        ranking_arr[:, [ranking_arr_a_idx, ranking_arr_b_idx]] = ranking_arr[
-            :, [ranking_arr_b_idx, ranking_arr_a_idx]
-        ]
-
-        df[ranking_cols] = ranking_arr
-        return df, profile.id_candidate_map
-
-
-@dataclass
-class RemoveCandidate:
-    """
-    ProfileTransform class to remove candidates from ballot rankings and replace with an empty set.
-
-    Attributes:
-        removed (Candidate): Canidate to remove.
-    """
-
-    removed: Candidate
-
-    def transform_df(self, df: pd.DataFrame, profile: RankProfile):
-        removed_ids_dict = {}
-        removed_set = frozenset({self.removed})
-
-        orig_ids, orig_cand_sets = zip(*profile.id_candidate_map.items())
-
-        candidate_id_map_copy = profile.candidate_id_map.copy()
-        id_candidate_map_copy = profile.id_candidate_map.copy()
-        for id, cand_set in zip(orig_ids, orig_cand_sets):
-            if removed_set == cand_set:
-                removed_ids_dict[id] = candidate_id_map_copy.get(
-                    frozenset(), len(candidate_id_map_copy)
-                )
-                if removed_ids_dict[id] == len(candidate_id_map_copy):
-                    id_candidate_map_copy[len(candidate_id_map_copy)] = frozenset()
-                    candidate_id_map_copy[frozenset()] = len(candidate_id_map_copy)
-            elif self.removed in cand_set:
-                new_cand_set = cand_set - removed_set
-                removed_ids_dict[id] = candidate_id_map_copy.get(
-                    new_cand_set, len(candidate_id_map_copy)
-                )
-                if removed_ids_dict[id] == len(candidate_id_map_copy):
-                    id_candidate_map_copy[len(candidate_id_map_copy)] = new_cand_set
-                    candidate_id_map_copy[new_cand_set] = len(candidate_id_map_copy)
-            else:
-                removed_ids_dict[id] = id
-
-        ranking_cols = [col for col in df.columns if "Ranking_" in col]
-        ranking_arr = df[ranking_cols].to_numpy().copy()
-        min_id = min(removed_ids_dict)  # always -1 for frozenset({'~'})
-        id_mapping = np.zeros(len(removed_ids_dict) + 1)
-        for old_id, new_id in removed_ids_dict.items():
-            id_mapping[old_id - min_id] = new_id
-
-        ranking_arr_zero_idx = ranking_arr - min_id
-        mapped_ranking_arr = id_mapping[ranking_arr_zero_idx]
-        df[ranking_cols] = mapped_ranking_arr
-        return df, id_candidate_map_copy
-
-
-@dataclass
-class TruncateRankingAtIdx:
-    """
-    ProfileTransform class to truncate ballot's ranking at a specified index.
-
-    Rank indexes are based on the profile df's columns which start at 1.
-
-    Attributes:
-    truncate_idx (int): Ranking column index at which to truncate ballot.
-    """
-
-    truncate_idx: int
-
-
-@dataclass
-class BernoulliBallotProbability:
-    """
-    Transform each ballot indenpendently with some probability.
-
-    Attributes:
-        prob (float): probability of a ballot to be transformed.
-        rng_seed (Optional[int]): seed for random probability distribution. Enables for reproducible
-            results.
-    """
-
-    prob: float
-    rng_seed: Optional[int] = None
-
-    def __post_init__(self):
-        if not 0.0 <= self.prob <= 1.0:
-            raise ValueError(f"probability must be in [0, 1], got {self.prob}.")
+    def __post_init__(self) -> None:
         self._rng = np.random.default_rng(self.rng_seed)
 
-    def __call__(self, ballot: Ballot) -> bool:
-        return bool(self._rng.random() < self.prob)
+    def transform_matrix(self, matrix: RankMatrix) -> RankMatrix:
+        # each voter draws its own swap
+        unit_rows, unit_data = _expand_to_units(matrix)
+        ranking_arr = matrix.rankings[unit_rows]
+        num_rows, num_positions = ranking_arr.shape
+
+        rows = np.arange(num_rows)
+        positions = self._rng.integers(0, max(num_positions, 1), size=num_rows)
+        neighbors = positions + self._rng.choice([-1, 1], size=num_rows)
+
+        in_range = (neighbors >= 0) & (neighbors < num_positions)
+        rows, positions, neighbors = rows[in_range], positions[in_range], neighbors[in_range]
+        # swapping a ranked position with trailing padding leaves the ranking unchanged
+        ranked = (ranking_arr[rows, positions] != END_OF_RANKING_ID) & (
+            ranking_arr[rows, neighbors] != END_OF_RANKING_ID
+        )
+        rows, positions, neighbors = rows[ranked], positions[ranked], neighbors[ranked]
+
+        ranking_arr[rows, positions], ranking_arr[rows, neighbors] = (
+            ranking_arr[rows, neighbors],
+            ranking_arr[rows, positions],
+        )
+
+        return replace(matrix, voter_weight_data=unit_data, rankings=ranking_arr)
