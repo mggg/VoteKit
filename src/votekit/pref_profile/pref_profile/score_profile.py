@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Self, cast
+from typing import Any, Self, cast
 
 import numpy as np
 import pandas as pd
@@ -26,7 +26,18 @@ from votekit.pref_profile.csv_utils import (
 )
 from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique_candidates
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import ScoreMatrix
+from votekit.pref_profile.profile_matrix import ScoreMatrix, WeightKind
+from votekit.pref_profile.profile_transform.perturb import (
+    _as_fraction_weights,
+    _perturb_matrix,
+    _stack_score_matrices,
+    _validate_perturbed_scores,
+)
+from votekit.pref_profile.profile_transform.protocol import (
+    ProfileTransform,
+    ScoresRow,
+    _lift_to_profile_transform,
+)
 from votekit.pref_profile.utils import _subtract_score_profiles, _sum_score_profiles
 from votekit.types import Candidate, Numeric
 from votekit.utils import sort_candidates_pseudo_lexicographically
@@ -485,6 +496,98 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
                 weights.
         """
         return _subtract_score_profiles(self, other)
+
+    def perturb(
+        self,
+        transform_fn: ProfileTransform[ScoreMatrix] | Callable[[ScoresRow], Any],
+        per_voter_probability: float | Callable[[ScoresRow], float] = 1.0,
+        *,
+        group_ballots: bool = False,
+        rng_seed: int | None = None,
+    ) -> ScoreProfile:
+        """
+        Perturb voters in the profile, each independently with some probability.
+
+        Each unit of ballot weight is treated as one voter and is selected independently with
+        probability p, so a row of weight w has Binomial(w, p) of its weight perturbed. A row with
+        only part of its weight selected is split into an unperturbed row with the remaining
+        weight and a selected row with the selected weight. Set ``group_ballots`` to regroup the
+        output by scores.
+
+        A ``ProfileTransform`` receives the ScoreMatrix of selected rows, each weighted by its
+        number of selected voters. A per-voter transform function is called once per selected
+        voter, so any randomness in it is independent across voters, and each selected voter
+        becomes its own row of weight 1.
+
+        A per-voter transform function receives one voter's scores as a writeable 1D float array
+        copy, in the order of the score columns of ``to_df()``, with NaN meaning unscored. It may
+        modify the array in place and return it, or return a new 1D array, list, or tuple of the
+        same length. Keep in mind that score columns can include undeclared candidates beyond
+        ``candidates`` that have a score of 0 or NaN.
+
+        Perturbed ballots may only give positive scores to the profile's candidates. To add a
+        candidate, declare it in the profile's candidates before perturbing.
+
+        User functions only receive the ballot, not its weight or row index. To pass extra
+        arguments, curry them first, e.g. ``functools.partial(fn, candidate="A")``. A per-voter
+        transform function, a ``ProfileTransform``, or a probability function that is random owns
+        its randomness: create its generator once rather than re-seeding on each call, which
+        would give every voter the same outcome. ``rng_seed`` only seeds voter selection and voter
+        set sampling. A per-voter transform function should not depend on the order of its calls:
+        a row's selected voters are assigned to its calls in sorted order.
+
+        If a row has a non-empty voter set, its size must equal the row's weight. Selected voters
+        are sampled without replacement from the row's voter set, and the remaining voters stay
+        with the unperturbed row.
+
+        Args:
+            transform_fn (ProfileTransform[ScoreMatrix] | Callable[[NDArray], NDArray]): A
+                ``ProfileTransform`` operates on the matrix of all selected rows at once and is
+                the fast path for large profiles. A per-voter transform function takes one
+                voter's scores and returns the perturbed scores; it is called once per selected
+                voter.
+            per_voter_probability (float | Callable[[NDArray], float], optional): Probability
+                that each voter is perturbed. A float applies to all voters. A callable is
+                evaluated once per row on a read-only array of that row's ballot, in the same form
+                a per-voter transform function receives. If the callable is random, the drawn
+                probability is shared by all voters in that row, so results can depend on how the
+                profile is grouped. Values must lie in [0, 1]. Defaults to 1.0.
+            group_ballots (bool, optional): Whether to group the output ballots by scores, summing
+                weights and joining voter sets. Defaults to False.
+            rng_seed (int, optional): Seed for voter selection and voter set sampling. Defaults to
+                None.
+
+        Returns:
+            ScoreProfile: The perturbed profile, including unperturbed voters.
+
+        Raises:
+            TypeError: A probability is not a real number.
+            ValueError: A probability lies outside [0, 1].
+            ValueError: The profile has non-integral weights.
+            ProfileError: A row's non-empty voter set does not match its weight.
+            TransformContractError: ``transform_fn`` is a class, or neither callable nor a
+                ``ProfileTransform``.
+            TransformContractError: The transformation returns invalid scores, scores a
+                candidate not declared on the profile, does not conserve weight, or changes the
+                score columns.
+        """
+
+        transform = _lift_to_profile_transform(transform_fn)
+        if not len(self._matrix):
+            return self
+
+        unperturbed_matrix, perturbed_matrix = _perturb_matrix(
+            self._matrix, transform, per_voter_probability, rng_seed
+        )
+        _validate_perturbed_scores(perturbed_matrix, self.candidates)
+        result_matrix = _stack_score_matrices(unperturbed_matrix, perturbed_matrix, self.candidates)
+        if group_ballots:
+            result_matrix = result_matrix.group_ballots()
+
+        if self._matrix.voter_weight_data.weight_kind is WeightKind.FRACTION:
+            result_matrix = _as_fraction_weights(result_matrix)
+
+        return ScoreProfile._from_matrix(result_matrix)
 
     def group_ballots(self) -> ScoreProfile:
         """
