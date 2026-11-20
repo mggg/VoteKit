@@ -64,7 +64,7 @@ def _perturb_matrix(
         matrix_data.voter_sets, total_weights, weight_selected, rng
     )
 
-    remaining_rows = (weight_selected == 0) | (weight_selected < total_weights)
+    remaining_rows = (weight_selected < total_weights) | (total_weights == 0)
     selected_rows = weight_selected > 0
     unperturbed_matrix = _mask_and_reweight(
         matrix, remaining_rows, total_weights - weight_selected, remaining_voter_sets
@@ -113,7 +113,7 @@ def _row_probabilities(
         probabilities = []
         for row in _read_only_rows(matrix):
             row_probability = per_voter_probability(row)
-            validated = _validate_probability(row_probability, f"per_voter_probability({row})")
+            validated = _validate_probability(row_probability, "per_voter_probability", row)
             probabilities.append(validated)
         return np.asarray(probabilities, dtype=np.float64)
 
@@ -121,26 +121,30 @@ def _row_probabilities(
     return np.full(len(matrix), probability)
 
 
-def _validate_probability(probability: Any, source: str) -> float:
+def _validate_probability(probability: Any, source: str, row: NDArray | None = None) -> float:
     """
     Checks that a probability is a real number in [0, 1] and returns it as a float.
 
     Args:
         probability (Any): Probability to check.
         source (str): Where the probability came from, for error messages.
+        row (NDArray, optional): Row the probability was computed from, shown in error messages.
+            Defaults to None.
 
     Returns:
         float: The probability.
 
     Raises:
-        TypeError: The probability is not a real number.
+        TypeError: The probability is a boolean or not a real number.
         ValueError: The probability lies outside [0, 1].
     """
-    if not isinstance(probability, Real):
-        raise TypeError(f"{source} must be a real number, received {type(probability)}.")
+    if isinstance(probability, (bool, np.bool_)) or not isinstance(probability, Real):
+        label = source if row is None else f"{source}({row})"
+        raise TypeError(f"{label} must be a real number, received {type(probability)}.")
     value = float(probability)
     if not 0.0 <= value <= 1.0:
-        raise ValueError(f"{source} must lie in [0, 1], received {probability}.")
+        label = source if row is None else f"{source}({row})"
+        raise ValueError(f"{label} must lie in [0, 1], received {probability}.")
     return value
 
 
@@ -280,32 +284,45 @@ def _apply_profile_transform(
 
     Raises:
         TransformContractError: The transform does not return a matrix of the same kind, does
-            not conserve weight, or changes the ranking or score columns.
+            not conserve weight, returns non-integral weights, or changes ranking or score columns.
     """
     result = transform.transform_matrix(selected_matrix)
     if not isinstance(result, type(selected_matrix)):
         raise TransformContractError(
-            f"transform_fn.transform_matrix must return a {type(selected_matrix).__name__}, got"
-            f" {type(result)}."
+            f"transform_fn must return a {type(selected_matrix).__name__}, got {type(result)}."
         )
     received = sum(selected_matrix.voter_weight_data.weights)
     returned = sum(result.voter_weight_data.weights)
     if returned != received:
         raise TransformContractError(
-            "transform_fn.transform_matrix must conserve weight. Received total weight"
+            "transform_fn must conserve weight. Received total weight"
             f" {received}, returned {returned}."
+        )
+    # each unit of weight is one voter, so the result can be perturbed again
+    returned_data = result.voter_weight_data
+    non_integral = np.flatnonzero(returned_data.weights % 1 != 0)
+    if len(non_integral):
+        row_idx = int(non_integral[0])
+        where = (
+            f"row {row_idx} of the returned matrix"
+            if returned_data.ballot_index is None
+            else f"Ballot Index {returned_data.ballot_index[row_idx]}"
+        )
+        raise TransformContractError(
+            "transform_fn must return integral weights, one unit of weight per voter. Returned"
+            f" weight {returned_data.weights[row_idx]} at {where}."
         )
     if isinstance(selected_matrix, RankMatrix) and isinstance(result, RankMatrix):
         if result.ranking_columns != selected_matrix.ranking_columns:
             raise TransformContractError(
-                "transform_fn.transform_matrix must keep the ranking columns"
+                "transform_fn must keep the ranking columns"
                 f" {selected_matrix.ranking_columns}, one per position up to the profile's"
                 f" max_ranking_length, returned {result.ranking_columns}."
             )
     if isinstance(selected_matrix, ScoreMatrix) and isinstance(result, ScoreMatrix):
         if result.score_columns != selected_matrix.score_columns:
             raise TransformContractError(
-                "transform_fn.transform_matrix must keep the score columns"
+                "transform_fn must keep the score columns"
                 f" {selected_matrix.score_columns}, returned {result.score_columns}."
             )
     return result

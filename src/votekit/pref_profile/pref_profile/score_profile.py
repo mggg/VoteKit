@@ -512,7 +512,8 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
         probability p, so a row of weight w has Binomial(w, p) of its weight perturbed. A row with
         only part of its weight selected is split into an unperturbed row with the remaining
         weight and a selected row with the selected weight. Set ``group_ballots`` to regroup the
-        output by scores.
+        output by scores. An empty profile is returned unchanged, without checking
+        ``transform_fn`` or ``per_voter_probability``.
 
         A ``ProfileTransform`` receives the ScoreMatrix of selected rows, each weighted by its
         number of selected voters. A per-voter transform function is called once per selected
@@ -572,9 +573,10 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
                 score columns.
         """
 
-        transform = _lift_to_profile_transform(transform_fn)
-        if not len(self._matrix):
+        if len(self._matrix) == 0:
             return self
+
+        transform = _lift_to_profile_transform(transform_fn)
 
         unperturbed_matrix, perturbed_matrix = _perturb_matrix(
             self._matrix, transform, per_voter_probability, rng_seed

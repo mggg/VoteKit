@@ -30,6 +30,7 @@ class SwapCandidates:
         candidate_b (Candidate): Candidate to swap with candidate_a.
 
     Raises:
+        ValueError: candidate_a or candidate_b is not one of the profile's candidates.
         ValueError: A ballot ranks candidate_a or candidate_b in more than one position, so the
             swap is ambiguous.
     """
@@ -38,6 +39,13 @@ class SwapCandidates:
     candidate_b: Candidate
 
     def transform_matrix(self, matrix: RankMatrix) -> RankMatrix:
+        undeclared_cands = {self.candidate_a, self.candidate_b} - set(matrix.candidates)
+        if undeclared_cands:
+            raise ValueError(
+                f"SwapCandidates got candidates {undeclared_cands} not in the profile's"
+                f" candidates {matrix.candidates}. Declare them before perturbing."
+            )
+
         cand_sets = matrix.cand_sets
         has_a = np.fromiter((self.candidate_a in s for s in cand_sets), bool, len(cand_sets))
         has_b = np.fromiter((self.candidate_b in s for s in cand_sets), bool, len(cand_sets))

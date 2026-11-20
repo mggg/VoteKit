@@ -594,7 +594,8 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         probability p, so a row of weight w has Binomial(w, p) of its weight perturbed. A row with
         only part of its weight selected is split into an unperturbed row with the remaining
         weight and a selected row with the selected weight. Set ``group_ballots`` to regroup the
-        output by ranking.
+        output by ranking. An empty profile is returned unchanged, without checking
+        ``transform_fn`` or ``per_voter_probability``.
 
         A ``ProfileTransform`` receives the RankMatrix of selected rows, each weighted by its
         number of selected voters. A per-voter transform function is called once per selected

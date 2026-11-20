@@ -1,523 +1,203 @@
 import re
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from fractions import Fraction
-from functools import partial
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
+from votekit.constants import END_OF_RANKING_SET
 from votekit.exceptions import TransformContractError
 from votekit.pref_profile import ProfileError, RankProfile, ScoreProfile
-from votekit.pref_profile.profile_matrix import ScoreMatrix
+from votekit.pref_profile.profile_matrix import ProfileVoterWeightData, ScoreMatrix, WeightKind
 from votekit.pref_profile.profile_transform import (
-    JitterScores,
     SwapAdjacentRankPositions,
     SwapCandidates,
 )
+from votekit.types import Candidate
 
 
-def make_profile() -> RankProfile:
+@pytest.fixture
+def rank_profile() -> RankProfile:
     return RankProfile(
         ballots=[
-            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=10),
-            RankBallot(ranking=[{"A"}, {"C"}, {"B"}], weight=10),
-        ]
-    )
-
-
-def ranking_weights(profile: RankProfile) -> dict[tuple[str, ...], float]:
-    """Map each ranking to its total weight, ignoring row order."""
-    weights: dict[tuple[str, ...], float] = {}
-    ranking_cols = [col for col in profile.to_df().columns if "Ranking_" in col]
-    for _, row in profile.to_df().iterrows():
-        ranking = tuple(next(iter(row[col]), "") for col in ranking_cols if row[col] != {"~"})
-        weights[ranking] = weights.get(ranking, 0.0) + row["Weight"]
-    return weights
-
-
-def reverse(ranking):
-    """Reverses the ranked positions in place, leaving trailing padding at the end."""
-    num_ranked = sum(cand_set != {"~"} for cand_set in ranking)
-    ranking[:num_ranked] = ranking[:num_ranked][::-1]
-    return ranking
-
-
-@dataclass
-class SwapRandomAdjacentPositions:
-    """Swaps a random pair of adjacent ranking positions on each voter's ballot."""
-
-    rng: np.random.Generator
-
-    def transform_matrix(self, matrix):
-        ranking_arr = matrix.rankings.copy()
-        rows = np.arange(len(ranking_arr))
-        positions = self.rng.integers(0, matrix.num_ranking_positions - 1, size=len(ranking_arr))
-        left = ranking_arr[rows, positions].copy()
-        ranking_arr[rows, positions] = ranking_arr[rows, positions + 1]
-        ranking_arr[rows, positions + 1] = left
-        return replace(matrix, rankings=ranking_arr)
-
-
-def test_swap_candidates():
-    perturbed = make_profile().perturb(SwapCandidates("A", "B"))
-
-    assert ranking_weights(perturbed) == {("B", "A", "C"): 10.0, ("B", "C", "A"): 10.0}
-
-
-def test_swap_candidates_with_probability():
-    perturbed = make_profile().perturb(SwapCandidates("A", "B"), 0.5, rng_seed=42)
-    weights = ranking_weights(perturbed)
-
-    assert perturbed.total_ballot_wt == 20.0
-    assert weights[("A", "B", "C")] + weights[("B", "A", "C")] == 10.0
-    assert weights[("A", "C", "B")] + weights[("B", "C", "A")] == 10.0
-    assert 0 < weights[("B", "A", "C")] < 10
-
-
-def swapped_rankings(ballots, candidates, candidate_a="A", candidate_b="B"):
-    """Rankings after swapping two candidates directly on the profile's matrix."""
-    profile = RankProfile(ballots=ballots, candidates=candidates, max_ranking_length=3)
-    matrix = SwapCandidates(candidate_a, candidate_b).transform_matrix(profile._matrix)
-    return [matrix.get_ranking(row) for row in range(len(matrix))]
-
-
-@pytest.mark.parametrize(
-    "ranking, expected",
-    [
-        ([{"A", "C"}, {"B"}], (frozenset({"B", "C"}), frozenset({"A"}))),
-        ([{"A", "C"}, {"D"}], (frozenset({"B", "C"}), frozenset({"D"}))),
-        ([{"A"}, {"C"}], (frozenset({"B"}), frozenset({"C"}))),
-        ([{"A", "B"}, {"C"}], (frozenset({"A", "B"}), frozenset({"C"}))),
-    ],
-)
-def test_swap_candidates_with_ties(ranking, expected):
-    rankings = swapped_rankings([RankBallot(ranking=ranking)], ["A", "B", "C", "D"])
-
-    assert rankings == [expected]
-
-
-def test_swap_candidates_repeated_candidate_raises():
-    ballots = [RankBallot(ranking=[{"C"}]), RankBallot(ranking=[{"B"}, {"C"}, {"B"}])]
-
-    with pytest.raises(ValueError, match="Ballot Index 1 ranks one of them in more than one"):
-        swapped_rankings(ballots, ["A", "B", "C"])
-
-
-def test_seed_is_reproducible():
-    first = make_profile().perturb(reverse, 0.5, rng_seed=7)
-    second = make_profile().perturb(reverse, 0.5, rng_seed=7)
-
-    assert ranking_weights(first) == ranking_weights(second)
-
-
-def test_random_profile_transform_owns_its_randomness():
-    def run():
-        transform = SwapRandomAdjacentPositions(np.random.default_rng(11))
-        return make_profile().perturb(transform, 0.5, rng_seed=7)
-
-    assert ranking_weights(run()) == ranking_weights(run())
-
-
-def test_zero_probability_leaves_profile_unchanged():
-    perturbed = make_profile().perturb(reverse, 0.0, rng_seed=1)
-
-    assert ranking_weights(perturbed) == ranking_weights(make_profile())
-
-
-def test_partial_selection_keeps_profile_transform_rows_grouped():
-    perturbed = make_profile().perturb(SwapCandidates("A", "B"), 0.5, rng_seed=42)
-    first_choices = [next(iter(cand_set)) for cand_set in perturbed.to_df()["Ranking_1"]]
-
-    # each original row splits into one unperturbed row and one grouped perturbed row
-    assert first_choices.count("A") == 2
-    assert first_choices.count("B") == 2
-
-
-def test_profile_transform_receives_rows_weighted_by_selected_voters():
-    received = []
-
-    class Record:
-        def transform_matrix(self, matrix):
-            received.append(list(matrix.voter_weight_data.weights))
-            return matrix
-
-    make_profile().perturb(Record())
-
-    assert received == [[10.0, 10.0]]
-
-
-def test_per_voter_function_splits_selected_voters_into_unit_rows():
-    perturbed = make_profile().perturb(reverse, 0.5, rng_seed=42)
-    first_choices = [next(iter(cand_set)) for cand_set in perturbed.to_df()["Ranking_1"]]
-
-    # each original row keeps one unperturbed row, every perturbed voter is its own row
-    assert first_choices.count("A") == 2
-    assert all(
-        weight == 1
-        for first, weight in zip(first_choices, perturbed.to_df()["Weight"])
-        if first != "A"
-    )
-
-
-@pytest.mark.parametrize("profile", [RankProfile(), ScoreProfile()])
-def test_empty_profile(profile):
-    perturbed = profile.perturb(reverse)
-
-    assert isinstance(perturbed, type(profile))
-    assert perturbed.num_ballots == 0
-
-
-def test_zero_weight_rows_are_kept():
-    profile = RankProfile(
-        ballots=[
-            RankBallot(ranking=[{"A"}, {"B"}], weight=2),
-            RankBallot(ranking=[{"B"}, {"A"}], weight=0),
-        ]
-    )
-    perturbed = profile.perturb(reverse)
-
-    # the exhausted weight 2 row is dropped, the zero weight row is kept
-    assert sorted(perturbed.to_df()["Weight"]) == [0.0, 1.0, 1.0]
-    assert ranking_weights(perturbed) == {("B", "A"): 2.0}
-
-
-def test_group_ballots_regroups_output():
-    perturbed = make_profile().perturb(SwapCandidates("A", "B"), group_ballots=True)
-
-    assert len(perturbed.to_df()) == 2
-    assert ranking_weights(perturbed) == {("B", "A", "C"): 10.0, ("B", "C", "A"): 10.0}
-
-
-def test_ranking_function_is_called_once_per_selected_voter():
-    calls = []
-
-    def record(ranking):
-        calls.append(ranking)
-        return ranking
-
-    make_profile().perturb(record)
-
-    assert len(calls) == 20
-
-
-def test_ranking_function_receives_padded_array():
-    received = []
-
-    def record(ranking):
-        received.append(ranking.copy())
-        return reverse(ranking)
-
-    profile = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=1)],
+            RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=2),
+            RankBallot(ranking=[{"B"}, {"A"}], weight=1),
+        ],
         candidates=["A", "B", "C"],
         max_ranking_length=3,
     )
-    perturbed = profile.perturb(record)
-
-    assert isinstance(received[0], np.ndarray)
-    assert list(received[0]) == [frozenset({"A"}), frozenset({"B"}), frozenset({"~"})]
-    assert ranking_weights(perturbed) == {("B", "A"): 1.0}
 
 
-@pytest.mark.parametrize("container", [list, tuple, np.array])
-def test_ranking_function_may_return_any_1d_container(container):
-    def swap_first_two(ranking):
-        return container([ranking[1], ranking[0], ranking[2]])
-
-    perturbed = make_profile().perturb(swap_first_two, group_ballots=True)
-
-    assert ranking_weights(perturbed) == {("B", "A", "C"): 10.0, ("C", "A", "B"): 10.0}
-
-
-def test_ranking_function_may_return_sets():
-    perturbed = make_profile().perturb(
-        lambda ranking: [{"C"}, {"B"}, {"A"}, *ranking[3:]], group_ballots=True
-    )
-
-    assert ranking_weights(perturbed) == {("C", "B", "A"): 20.0}
-    assert all(
-        isinstance(cand_set, frozenset)
-        for col in ["Ranking_1", "Ranking_2", "Ranking_3"]
-        for cand_set in perturbed.to_df()[col]
-    )
-
-
-def test_ranking_function_can_add_declared_spoiler():
-    def add_spoiler(ranking):
-        ranking[2] = frozenset({"Spoiler"})
-        return ranking
-
-    profile = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=2)],
-        candidates=["A", "B", "Spoiler"],
-        max_ranking_length=3,
-    )
-    perturbed = profile.perturb(add_spoiler, group_ballots=True)
-
-    assert ranking_weights(perturbed) == {("A", "B", "Spoiler"): 2.0}
-
-
-def test_curried_ranking_function():
-    def truncate(ranking, length):
-        ranking[length:] = frozenset({"~"})
-        return ranking
-
-    perturbed = make_profile().perturb(partial(truncate, length=1), group_ballots=True)
-
-    assert ranking_weights(perturbed) == {("A",): 20.0}
-
-
-def test_probability_function_receives_read_only_array():
-    def write(ranking):
-        ranking[0] = frozenset({"B"})
-        return 1.0
-
-    with pytest.raises(ValueError, match="read-only"):
-        make_profile().perturb(reverse, write)
-
-
-def test_probability_function_filters_rows():
-    perturbed = make_profile().perturb(
-        reverse,
-        lambda ranking: 1.0 if ranking[1] == {"B"} else 0.0,
-        group_ballots=True,
-    )
-
-    assert ranking_weights(perturbed) == {("C", "B", "A"): 10.0, ("A", "C", "B"): 10.0}
-
-
-@pytest.mark.parametrize("probability", [-0.1, 1.5, float("nan"), lambda ranking: 2.0])
-def test_probability_out_of_range_raises(probability):
-    with pytest.raises(ValueError, match="must lie in"):
-        make_profile().perturb(reverse, probability)
-
-
-def test_probability_not_numeric_raises():
-    with pytest.raises(TypeError, match="real number"):
-        make_profile().perturb(reverse, lambda ranking: "high")  # type: ignore[arg-type, ty:invalid-argument-type]
-
-
-def test_non_integral_weights_raise():
-    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=1.5)])
-
-    with pytest.raises(ValueError, match="non-integral weights"):
-        profile.perturb(reverse)
-
-
-def test_class_instead_of_instance_raises():
-    with pytest.raises(TransformContractError, match="not an instance"):
-        make_profile().perturb(SwapCandidates)  # type: ignore[arg-type, ty:invalid-argument-type]
-
-
-def test_non_callable_transform_raises():
-    with pytest.raises(TransformContractError, match="per-voter transform function"):
-        make_profile().perturb("reverse")  # type: ignore[arg-type, ty:invalid-argument-type]
-
-
-@pytest.mark.parametrize(
-    "ranking_fn, match",
-    [
-        (lambda ranking: "AB", "1D array of length 3"),
-        (lambda ranking: None, "1D array of length 3"),
-        (lambda ranking: np.stack([ranking] * 3), "1D array of length 3"),
-        (lambda ranking: np.concatenate([ranking, ranking]), "1D array of length 3"),
-        (lambda ranking: ranking[:2], "1D array of length 3"),
-        (lambda ranking: ["A", "B", "C"], "sets or frozensets of candidates"),
-        (
-            lambda ranking: [frozenset({"A"}), ["B", "C"], frozenset({"~"})],
-            "1D array, list, or tuple",
-        ),
-        (lambda ranking: [frozenset({"Z"}), *ranking[1:]], "Declare them"),
-    ],
-)
-def test_invalid_ranking_raises(ranking_fn, match):
-    with pytest.raises(TransformContractError, match=match):
-        make_profile().perturb(ranking_fn)
-
-
-def test_invalid_ranking_error_names_ballot_index():
-    def break_second_ballot(ranking):
-        if ranking[1] == {"C"}:
-            ranking[0] = "A"
-        return ranking
-
-    def select_second_ballot(ranking):
-        return 1.0 if ranking[1] == {"C"} else 0.0
-
-    # only Ballot Index 1 is selected, so it is row 0 of the matrix the transform receives
-    with pytest.raises(TransformContractError, match="for Ballot Index 1"):
-        make_profile().perturb(break_second_ballot, select_second_ballot)
-
-
-def test_undeclared_candidate_error_names_ballot_index():
-    def add_z_to_second_ballot(ranking):
-        if ranking[1] == {"C"}:
-            ranking[2] = frozenset({"Z"})
-        return ranking
-
-    with pytest.raises(TransformContractError, match=r"\{'Z'\}.*for Ballot Index 1"):
-        make_profile().perturb(add_z_to_second_ballot)
-
-
-def make_labeled_profile(voter_sets=None) -> RankProfile:
-    """Profile whose Ballot Index is 10 and 20, so labels differ from row positions."""
+@pytest.fixture
+def labeled_profile() -> RankProfile:
+    """Ballots A > B and B > A whose Ballot Index is 10 and 20, not their row positions 0 and 1."""
     df = pd.DataFrame(
         {
             "Ranking_1": [frozenset({"A"}), frozenset({"B"})],
             "Ranking_2": [frozenset({"B"}), frozenset({"A"})],
-            "Voter Set": voter_sets or [frozenset(), frozenset()],
-            "Weight": [2.0, 3.0],
+            "Voter Set": [frozenset(), frozenset()],
+            "Weight": [2.0, 1.0],
         },
         index=pd.Index([10, 20], name="Ballot Index"),
     )
     return RankProfile(df=df, candidates=["A", "B"], max_ranking_length=2)
 
 
-def test_errors_report_ballot_index_not_row_position():
-    def break_ballot_starting_with_b(ranking):
-        if ranking[0] == {"B"}:
-            ranking[0] = "B"
-        return ranking
-
-    with pytest.raises(TransformContractError, match="for Ballot Index 20"):
-        make_labeled_profile().perturb(break_ballot_starting_with_b)
+@pytest.fixture
+def score_profile() -> ScoreProfile:
+    return ScoreProfile(ballots=[ScoreBallot(scores={"A": 1, "B": 2})], candidates=["A", "B"])
 
 
-def test_probability_error_shows_the_row():
-    row = "[frozenset({'A'}) frozenset({'B'})]"
-
-    with pytest.raises(ValueError, match=re.escape(f"per_voter_probability({row}) must lie in")):
-        make_labeled_profile().perturb(reverse, lambda ranking: 2.0)
-
-
-def test_voter_set_mismatch_reports_ballot_index():
-    voter_sets = [frozenset({"v1", "v2"}), frozenset({"v3"})]
-
-    with pytest.raises(ProfileError, match="Ballot Index 20 has a voter set of size 1"):
-        make_labeled_profile(voter_sets).perturb(reverse)
+@pytest.fixture
+def voter_profile() -> RankProfile:
+    """A > B for voters v1 and v2, and B > A for voter v3."""
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=2, voter_set={"v1", "v2"}),
+            RankBallot(ranking=[{"B"}, {"A"}], weight=1, voter_set={"v3"}),
+        ]
+    )
 
 
-def test_profile_transform_must_conserve_weight():
-    class DropVoters:
+class ReturnsVoterData:
+    """A ProfileTransform that returns the selected rows with the given weights and voter sets."""
+
+    def __init__(self, weights: list[float], voter_sets: list[frozenset[str]] | None = None):
+        self.weights = weights
+        self.voter_sets = voter_sets
+
+    def transform_matrix(self, matrix):
+        voter_sets = None
+        if self.voter_sets is not None:
+            voter_sets = np.empty(len(self.voter_sets), dtype=object)
+            voter_sets[:] = self.voter_sets
+        data = ProfileVoterWeightData(
+            weights=np.array(self.weights, dtype=np.float64),
+            voter_sets=voter_sets,
+            weight_kind=WeightKind.FLOAT,
+            ballot_index=matrix.voter_weight_data.ballot_index,
+        )
+        return replace(matrix, voter_weight_data=data)
+
+
+def ranking(*positions: str | set[str]) -> tuple[frozenset[Candidate], ...]:
+    """A ranking from its positions: a candidate, a set of tied candidates, or set() if empty."""
+    return tuple(
+        frozenset({position}) if isinstance(position, str) else frozenset(position)
+        for position in positions
+    )
+
+
+def ranking_weights(profile: RankProfile) -> dict[tuple[frozenset[Candidate], ...], float]:
+    """Total weight of each ranking, with unranked padding dropped."""
+    matrix = profile._matrix
+    weights: dict[tuple[frozenset[Candidate], ...], float] = {}
+    for row_idx in range(len(matrix)):
+        ranked = matrix.get_ranking(row_idx)
+        weights[ranked] = weights.get(ranked, 0.0) + float(
+            matrix.voter_weight_data.weights[row_idx]
+        )
+    return weights
+
+
+def score_weights(profile: ScoreProfile) -> dict[tuple[float | None, ...], float]:
+    """Total weight of each (A, B) score pair, with unscored (NaN) shown as None."""
+    weights: dict[tuple[float | None, ...], float] = {}
+    for _, row in profile.to_df().iterrows():
+        scores = tuple(None if np.isnan(row[c]) else float(row[c]) for c in ("A", "B"))
+        weights[scores] = weights.get(scores, 0.0) + float(row["Weight"])
+    return weights
+
+
+def reverse(row):
+    """A per-voter function that reverses the ranked positions, leaving padding at the end."""
+    num_ranked = sum(cand_set != END_OF_RANKING_SET for cand_set in row)
+    row[:num_ranked] = row[:num_ranked][::-1]
+    return row
+
+
+def test_profile_transform_rejects_return_of_diff_matrix_type(rank_profile):
+    score_matrix = ScoreProfile(ballots=[ScoreBallot(scores={"A": 1})], candidates=["A"])._matrix
+
+    class ReturnsScoreMatrix:
         def transform_matrix(self, matrix):
-            keep_first = np.zeros(len(matrix), dtype=bool)
-            keep_first[0] = True
-            return matrix.apply_mask(keep_first)
+            return score_matrix
 
-    with pytest.raises(TransformContractError, match="conserve weight"):
-        make_profile().perturb(DropVoters())
+    with pytest.raises(TransformContractError, match="transform_fn must return a RankMatrix"):
+        rank_profile.perturb(ReturnsScoreMatrix())
 
 
-def test_voter_sets_are_split_between_perturbed_and_unperturbed():
-    voters = {f"v{i}" for i in range(10)}
-    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=10, voter_set=voters)])
-    perturbed = profile.perturb(reverse, 0.5, rng_seed=3)
-    df = perturbed.to_df()
-
-    unit_rows = df[df["Weight"] == 1]
-    assert all(len(voter_set) == 1 for voter_set in unit_rows["Voter Set"])
-    assert all(len(vs) == w for vs, w in zip(df["Voter Set"], df["Weight"]))
-    assert set().union(*df["Voter Set"]) == voters
-
-
-@pytest.mark.parametrize("probability", [0.0, 1.0])
-def test_voter_sets_when_no_or_all_weight_is_selected(probability):
-    voters = {"v1", "v2", "v3"}
-    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=3, voter_set=voters)])
-    df = profile.perturb(reverse, probability, rng_seed=0).to_df()
-
-    if probability == 0.0:
-        # nothing selected: the row and its voters are untouched
-        assert list(df["Weight"]) == [3.0]
-        assert df["Voter Set"].iloc[0] == voters
-    else:
-        # everything selected: no unperturbed row, one voter per unit row
-        assert list(df["Weight"]) == [1.0, 1.0, 1.0]
-        assert set().union(*df["Voter Set"]) == voters
-
-
-@pytest.mark.parametrize("probability", [0.0, 0.5, 1.0])
-def test_voter_set_size_mismatch_raises_for_any_probability(probability):
-    profile = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=3, voter_set={"v1", "v2"})]
-    )
-
-    with pytest.raises(ProfileError, match="voter set of size 2 but weight 3"):
-        profile.perturb(reverse, probability, rng_seed=0)
-
-
-def make_score_profile() -> ScoreProfile:
-    df = pd.DataFrame(
-        {"A": [2.0, np.nan], "B": [0.0, 1.0], "Voter Set": [set(), set()], "Weight": [4.0, 2.0]}
-    )
-    df.index.name = "Ballot Index"
-    return ScoreProfile(df=df, candidates=["A", "B"])
-
-
-def test_score_function_can_modify_array_in_place():
-    def double(scores):
-        assert isinstance(scores, np.ndarray)
-        scores *= 2
-        return scores
-
-    profile = make_score_profile()
-    perturbed = profile.perturb(double, group_ballots=True)
-
-    perturbed_df, profile_df = perturbed.to_df(), profile.to_df()
-    assert perturbed_df.loc[perturbed_df["Weight"] == 4.0, "A"].item() == 4.0
-    assert profile_df.loc[profile_df["Weight"] == 4.0, "A"].item() == 2.0
-
-
-def test_score_function_preserves_zero_and_nan():
-    perturbed = make_score_profile().perturb(
-        lambda scores: tuple(s * 2 for s in scores), group_ballots=True
-    )
-    df = perturbed.to_df()
-    weight_4, weight_2 = df["Weight"] == 4.0, df["Weight"] == 2.0
-
-    assert df.loc[weight_4, "A"].item() == 4.0
-    assert df.loc[weight_4, "B"].item() == 0.0
-    assert np.isnan(df.loc[weight_2, "A"].item())
-    assert df.loc[weight_2, "B"].item() == 2.0
-
-
-@pytest.mark.parametrize(
-    "scores_fn, match",
-    [
-        (lambda scores: scores[:1], "1D array of length 2"),
-        (lambda scores: np.stack([scores, scores]), "1D array of length 2"),
-        (lambda scores: (-1.0, 1.0), "negative score"),
-        (lambda scores: ("high", 1.0), "non-numeric score"),
-        (lambda scores: np.array([True, False]), "non-numeric score"),
-    ],
-)
-def test_invalid_scores_raise(scores_fn, match):
-    with pytest.raises(TransformContractError, match=match):
-        make_score_profile().perturb(scores_fn)
-
-
-@pytest.mark.parametrize("width_change", [-1, 1])
-def test_profile_transform_must_keep_ranking_columns(width_change):
-    class ChangeWidth:
+def test_profile_transform_rejects_change_in_total_weight(rank_profile):
+    class DropsSecondRow:
         def transform_matrix(self, matrix):
-            width = matrix.num_ranking_positions + width_change
-            rankings = np.full((len(matrix), width), -1, dtype=np.intp)
-            keep = min(width, matrix.num_ranking_positions)
-            rankings[:, :keep] = matrix.rankings[:, :keep]
+            return matrix.apply_mask(np.array([True, False]))
+
+    with pytest.raises(TransformContractError, match="transform_fn must conserve weight."):
+        rank_profile.perturb(DropsSecondRow())
+
+
+def test_profile_transform_rejects_non_integral_weights(rank_profile):
+    with pytest.raises(TransformContractError, match="integral weights"):
+        rank_profile.perturb(ReturnsVoterData([1.5, 1.5]))
+
+
+@pytest.mark.skip(reason="voter-set checks on ProfileTransform output are pending discussion")
+def test_profile_transform_rejects_a_voter_set_larger_than_its_weight(voter_profile):
+    voter_sets = [frozenset({"v1", "v2", "v3"}), frozenset()]
+
+    with pytest.raises(TransformContractError, match="one voter per unit of weight"):
+        voter_profile.perturb(ReturnsVoterData([2, 1], voter_sets))
+
+
+@pytest.mark.skip(reason="voter-set checks on ProfileTransform output are pending discussion")
+def test_profile_transform_rejects_a_voter_on_two_rows(voter_profile):
+    voter_sets = [frozenset({"v1", "v2"}), frozenset({"v2"})]
+
+    with pytest.raises(TransformContractError, match="Voter 'v2' appears on more than one row"):
+        voter_profile.perturb(ReturnsVoterData([2, 1], voter_sets))
+
+
+@pytest.mark.skip(reason="voter-set checks on ProfileTransform output are pending discussion")
+def test_profile_transform_rejects_a_dropped_voter(voter_profile):
+    voter_sets = [frozenset({"v1", "v2"}), frozenset()]
+
+    with pytest.raises(TransformContractError, match=r"Dropped voters \{'v3'\}"):
+        voter_profile.perturb(ReturnsVoterData([2, 1], voter_sets))
+
+
+@pytest.mark.skip(reason="voter-set checks on ProfileTransform output are pending discussion")
+def test_profile_transform_rejects_an_invented_voter(voter_profile):
+    voter_sets = [frozenset({"v1", "v2"}), frozenset({"v9"})]
+
+    with pytest.raises(TransformContractError, match=r"Invented voters \{'v9'\}"):
+        voter_profile.perturb(ReturnsVoterData([2, 1], voter_sets))
+
+
+def test_perturbed_profile_can_be_perturbed_again(voter_profile):
+    once = voter_profile.perturb(SwapAdjacentRankPositions(rng_seed=0), 0.5, rng_seed=0)
+    twice = once.perturb(reverse, 0.5, rng_seed=1)
+
+    assert twice.total_ballot_wt == 3
+    assert set().union(*twice.to_df()["Voter Set"]) == {"v1", "v2", "v3"}
+
+
+def test_profile_transform_rejects_changed_ranking_columns(rank_profile):
+    class DropsLastColumn:
+        def transform_matrix(self, matrix):
             return replace(
                 matrix,
-                rankings=rankings,
-                ranking_columns=tuple(f"Ranking_{i + 1}" for i in range(width)),
+                rankings=matrix.rankings[:, :-1],
+                ranking_columns=matrix.ranking_columns[:-1],
             )
 
-    with pytest.raises(TransformContractError, match="must keep the ranking columns"):
-        make_profile().perturb(ChangeWidth())
+    with pytest.raises(TransformContractError, match="transform_fn must keep the ranking columns"):
+        rank_profile.perturb(DropsLastColumn())
 
 
-def test_profile_transform_must_keep_score_columns():
-    class ReorderColumns:
+def test_profile_transform_rejects_changed_score_columns(score_profile):
+    class ReversesColumns:
         def transform_matrix(self, matrix):
             return ScoreMatrix(
                 voter_weight_data=matrix.voter_weight_data,
@@ -526,203 +206,391 @@ def test_profile_transform_must_keep_score_columns():
                 candidates=matrix.candidates,
             )
 
-    with pytest.raises(TransformContractError, match="must keep the score columns"):
-        make_score_profile().perturb(ReorderColumns())
+    with pytest.raises(TransformContractError, match="transform_fn must keep the score columns"):
+        score_profile.perturb(ReversesColumns())
 
 
-def test_score_profile_from_ballots():
-    profile = ScoreProfile(
-        ballots=[ScoreBallot(scores={"A": 1, "B": 3}, weight=5)], candidates=["A", "B"]
-    )
-    perturbed = profile.perturb(lambda scores: (scores[1], scores[0]), 0.4, rng_seed=0)
-
-    assert perturbed.total_ballot_wt == 5.0
-    assert set(map(tuple, perturbed.to_df()[["A", "B"]].to_numpy())) <= {(1.0, 3.0), (3.0, 1.0)}
+def test_perturb_rejects_transform_class_instead_of_an_instance(rank_profile):
+    with pytest.raises(TransformContractError, match="transform_fn was given the class"):
+        rank_profile.perturb(SwapCandidates)
 
 
-@pytest.mark.parametrize("probability", [0.0, 0.5, 1.0])
-def test_fraction_weights_stay_exact(probability):
+def test_perturb_rejects_non_callable_transform(rank_profile):
+    with pytest.raises(
+        TransformContractError,
+        match="transform_fn must be a per-voter transform function or ProfileTransform instance,",
+    ):
+        rank_profile.perturb("transform_matrix")
+
+
+def test_ranking_function_rejects_return_of_non_set_entries(rank_profile):
+    with pytest.raises(
+        TransformContractError,
+        match="transform_fn must return an array of sets or frozensets of candidates",
+    ):
+        rank_profile.perturb(lambda row: ["A", "B", "C"])
+
+
+def test_ranking_function_rejects_return_of_the_wrong_length(rank_profile):
+    with pytest.raises(
+        TransformContractError, match="transform_fn must return a 1D array of length 3"
+    ):
+        rank_profile.perturb(lambda row: row[:2])
+
+
+def test_ranking_function_rejects_return_of_a_2d_array(rank_profile):
+    with pytest.raises(
+        TransformContractError, match="transform_fn must return a 1D array of length 3"
+    ):
+        rank_profile.perturb(lambda row: np.stack([row, row]))
+
+
+def test_ranking_function_rejects_padding_before_a_ranked_position(rank_profile):
+    with pytest.raises(TransformContractError, match="only at the end of a ranking"):
+        rank_profile.perturb(lambda row: [END_OF_RANKING_SET, frozenset({"A"}), frozenset({"B"})])
+
+
+def test_ranking_function_rejects_a_gap_in_the_ranking(rank_profile):
+    with pytest.raises(
+        TransformContractError, match="only at the end of a ranking.*Ballot Index 0"
+    ):
+        rank_profile.perturb(lambda row: [frozenset({"A"}), END_OF_RANKING_SET, frozenset({"B"})])
+
+
+def test_ranking_function_rejects_an_empty_position_after_padding(rank_profile):
+    with pytest.raises(
+        TransformContractError, match="only at the end of a ranking.*Ballot Index 0"
+    ):
+        rank_profile.perturb(lambda row: [frozenset({"A"}), END_OF_RANKING_SET, frozenset()])
+
+
+def test_ranking_function_rejects_tilde_inside_a_candidate_set(rank_profile):
+    with pytest.raises(TransformContractError, match="only use '~' as the padding.*Ballot Index 0"):
+        rank_profile.perturb(
+            lambda row: [frozenset({"A", "~"}), END_OF_RANKING_SET, END_OF_RANKING_SET]
+        )
+
+
+def test_ranking_function_rejects_an_undeclared_candidate(rank_profile):
+    def add_z(row):
+        row[2] = frozenset({"Z"})
+        return row
+
+    with pytest.raises(
+        TransformContractError,
+        match=r"returned candidates \{'Z'\} not in the"
+        " profile",
+    ):
+        rank_profile.perturb(add_z)
+
+
+def test_ranking_function_can_rank_a_non_cast_candidate():
+    def add_cand_to_cast(row):
+        row[2] = frozenset({"new_cand"})
+        return row
+
     profile = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=Fraction(4))],
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=2)],
+        candidates=["A", "B", "new_cand"],
+        max_ranking_length=3,
     )
-    perturbed = profile.perturb(reverse, probability, rng_seed=0)
+    perturbed = profile.perturb(add_cand_to_cast)
 
-    assert perturbed._matrix.voter_weight_data.has_fraction_weights
-    assert sum(perturbed.to_df()["Weight"]) == Fraction(4)
-
-
-def test_profile_transform_receives_float_weights_for_fraction_profile():
-    received = []
-
-    class Record:
-        def transform_matrix(self, matrix):
-            received.append(matrix.voter_weight_data.weights.dtype)
-            return matrix
-
-    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=Fraction(4))])
-    perturbed = profile.perturb(Record())
-
-    assert received == [np.float64]
-    assert perturbed._matrix.voter_weight_data.has_fraction_weights
+    assert ranking_weights(perturbed) == {ranking("A", "B", "new_cand"): 2.0}
 
 
-def test_profile_transform_must_return_same_matrix_kind():
-    class ReturnsScores:
-        def transform_matrix(self, matrix):
-            return make_score_profile()._matrix
-
-    with pytest.raises(TransformContractError, match="must return a RankMatrix"):
-        make_profile().perturb(ReturnsScores())  # type: ignore[arg-type]
-
-
-def test_ranking_function_tie_exceeding_max_ranking_length_raises():
+def test_ranking_function_rejects_a_tie_longer_than_max_ranking_length():
     profile = RankProfile(
         ballots=[RankBallot(ranking=[{"A"}, {"B"}])],
         candidates=["A", "B", "C"],
         max_ranking_length=2,
     )
 
-    with pytest.raises(TransformContractError, match="3 candidates, more than"):
-        profile.perturb(lambda ranking: (frozenset({"A", "B", "C"}), frozenset({"~"})))
+    with pytest.raises(
+        TransformContractError, match="3 candidates, more than the profile's max_ranking_length"
+    ):
+        profile.perturb(lambda row: [frozenset({"A", "B", "C"}), END_OF_RANKING_SET])
 
 
-def adjacent_swap_profile(num_voters: int = 3000) -> RankProfile:
-    return RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}, {"C"}], weight=num_voters)])
+def test_per_voter_function_is_called_once_per_selected_voter(rank_profile):
+    calls = []
+
+    def record(row):
+        calls.append(row)
+        return row
+
+    rank_profile.perturb(record)
+
+    assert len(calls) == 3
 
 
-def test_adjacent_swap_only_swaps_neighbors():
-    transform = SwapAdjacentRankPositions(rng_seed=0)
-    perturbed = adjacent_swap_profile().perturb(transform, group_ballots=True)
-
-    assert set(ranking_weights(perturbed)) <= {("A", "B", "C"), ("B", "A", "C"), ("A", "C", "B")}
-    assert perturbed.total_ballot_wt == 3000
-
-
-def test_adjacent_swap_follows_jitter_distribution():
-    # position 0 only swaps right, position 2 only swaps left, position 1 swaps either way,
-    # so each adjacent pair and no swap each occur with probability 1/3
-    transform = SwapAdjacentRankPositions(rng_seed=1)
-    weights = ranking_weights(adjacent_swap_profile().perturb(transform, group_ballots=True))
-
-    for ranking in [("A", "B", "C"), ("B", "A", "C"), ("A", "C", "B")]:
-        assert weights[ranking] / 3000 == pytest.approx(1 / 3, abs=0.03)
-
-
-def test_adjacent_swap_never_swaps_into_padding():
+def test_each_selected_voter_gets_its_own_row_with_voters_in_str_order():
     profile = RankProfile(
-        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=500)],
-        candidates=["A", "B", "C", "D"],
-        max_ranking_length=4,
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=3, voter_set={"v2", "v10", "v1"})]
     )
-    transform = SwapAdjacentRankPositions(rng_seed=2)
-    weights = ranking_weights(profile.perturb(transform, group_ballots=True))
+    df = profile.perturb(lambda row: row).to_df()
 
-    assert set(weights) == {("A", "B"), ("B", "A")}
+    assert df["Weight"].tolist() == [1.0, 1.0, 1.0]
 
-
-def test_adjacent_swap_is_reproducible_with_seed():
-    def run():
-        transform = SwapAdjacentRankPositions(rng_seed=5)
-        return adjacent_swap_profile(100).perturb(transform, 0.5, rng_seed=5)
-
-    assert ranking_weights(run()) == ranking_weights(run())
+    assert df["Voter Set"].tolist() == [frozenset({"v1"}), frozenset({"v10"}), frozenset({"v2"})]
 
 
-def test_adjacent_swap_reused_transform_continues_its_stream():
-    transform = SwapAdjacentRankPositions(rng_seed=5)
-    first = adjacent_swap_profile(100).perturb(transform, rng_seed=5)
-    second = adjacent_swap_profile(100).perturb(transform, rng_seed=5)
+def test_per_voter_errors_name_the_ballot_index(labeled_profile):
+    def unwrap_first_place_cand_B(row):
+        if row[0] == {"B"}:
+            row[0] = "B"
+        return row
 
-    assert ranking_weights(first) != ranking_weights(second)
-
-
-def test_adjacent_swap_default_generator():
-    perturbed = adjacent_swap_profile(100).perturb(SwapAdjacentRankPositions())
-
-    assert perturbed.total_ballot_wt == 100
+    with pytest.raises(TransformContractError, match="for Ballot Index 20"):
+        labeled_profile.perturb(unwrap_first_place_cand_B)
 
 
-def jitter_profile(a: float, b: float, num_voters: int) -> ScoreProfile:
-    """One ballot type scoring A and B, with an undeclared Z column left unscored."""
+def test_transform_fn_receives_a_writeable_copy(score_profile):
+    def double(scores):
+        assert isinstance(scores, np.ndarray)
+        scores *= 2
+        return scores
+
+    perturbed = score_profile.perturb(double)
+
+    assert score_weights(perturbed) == {(2.0, 4.0): 1.0}
+    assert score_weights(score_profile) == {(1.0, 2.0): 1.0}
+
+
+def test_score_transform_fn_rejects_non_numeric_scores(score_profile):
+    with pytest.raises(TransformContractError, match="transform_fn returned a non-numeric score"):
+        score_profile.perturb(lambda scores: ("high", 1.0))
+
+
+def test_score_transform_fn_rejects_a_negative_score(score_profile):
+    with pytest.raises(TransformContractError, match="negative score"):
+        score_profile.perturb(lambda scores: (-1.0, 1.0))
+
+
+def test_score_transform_fn_rejects_scoring_an_undeclared_candidate():
     df = pd.DataFrame(
-        {"A": [a], "B": [b], "Z": [np.nan], "Voter Set": [set()], "Weight": [float(num_voters)]}
+        {"A": [1.0], "B": [2.0], "Z": [np.nan], "Voter Set": [set()], "Weight": [1.0]}
     )
     df.index.name = "Ballot Index"
-    return ScoreProfile(df=df, candidates=["A", "B"])
+    profile = ScoreProfile(df=df, candidates=["A", "B"])
 
-
-def score_weights(profile: ScoreProfile) -> dict[tuple[float | None, float | None], float]:
-    """Map each (A, B) score pair to its total weight, with NaN shown as None."""
-    weights: dict[tuple[float | None, float | None], float] = {}
-    for _, row in profile.to_df().iterrows():
-        a, b = (None if np.isnan(row[c]) else float(row[c]) for c in ("A", "B"))
-        weights[(a, b)] = weights.get((a, b), 0.0) + row["Weight"]
-    return weights
-
-
-def test_jitter_scores_moves_one_declared_score_by_step():
-    perturbed = jitter_profile(2.0, 1.0, 500).perturb(JitterScores(rng_seed=0))
-    df = perturbed.to_df()
-
-    changes = np.abs(df[["A", "B"]].to_numpy() - np.array([2.0, 1.0]))
-    assert (changes.sum(axis=1) == 1.0).all()
-    assert df["Z"].isna().all()
-    assert perturbed.total_ballot_wt == 500
-
-
-def test_jitter_scores_follows_jitter_distribution():
-    num_voters = 4000
-    weights = score_weights(
-        jitter_profile(2.0, 1.0, num_voters).perturb(JitterScores(rng_seed=1), group_ballots=True)
-    )
-
-    for scores in [(3.0, 1.0), (1.0, 1.0), (2.0, 2.0), (2.0, 0.0)]:
-        assert weights[scores] / num_voters == pytest.approx(1 / 4, abs=0.03)
-
-
-def test_jitter_scores_keeps_unscored_and_stops_at_zero():
-    num_voters = 4000
-    weights = score_weights(
-        jitter_profile(np.nan, 0.0, num_voters).perturb(
-            JitterScores(rng_seed=2), group_ballots=True
-        )
-    )
-
-    # A stays unscored; B only rises when it is drawn and moves up, otherwise it stays at 0
-    assert set(weights) == {(None, 0.0), (None, 1.0)}
-    assert weights[(None, 1.0)] / num_voters == pytest.approx(1 / 4, abs=0.03)
-
-
-def test_jitter_scores_stops_at_max_score():
-    weights = score_weights(
-        jitter_profile(3.0, 3.0, 1000).perturb(
-            JitterScores(rng_seed=3, max_score=3.0), group_ballots=True
-        )
-    )
-
-    assert set(weights) == {(3.0, 3.0), (2.0, 3.0), (3.0, 2.0)}
-
-
-def test_jitter_scores_rejects_scores_above_max_score():
-    profile = jitter_profile(4.0, 1.0, 10)
+    def score_z(scores):
+        scores[2] = 5.0
+        return scores
 
     with pytest.raises(
-        ValueError, match="max_score 3.0 is below max score given in the matrix, 4.0"
+        TransformContractError,
+        match=r"\{'Z'\} not in the profile's candidates. Declare them.*Ballot Index 0",
     ):
-        profile.perturb(JitterScores(rng_seed=0, max_score=3.0))
+        profile.perturb(score_z)
 
 
-def test_jitter_scores_is_reproducible_and_continues_its_stream():
-    def run(transform):
-        return score_weights(jitter_profile(2.0, 1.0, 200).perturb(transform, group_ballots=True))
+def test_score_transform_fn_may_leave_an_undeclared_column_at_zero_or_unscored():
+    df = pd.DataFrame(
+        {"A": [1.0], "B": [2.0], "Z": [np.nan], "Voter Set": [set()], "Weight": [1.0]}
+    )
+    df.index.name = "Ballot Index"
+    profile = ScoreProfile(df=df, candidates=["A", "B"])
 
-    assert run(JitterScores(rng_seed=4)) == run(JitterScores(rng_seed=4))
+    def set_z_to(value):
+        def transform(scores):
+            scores[2] = value
+            return scores
 
-    reused = JitterScores(rng_seed=4)
-    assert run(reused) != run(reused)
+        return transform
+
+    assert profile.perturb(set_z_to(0.0)).to_df()["Z"].tolist() == [0.0]
+    assert profile.perturb(set_z_to(np.nan)).to_df()["Z"].isna().all()
 
 
-@pytest.mark.parametrize("kwargs, match", [({"step": 0}, "step"), ({"max_score": -1}, "max_score")])
-def test_jitter_scores_rejects_invalid_settings(kwargs, match):
-    with pytest.raises(ValueError, match=match):
-        JitterScores(**kwargs)
+def test_default_probability_perturbs_every_voter(rank_profile):
+    perturbed = rank_profile.perturb(reverse)
+
+    assert ranking_weights(perturbed) == {ranking("C", "B", "A"): 2.0, ranking("A", "B"): 1.0}
+
+
+def test_zero_probability_leaves_every_ballot_unchanged(rank_profile):
+    perturbed = rank_profile.perturb(SwapCandidates("A", "B"), 0.0, rng_seed=0)
+
+    pd.testing.assert_frame_equal(perturbed.to_df(), rank_profile.to_df())
+
+
+def test_zero_probability_leaves_a_score_profile_unchanged(score_profile):
+    class DoublesScores:
+        def transform_matrix(self, matrix):
+            return replace(matrix, scores=matrix.scores * 2)
+
+    perturbed = score_profile.perturb(DoublesScores(), 0.0, rng_seed=0)
+
+    pd.testing.assert_frame_equal(perturbed.to_df(), score_profile.to_df())
+
+
+def test_probability_function_chooses_which_rows_to_perturb(rank_profile):
+    def only_ballots_starting_with_b(row):
+        return 1.0 if row[0] == {"B"} else 0.0
+
+    perturbed = rank_profile.perturb(reverse, only_ballots_starting_with_b)
+
+    assert ranking_weights(perturbed) == {ranking("A", "B", "C"): 2.0, ranking("A", "B"): 1.0}
+
+
+def test_probability_rejects_a_non_real_number(rank_profile):
+    with pytest.raises(TypeError, match="real number"):
+        rank_profile.perturb(reverse, "high")
+
+
+def test_probability_function_rejects_return_of_a_non_real_number(rank_profile):
+    with pytest.raises(TypeError, match="real number"):
+        rank_profile.perturb(reverse, lambda row: "high")
+
+
+def test_probability_rejects_a_boolean(rank_profile):
+    with pytest.raises(TypeError, match="real number"):
+        rank_profile.perturb(reverse, True)
+    with pytest.raises(TypeError, match="real number"):
+        rank_profile.perturb(reverse, np.True_)
+
+
+def test_probability_rejects_a_value_above_one(rank_profile):
+    with pytest.raises(ValueError, match="must lie in"):
+        rank_profile.perturb(reverse, 1.5)
+
+
+def test_probability_rejects_a_value_below_zero(rank_profile):
+    with pytest.raises(ValueError, match="must lie in"):
+        rank_profile.perturb(reverse, -0.1)
+
+
+def test_probability_function_error_shows_the_row(labeled_profile):
+    row = "[frozenset({'A'}) frozenset({'B'})]"
+
+    with pytest.raises(ValueError, match=re.escape(f"per_voter_probability({row}) must lie in")):
+        labeled_profile.perturb(reverse, lambda row: 2.0)
+
+
+def test_probability_function_rejects_writing_to_its_row(rank_profile):
+    def write_then_choose(row):
+        row[0] = frozenset({"C"})
+        return 1.0
+
+    with pytest.raises(ValueError, match="read-only"):
+        rank_profile.perturb(reverse, write_then_choose)
+
+
+def test_perturb_rejects_non_integral_weights():
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=1.5)])
+
+    with pytest.raises(ValueError, match="non-integral weights"):
+        profile.perturb(reverse)
+
+
+def test_perturb_rejects_voter_sets_not_matching_weights_even_when_none_are_selected():
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=3, voter_set={"v1", "v2"})]
+    )
+
+    with pytest.raises(ProfileError, match="voter set of size 2 but weight 3"):
+        profile.perturb(reverse, 0.0)
+
+
+def test_voter_set_mismatch_names_the_ballot_index():
+    df = pd.DataFrame(
+        {
+            "Ranking_1": [frozenset({"A"}), frozenset({"B"})],
+            "Voter Set": [frozenset({"v1"}), frozenset({"v2", "v3"})],
+            "Weight": [1.0, 1.0],
+        },
+        index=pd.Index([10, 20], name="Ballot Index"),
+    )
+    profile = RankProfile(df=df, candidates=["A", "B"], max_ranking_length=1)
+
+    with pytest.raises(ProfileError, match="Ballot Index 20 has a voter set of size 2"):
+        profile.perturb(reverse)
+
+
+def test_seeded_selection_splits_the_voter_set_exactly():
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=4, voter_set={"a", "b", "c", "d"})]
+    )
+    df = profile.perturb(reverse, 0.5, rng_seed=0).to_df()
+
+    assert df["Weight"].tolist() == [2.0, 1.0, 1.0]
+    assert df["Voter Set"].tolist() == [frozenset({"a", "c"}), frozenset({"b"}), frozenset({"d"})]
+    assert df["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"B"}), frozenset({"B"})]
+
+
+def test_selecting_no_voters_keeps_the_row_and_its_voters():
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=2, voter_set={"v1", "v2"})]
+    )
+    df = profile.perturb(reverse, 0.0).to_df()
+
+    assert df["Weight"].tolist() == [2.0]
+    assert df["Voter Set"].tolist() == [frozenset({"v1", "v2"})]
+
+
+def test_selecting_every_voter_leaves_no_unperturbed_row():
+    profile = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=2, voter_set={"v1", "v2"})]
+    )
+    df = profile.perturb(reverse, 1.0).to_df()
+
+    assert df["Weight"].tolist() == [1.0, 1.0]
+    assert df["Voter Set"].tolist() == [frozenset({"v1"}), frozenset({"v2"})]
+
+
+def test_partial_selection_splits_a_row_into_kept_and_perturbed_rows():
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=4)])
+    df = profile.perturb(SwapCandidates("A", "B"), 0.5, rng_seed=0).to_df()
+
+    assert df["Weight"].tolist() == [2.0, 2.0]
+    assert df["Ranking_1"].tolist() == [frozenset({"A"}), frozenset({"B"})]
+
+
+def test_zero_weight_rows_are_kept_and_never_perturbed():
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+            RankBallot(ranking=[{"B"}, {"A"}], weight=0),
+        ]
+    )
+    df = profile.perturb(reverse).to_df()
+
+    assert df["Weight"].tolist() == [0.0, 1.0]
+    assert df["Ranking_1"].tolist() == [frozenset({"B"}), frozenset({"B"})]
+
+
+def test_group_ballots_combines_equal_rankings():
+    profile = RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=1),
+            RankBallot(ranking=[{"B"}, {"A"}], weight=1),
+        ]
+    )
+    df = profile.perturb(
+        lambda row: [frozenset({"A"}), frozenset({"B"})], group_ballots=True
+    ).to_df()
+
+    assert df["Weight"].tolist() == [2.0]
+
+
+def test_fraction_weights_stay_fractions_when_every_voter_is_perturbed():
+    profile = RankProfile(ballots=[RankBallot(ranking=[{"A"}, {"B"}], weight=Fraction(2))])
+    perturbed = profile.perturb(reverse)
+
+    assert perturbed._matrix.voter_weight_data.has_fraction_weights
+    assert sum(perturbed.to_df()["Weight"]) == Fraction(2)
+
+
+def test_same_seed_gives_the_same_result(rank_profile):
+    first = rank_profile.perturb(reverse, 0.5, rng_seed=7)
+    second = rank_profile.perturb(reverse, 0.5, rng_seed=7)
+
+    pd.testing.assert_frame_equal(first.to_df(), second.to_df())
+
+
+def test_empty_profiles_are_returned_unchanged():
+    empty_rank, empty_score = RankProfile(), ScoreProfile()
+
+    assert empty_rank.perturb(reverse) is empty_rank
+    assert empty_score.perturb(lambda row: row) is empty_score

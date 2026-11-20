@@ -68,8 +68,8 @@ class _PerVoterTransformFn:
             perturbed_row = self.transform_vote_fn(unit_rows[unit_idx])
             unit_rows[unit_idx] = _validate_row(perturbed_row, matrix, source_row_idx)
 
+        _validate_cast_candidates(unit_rows, source_row_idxs, matrix)
         if isinstance(matrix, RankMatrix):
-            _validate_cast_candidates(unit_rows, source_row_idxs, matrix)
             return type(matrix).from_array(
                 unit_rows,
                 voter_weight_data=unit_matrix_data,
@@ -100,8 +100,8 @@ def _validate_row(
 
     Raises:
         TransformContractError: The row is not a 1D array of the matrix's width, a ranking row
-            holds entries other than sets or frozensets, or a score row holds non-numeric or
-            negative scores.
+            holds entries other than sets or frozensets, uses "~" inside a candidate set, or pads
+            before a ranked position, or a score row holds non-numeric or negative scores.
     """
     try:
         row = np.asarray(perturbed_row)
@@ -127,6 +127,7 @@ def _validate_row(
         )
 
     if isinstance(matrix, RankMatrix):
+        seen_padding = False
         for position, cand_set in enumerate(row):
             if not isinstance(cand_set, (set, frozenset)):
                 raise TransformContractError(
@@ -137,6 +138,21 @@ def _validate_row(
                 )
             if isinstance(cand_set, set):
                 row[position] = frozenset(cand_set)
+            if "~" in row[position] and row[position] != END_OF_RANKING_SET:
+                raise TransformContractError(
+                    "transform_fn may only use '~' as the padding frozenset({'~'}), not inside a"
+                    f" candidate set. Returned {perturbed_row} for Ballot Index"
+                    f" {_ballot_label(matrix.voter_weight_data, source_row_idx)}."
+                )
+
+            if row[position] == END_OF_RANKING_SET:
+                seen_padding = True
+            elif seen_padding:
+                raise TransformContractError(
+                    "transform_fn must put frozenset({'~'}) only at the end of a ranking. Returned"
+                    f" {perturbed_row} for Ballot Index"
+                    f" {_ballot_label(matrix.voter_weight_data, source_row_idx)}."
+                )
         return row
 
     # ScoreMatrix
@@ -154,38 +170,58 @@ def _validate_row(
 
 
 def _validate_cast_candidates(
-    perturbed_rankings: NDArray[np.object_], source_row_idxs: NDArray[np.intp], matrix: RankMatrix
+    perturbed_rows: NDArray, source_row_idxs: NDArray[np.intp], matrix: RankMatrix | ScoreMatrix
 ) -> None:
     """
-    Validates only the profile's candidates are ranked in the perturbed rankings.
+    Validates that the perturbed rows only cast votes for the profile's candidates.
 
-    Candidates cast are those ranked on positive-weight ballots. Every array row has weight 1, so
-    every candidate in a perturbed ranking is cast and must be one of the profile's candidates.
+    Candidates cast are those ranked or given a positive score on positive-weight ballots.
+    Every perturbed row has weight 1, so every candidate it ranks or scores above 0 is cast and
+    must be one of the profile's candidates. A score row may still hold NaN or 0 for an
+    undeclared score column.
 
     Args:
-        unit_rows (NDArray[np.object_]): Perturbed rankings of candidate sets, one row per unit.
+        perturbed_rows (NDArray): Perturbed rows: candidate sets for rankings or
+            scores in score-column order.
         source_row_idxs (NDArray[np.intp]): Row index in ``matrix`` of each unit's input row.
-        matrix (RankMatrix): Matrix the units were decoded from.
+        matrix (RankMatrix | ScoreMatrix): Matrix the units were decoded from.
 
     Raises:
-        TransformContractError: A ranking ranks a candidate outside the profile's candidates.
+        TransformContractError: A row ranks or scores a candidate outside the profile's candidates.
     """
-    distinct_cand_sets = set(perturbed_rankings.ravel())
-    cands_cast = frozenset().union(*distinct_cand_sets) - END_OF_RANKING_SET
-    undeclared_cands = cands_cast - frozenset(matrix.candidates)
-    if not undeclared_cands:
-        return
+    candidates = frozenset(matrix.candidates)
+    if isinstance(matrix, RankMatrix):
+        distinct_cand_sets = set(perturbed_rows.ravel())
+        cands_cast = frozenset().union(*distinct_cand_sets) - END_OF_RANKING_SET
+        undeclared_cands = cands_cast - candidates
+        if not undeclared_cands:
+            return
+        invalid_row_idx = next(
+            ranking_idx
+            for ranking_idx, ranking_row in enumerate(perturbed_rows)
+            if any(cand_set & undeclared_cands for cand_set in ranking_row)
+        )
+    else:
+        undeclared_columns = [
+            column for column, cand in enumerate(matrix.score_columns) if cand not in candidates
+        ]
+        if not undeclared_columns:
+            return
 
-    invalid_ranking_idx = next(
-        ranking_idx
-        for ranking_idx, ranking in enumerate(perturbed_rankings)
-        if any(cand_set & undeclared_cands for cand_set in ranking)
-    )
-    ballot_label = _ballot_label(matrix.voter_weight_data, source_row_idxs[invalid_ranking_idx])
+        undeclared_pos_score = perturbed_rows[:, undeclared_columns] > 0
+        if not np.any(undeclared_pos_score):
+            return
+        undeclared_cands = {
+            matrix.score_columns[undeclared_columns[column_idx]]
+            for column_idx in np.flatnonzero(undeclared_pos_score.any(axis=0))
+        }
+        invalid_row_idx = int(np.flatnonzero(undeclared_pos_score.any(axis=1))[0])
+
+    ballot_label = _ballot_label(matrix.voter_weight_data, source_row_idxs[invalid_row_idx])
     raise TransformContractError(
         f"transform_fn returned candidates {set(undeclared_cands)} not in the profile's"
         " candidates. Declare them in the profile's candidates before perturbing. Returned"
-        f" {perturbed_rankings[invalid_ranking_idx]} for Ballot Index {ballot_label}."
+        f" {perturbed_rows[invalid_row_idx]} for Ballot Index {ballot_label}."
     )
 
 

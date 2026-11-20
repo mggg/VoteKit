@@ -1,3 +1,4 @@
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -29,12 +30,12 @@ class JitterScores:
         rng_seed (int, optional): Seed for sampling the candidates and directions. Pass a seed for
             reproducible moves. Defaults to None, which creates an unseeded generator.
         step (float, optional): Size of each move in score. Defaults to 1.0.
-        max_score (float, optional): Highest score a move can reach. Every score on the ballots
-            the transform receives must already be at most ``max_score``. Defaults to None, which
-            sets no upper bound.
+        max_score (float, optional): Highest score a move can reach. Every score on the ballots the
+            transform receives must already be at most ``max_score``. Defaults to None.
 
     Raises:
-        ValueError: ``step`` is not positive, or ``max_score`` is negative.
+        ValueError: ``step`` is not a positive finite number, or ``max_score`` is not a non-negative
+            finite number.
         ValueError: A ballot already gives a score above ``max_score``.
     """
 
@@ -44,10 +45,14 @@ class JitterScores:
     _rng: np.random.Generator = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if not self.step > 0:
-            raise ValueError(f"step must be positive, received {self.step}.")
-        if self.max_score is not None and self.max_score < 0:
-            raise ValueError(f"max_score cannot be negative, received {self.max_score}.")
+        if not (math.isfinite(self.step) and self.step > 0):
+            raise ValueError(f"step must be a positive finite number, received {self.step}.")
+        if self.max_score is not None and not (
+            math.isfinite(self.max_score) and self.max_score >= 0
+        ):
+            raise ValueError(
+                f"max_score must be a non-negative finite number, received {self.max_score}."
+            )
         self._rng = np.random.default_rng(self.rng_seed)
 
     def transform_matrix(self, matrix: ScoreMatrix) -> ScoreMatrix:
