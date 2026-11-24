@@ -420,6 +420,108 @@ class ProfileVoterWeightData:
 
         return data
 
+    def _apply_bin_mask(
+        self,
+        bin_mask: NDArray[np.intp],
+        *,
+        split_voters: bool = True,
+        rng: np.random.Generator | None = None,
+    ) -> tuple[
+        ProfileVoterWeightData, NDArray[np.bool_], ProfileVoterWeightData, NDArray[np.bool_]
+    ]:
+        """
+        Splits each row's weight based on the bin mask, leaving the rest as the unselected weight.
+
+        A row is selected if its bin mask has positive weight. The masked row will only have weight
+        up to its bin mask value. Leftover weight of that row remains unselected.
+
+        With ``split_voters``, a non-empty voter set is split amongst the selected/unselected weight
+        of the row. Their voter sets are sorted, then sampled by ``rng`` if True. If False, a split
+        row's parts keep the row's whole voter set, e.g. when weight moves fractionally and cannot
+        be traced to individual voters.
+
+        Args:
+            bin_mask (NDArray[np.intp]): Non-negative integer weight to mask out of each row, capped
+                at the row's weight.
+            split_voters (bool, optional): Whether to split a row's voters between the parts
+                rather than share them. Defaults to True.
+            rng (np.random.Generator, optional): Generator for choosing the selected voters.
+                Defaults to None, which selects the first voters in sorted order.
+
+        Returns:
+            tuple[ProfileVoterWeightData, NDArray[np.bool_], ProfileVoterWeightData,
+            NDArray[np.bool_]]: Data of the selected rows and which rows are selected, then data
+                of the unselected rows and which rows are unselected. Weights keep the original
+                weight kind.
+
+        Raises:
+            TypeError: bin_mask is not an integer array.
+            ValueError: bin_mask does not have one entry per row, or has a negative entry.
+            ValueError: ``split_voters`` is set and a split row's voter set does not have one voter
+                per unit of weight.
+        """
+        if not isinstance(bin_mask, np.ndarray) or bin_mask.dtype.kind not in "iu":
+            raise TypeError("bin_mask must be an integer numpy array.")
+        if bin_mask.shape != (len(self),):
+            raise ValueError(f"bin_mask must have shape ({len(self)},), not {bin_mask.shape}.")
+        if np.any(bin_mask < 0):
+            raise ValueError("bin_mask entries must be non-negative.")
+
+        # a bin_mask above a row's weight masks out the whole row
+        masked_weights = np.minimum(bin_mask, self.weights)
+        remaining_weights = self.weights - masked_weights
+
+        selected_rows = np.asarray(masked_weights > 0, dtype=bool)
+        unselected_rows = np.asarray(remaining_weights > 0, dtype=bool) | ~selected_rows
+
+        if self.weight_kind is WeightKind.FRACTION:
+            selected_weights = np.empty(int(selected_rows.sum()), dtype=object)
+            selected_weights[:] = [Fraction(weight) for weight in masked_weights[selected_rows]]
+        else:
+            selected_weights = masked_weights[selected_rows]
+
+        unselected_weights = remaining_weights[unselected_rows]
+
+        selected_voter_sets = unselected_voter_sets = None
+        if self.voter_sets is not None:
+            selected_voter_sets = self.voter_sets.copy()
+            unselected_voter_sets = self.voter_sets.copy()
+            if split_voters:
+                for row in np.flatnonzero(selected_rows & unselected_rows):
+                    voter_set = self.voter_sets[row]
+                    if not voter_set:
+                        continue
+                    if len(voter_set) != self.weights[row]:
+                        raise ValueError(
+                            "A row split by the bin_mask must have one voter per unit of weight."
+                            f" Row {row} has a voter set of size {len(voter_set)} but"
+                            f" weight {self.weights[row]}."
+                        )
+                    voters = sorted(voter_set, key=str)
+                    if rng is not None:
+                        rng.shuffle(voters)
+                    num_selected = int(bin_mask[row])
+                    selected_voter_sets[row] = frozenset(voters[:num_selected])
+                    unselected_voter_sets[row] = frozenset(voters[num_selected:])
+            selected_voter_sets = selected_voter_sets[selected_rows]
+            unselected_voter_sets = unselected_voter_sets[unselected_rows]
+
+        labels = self.ballot_index if self.ballot_index is not None else np.arange(len(self))
+
+        selected_data = ProfileVoterWeightData(
+            weights=selected_weights,
+            voter_sets=selected_voter_sets,
+            weight_kind=self.weight_kind,
+            ballot_index=labels[selected_rows],
+        )
+        unselected_data = ProfileVoterWeightData(
+            weights=unselected_weights,
+            voter_sets=unselected_voter_sets,
+            weight_kind=self.weight_kind,
+            ballot_index=labels[unselected_rows],
+        )
+        return selected_data, selected_rows, unselected_data, unselected_rows
+
 
 def _sum_grouped_float_weights(
     weights: NDArray[np.float64],

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import copy as shallow_copy
 from dataclasses import dataclass, field
 from typing import Self
 
@@ -338,6 +339,109 @@ class ScoreMatrix:
             score_columns=self.score_columns,
             candidates=self.candidates,
         )
+
+    def apply_mask(self, mask: NDArray[np.bool_]) -> ScoreMatrix:
+        """
+        Select rows with a boolean mask, retaining source index labels and the score columns.
+
+        A selection of validated rows remains valid, so construction is bypassed.
+
+        Args:
+            mask (NDArray[np.bool_]): One flag per ballot; True rows are kept in source order.
+
+        Returns:
+            ScoreMatrix: Selected rows with owned, read-only scores and explicit ballot index
+                labels (i.e. voter_weight_data.ballot_index will not be None).
+
+        Raises:
+            TypeError: The mask does not have boolean dtype.
+            ValueError: The mask is not one flag per ballot.
+        """
+        # Validates the mask before the scores are indexed.
+        data = self.voter_weight_data.apply_mask(mask)
+
+        scores = self.scores[mask]
+        scores.setflags(write=False)
+
+        matrix = shallow_copy(self)
+        object.__setattr__(matrix, "voter_weight_data", data)
+        object.__setattr__(matrix, "scores", scores)
+
+        return matrix
+
+    def _apply_bin_mask(
+        self,
+        bin_mask: NDArray[np.intp],
+        *,
+        split_voters: bool = True,
+        rng: np.random.Generator | None = None,
+    ) -> tuple[ScoreMatrix, ScoreMatrix]:
+        """
+        Masks each row's weight based on the bin mask, returning the selected and unselected rows.
+
+        The selected matrix has a row for each row with a positive weight in the bin_mask. The
+        unselected matrix has a row for each row with weight leftover and keeps rows of weight 0.
+        Each row repeats its source row's scores and keeps its source index label. A selection of
+        validated rows remains valid, so construction is bypassed.
+
+        Args:
+            bin_mask (NDArray[np.intp]): Non-negative integer weight to mask out of each row, capped
+                at the row's weight.
+            split_voters (bool, optional): Whether to split a row's voters between the parts, one
+                voter per unit of weight, rather than share them. Defaults to True.
+            rng (np.random.Generator, optional): Generator for choosing the selected voters.
+                Defaults to None, which selects the first voters in sorted order.
+
+        Returns:
+            tuple[ScoreMatrix, ScoreMatrix]: The selected rows and the unselected rows.
+
+        Raises:
+            TypeError: bin_mask is not an integer array.
+            ValueError: bin_mask does not have one entry per row or has a negative entry, or a
+                split row's voter set does not have one voter per unit of weight.
+        """
+        selected_data, selected_rows, unselected_data, unselected_rows = (
+            self.voter_weight_data._apply_bin_mask(bin_mask, split_voters=split_voters, rng=rng)
+        )
+
+        selected_scores = self.scores[selected_rows]
+        selected_scores.setflags(write=False)
+        selected_matrix = shallow_copy(self)
+        object.__setattr__(selected_matrix, "voter_weight_data", selected_data)
+        object.__setattr__(selected_matrix, "scores", selected_scores)
+
+        unselected_scores = self.scores[unselected_rows]
+        unselected_scores.setflags(write=False)
+        unselected_matrix = shallow_copy(self)
+        object.__setattr__(unselected_matrix, "voter_weight_data", unselected_data)
+        object.__setattr__(unselected_matrix, "scores", unselected_scores)
+
+        return selected_matrix, unselected_matrix
+
+    def where(self, scores: NDArray) -> NDArray[np.intp]:
+        """
+        Find the rows holding exactly the given scores, with NaN matching NaN.
+
+        Args:
+            scores (NDArray): One score per score column, in score-column order, with NaN for
+                unscored, as in a row of ``scores``.
+
+        Returns:
+            NDArray[np.intp]: Row index of each matching row, in row order. Empty if no row
+                matches.
+
+        Raises:
+            ValueError: The scores do not have one entry per score column.
+        """
+        scores = np.asarray(scores, dtype=np.float64)
+        if scores.shape != (len(self.score_columns),):
+            raise ValueError(
+                f"scores must have one entry per score column, {len(self.score_columns)},"
+                f" received shape {scores.shape}."
+            )
+
+        matches = (self.scores == scores) | (np.isnan(self.scores) & np.isnan(scores))
+        return np.flatnonzero(np.all(matches, axis=1))
 
 
 def _concatenate_score_matrices(

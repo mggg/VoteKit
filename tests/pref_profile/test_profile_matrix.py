@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from votekit.ballot import RankBallot, ScoreBallot
+from votekit.constants import END_OF_RANKING_SET
 from votekit.exceptions import ProfileError
 from votekit.pref_profile import (
     CleanedRankProfile,
@@ -1136,6 +1137,204 @@ def test_rank_matrix_apply_mask_rejects_non_boolean_dtype():
 
     with pytest.raises(TypeError, match="mask must have boolean dtype"):
         matrix.apply_mask(np.array([1, 0]))
+
+
+@pytest.fixture
+def rank_matrix() -> RankMatrix:
+    """A > B with weight 3 for voters a, b, c; B > A with weight 0; A with weight 2, no voters."""
+    return RankProfile(
+        ballots=[
+            RankBallot(ranking=[{"A"}, {"B"}], weight=3, voter_set={"a", "b", "c"}),
+            RankBallot(ranking=[{"B"}, {"A"}], weight=0),
+            RankBallot(ranking=[{"A"}], weight=2),
+        ]
+    )._matrix
+
+
+@pytest.fixture
+def score_matrix() -> ScoreMatrix:
+    return ScoreProfile(
+        ballots=[ScoreBallot(scores={"A": 1}), ScoreBallot(scores={"A": 1, "B": 0})],
+        candidates=["A", "B"],
+    )._matrix
+
+
+def test_bin_mask_returns_the_selected_and_unselected_rows(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(np.array([2, 0, 1]))
+
+    assert selected.voter_weight_data.weights.tolist() == [2.0, 1.0]
+    assert selected.to_df().index.tolist() == [0, 2]
+    assert unselected.voter_weight_data.weights.tolist() == [1.0, 0.0, 1.0]
+    assert unselected.to_df().index.tolist() == [0, 1, 2]
+    assert selected.get_ranking(0) == (frozenset({"A"}), frozenset({"B"}))
+
+
+def test_bin_mask_leaves_a_fully_binned_row_out_of_the_unselected_rows(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(np.array([3, 0, 2]))
+
+    assert selected.voter_weight_data.weights.tolist() == [3.0, 2.0]
+    assert unselected.voter_weight_data.weights.tolist() == [0.0]
+    assert unselected.to_df().index.tolist() == [1]
+
+
+def test_bin_mask_without_rng_selects_the_first_voters_in_sorted_order(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(np.array([1, 0, 0]))
+
+    assert selected.to_df()["Voter Set"].tolist() == [frozenset({"a"})]
+    assert unselected.to_df()["Voter Set"].tolist() == [
+        frozenset({"b", "c"}),
+        frozenset(),
+        frozenset(),
+    ]
+
+
+def test_bin_mask_with_rng_splits_voters_into_disjoint_shares(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(
+        np.array([1, 0, 0]), rng=np.random.default_rng(0)
+    )
+
+    selected_voters = selected.to_df()["Voter Set"].iloc[0]
+    unselected_voters = unselected.to_df()["Voter Set"].iloc[0]
+    assert (len(selected_voters), len(unselected_voters)) == (1, 2)
+    assert selected_voters | unselected_voters == {"a", "b", "c"}
+
+
+def test_bin_mask_without_splitting_voters_gives_both_parts_the_whole_voter_set(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(np.array([1, 0, 0]), split_voters=False)
+
+    assert selected.to_df()["Voter Set"].iloc[0] == {"a", "b", "c"}
+    assert unselected.to_df()["Voter Set"].iloc[0] == {"a", "b", "c"}
+
+
+def test_bin_mask_without_splitting_voters_accepts_a_voter_set_not_matching_its_weight():
+    matrix = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=3, voter_set={"a", "b"})]
+    )._matrix
+
+    selected, unselected = matrix._apply_bin_mask(np.array([1]), split_voters=False)
+
+    assert selected.to_df()["Voter Set"].tolist() == [frozenset({"a", "b"})]
+    assert unselected.to_df()["Voter Set"].tolist() == [frozenset({"a", "b"})]
+
+
+def test_bin_mask_keeps_the_whole_voter_set_of_a_row_in_one_part():
+    matrix = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=3, voter_set={"a", "b"})]
+    )._matrix
+
+    all_selected, _ = matrix._apply_bin_mask(np.array([3]))
+    _, all_unselected = matrix._apply_bin_mask(np.array([0]))
+
+    assert all_selected.to_df()["Voter Set"].tolist() == [frozenset({"a", "b"})]
+    assert all_unselected.to_df()["Voter Set"].tolist() == [frozenset({"a", "b"})]
+
+
+def test_bin_mask_keeps_fraction_weights():
+    matrix = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=Fraction(3))])._matrix
+
+    selected, unselected = matrix._apply_bin_mask(np.array([1]))
+
+    assert selected.voter_weight_data.weights.tolist() == [Fraction(1)]
+    assert unselected.voter_weight_data.weights.tolist() == [Fraction(2)]
+
+
+def test_bin_mask_remaining_weight_may_be_non_integral():
+    matrix = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1.5)])._matrix
+
+    selected, unselected = matrix._apply_bin_mask(np.array([1]))
+
+    assert selected.voter_weight_data.weights.tolist() == [1.0]
+    assert unselected.voter_weight_data.weights.tolist() == [0.5]
+
+
+def test_bin_mask_splits_score_rows(score_matrix):
+    selected, unselected = score_matrix._apply_bin_mask(np.array([1, 0]))
+
+    assert np.array_equal(selected.scores, score_matrix.scores[[0]], equal_nan=True)
+    assert np.array_equal(unselected.scores, score_matrix.scores[[1]], equal_nan=True)
+
+
+def test_bin_mask_above_the_weight_masks_out_the_whole_row(rank_matrix):
+    selected, unselected = rank_matrix._apply_bin_mask(np.array([4, 0, 0]))
+
+    assert selected.voter_weight_data.weights.tolist() == [3.0]
+    assert selected.to_df()["Voter Set"].tolist() == [frozenset({"a", "b", "c"})]
+    assert unselected.to_df().index.tolist() == [1, 2]
+
+
+def test_bin_mask_above_a_non_integral_weight_masks_out_the_whole_row():
+    float_matrix = RankProfile(ballots=[RankBallot(ranking=[{"A"}], weight=1.5)])._matrix
+    fraction_matrix = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=Fraction(3, 2))]
+    )._matrix
+
+    float_selected, float_unselected = float_matrix._apply_bin_mask(np.array([2]))
+    fraction_selected, fraction_unselected = fraction_matrix._apply_bin_mask(np.array([2]))
+
+    assert float_selected.voter_weight_data.weights.tolist() == [1.5]
+    assert fraction_selected.voter_weight_data.weights.tolist() == [Fraction(3, 2)]
+    assert len(float_unselected) == len(fraction_unselected) == 0
+
+
+def test_bin_mask_rejects_a_non_integer_mask(rank_matrix):
+    with pytest.raises(TypeError, match="integer numpy array"):
+        rank_matrix._apply_bin_mask(np.array([1.0, 0.0, 2.0]))
+
+
+def test_bin_mask_rejects_the_wrong_shape(rank_matrix):
+    with pytest.raises(ValueError, match=r"shape \(3,\)"):
+        rank_matrix._apply_bin_mask(np.array([3, 0]))
+    with pytest.raises(ValueError, match=r"shape \(3,\)"):
+        rank_matrix._apply_bin_mask(np.array([[1, 0], [0, 0], [1, 0]]))
+
+
+def test_bin_mask_rejects_a_negative_entry(rank_matrix):
+    with pytest.raises(ValueError, match="non-negative"):
+        rank_matrix._apply_bin_mask(np.array([-1, 0, 0]))
+
+
+def test_bin_mask_rejects_splitting_a_voter_set_not_matching_its_weight():
+    matrix = RankProfile(
+        ballots=[RankBallot(ranking=[{"A"}], weight=3, voter_set={"a", "b"})]
+    )._matrix
+
+    with pytest.raises(ValueError, match="voter set of size 2 but weight 3"):
+        matrix._apply_bin_mask(np.array([1]))
+
+
+def test_rank_matrix_where_finds_rows_with_a_ranking(rank_matrix):
+    a_only = np.array([frozenset({"A"}), END_OF_RANKING_SET], dtype=object)
+
+    assert rank_matrix.where(a_only).tolist() == [2]
+
+
+def test_rank_matrix_where_finds_no_row_for_an_absent_ranking(rank_matrix):
+    c_only = np.array([frozenset({"C"}), END_OF_RANKING_SET], dtype=object)
+
+    assert rank_matrix.where(c_only).tolist() == []
+
+
+def test_rank_matrix_where_rejects_a_ranking_of_the_wrong_length(rank_matrix):
+    with pytest.raises(ValueError, match="one entry per ranking position, 2"):
+        rank_matrix.where(np.array([frozenset({"A"})], dtype=object))
+
+
+def test_rank_matrix_where_rejects_entries_that_are_not_sets(rank_matrix):
+    with pytest.raises(TypeError, match="sets or frozensets"):
+        rank_matrix.where(np.array(["A", "~"], dtype=object))
+
+
+def test_score_matrix_where_matches_nan_to_nan_and_not_to_zero(score_matrix):
+    assert score_matrix.where(np.array([1.0, np.nan])).tolist() == [0]
+    assert score_matrix.where(np.array([1.0, 0.0])).tolist() == [1]
+
+
+def test_score_matrix_apply_mask_keeps_rows_and_their_labels(score_matrix):
+    masked = score_matrix.apply_mask(np.array([False, True]))
+
+    assert masked.to_df().index.tolist() == [1]
+    assert masked.scores.tolist() == [[1.0, 0.0]]
+    assert not masked.scores.flags.writeable
 
 
 @pytest.mark.parametrize("fraction_weights", [False, True])

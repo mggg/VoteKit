@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
@@ -26,7 +26,28 @@ from votekit.pref_profile.csv_utils import (
 )
 from votekit.pref_profile.pref_profile._candidate_names import _normalize_unique_candidates
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
-from votekit.pref_profile.profile_matrix import ScoreMatrix
+from votekit.pref_profile.profile_matrix import ScoreMatrix, WeightKind
+from votekit.pref_profile.profile_transform.protocol import (
+    ProfileTransform,
+    ScoreRowTransformFn,
+    ScoresRow,
+)
+from votekit.pref_profile.profile_transform.transform import (
+    MapMode,
+    _apply_profile_transform,
+    _as_fraction_weights,
+    _combine_score_matrices,
+    _map_matrix,
+    _sample_selected_weights,
+    _validate_mode,
+    _validate_probability,
+    _validate_profile_transform,
+    _validate_row_transform_fn,
+)
+from votekit.pref_profile.profile_transform.transform_utils import (
+    _split_per_voter,
+    _validate_one_voter_per_unit_weight,
+)
 from votekit.pref_profile.utils import _subtract_score_profiles, _sum_score_profiles
 from votekit.types import Candidate, Numeric
 from votekit.utils import sort_candidates_pseudo_lexicographically
@@ -485,6 +506,254 @@ class ScoreProfile(PreferenceProfile[ScoreMatrix, ScoreBallot]):
                 weights.
         """
         return _subtract_score_profiles(self, other)
+
+    def map(
+        self,
+        row_transform_fn: ScoreRowTransformFn,
+        per_voter_probability: float | Callable[[ScoresRow], float] = 1.0,
+        *,
+        mode: MapMode = "row",
+        group_ballots: bool = True,
+        rng: int | np.random.Generator | None = None,
+    ) -> ScoreProfile:
+        """
+        Apply a function to each ballot's scores within the profile, for some or all voters.
+
+        ``row_transform_fn`` receives one ballot's scores as a writeable 1D float array copy, in the
+        order of the score columns of ``to_df()``, with NaN meaning unscored. Keep in mind that
+        score columns can include undeclared candidates beyond ``candidates`` that have a score of
+        0 or NaN. It may modify the array in place and return it, or return a new 1D array or
+        sequence of scores, one per score column.
+
+        ``row_transform_fn`` is called as ``row_transform_fn(row, rng)``, by position. ``row`` is
+        a ballot's scores as a writeable 1D float array copy, in the order of the score columns of
+        ``to_df()``. It may modify the array in place and return it, or return a new 1D array or
+        sequence of scores. ``rng`` is the generator made from this call's ``rng``, which also
+        samples the voters, so one seed reproduces the whole result. Passing the same
+        ``np.random.Generator`` to several calls continues one random stream. A deterministic
+        function still accepts ``rng`` and ignores it. To pass extra arguments to the
+        ``row_transform_fn``, curry them first, e.g. ``functools.partial(fn, candidate="A")``.
+
+        In "row" mode, ``row_transform_fn`` is called once per row of the profile and each row keeps
+        its weight and voter set. In "voter" mode, the function is called once per voter: each unit
+        of weight becomes its own row of weight 1. The weights must be integral to be split into
+        unit weight.
+
+        ``per_voter_probability`` selects the voters to map; the others are unchanged. Each unit of
+        ballot weight is treated as one voter and is selected independently with probability p, so a
+        row of weight w has Binomial(w, p) of its weight selected. A probability of exactly 0
+        returns the profile itself, without checking the other arguments, and exactly 1 maps
+        every row, without sampling. Any other probability, or a probability function, samples
+        voters and requires integral weights. If a row's voter set is non-empty, the selected voters
+        are sampled without replacement from the row's voter set, whose size must equal the row's
+        weight.
+
+        Returned scores only need to form a valid profile. A positive score for an undeclared
+        score column appends that candidate to the profile's candidates, so
+        ``result.candidates[len(candidates):]`` are the added candidates. Candidates no longer
+        scored stay in the candidates.
+
+        Args:
+            row_transform_fn (ScoreRowTransformFn): Function applied on each ballot's scores of the
+                profile.
+            per_voter_probability (float | Callable[[NDArray], float], optional): Probability that
+                each voter is mapped. A float applies to all voters. A callable is evaluated once
+                per row in the same form ``row_transform_fn`` receives. Defaults to 1.0.
+            mode (str, optional): "row" to call ``row_transform_fn`` once per row, or "voter" to
+                call it once per voter. Defaults to "row".
+            group_ballots (bool, optional): Whether to group the output ballots by scores,
+                summing weights and joining voter sets, to show how the distribution of ballots
+                changed. Defaults to True.
+            rng (int | np.random.Generator, optional): Seed or generator for voter selection,
+                voter set sampling, and ``row_transform_fn``. Defaults to None.
+
+        Returns:
+            ScoreProfile: The new profile, including unselected voters.
+
+        Raises:
+            TypeError: A probability is not a real number.
+            ValueError: A probability lies outside [0, 1], or ``mode`` is not "row" or "voter".
+            ValueError: Voters are sampled, or ``mode`` is "voter", and the profile has
+                non-integral weights.
+            ProfileError: Voters are sampled, or ``mode`` is "voter", and a row's non-empty
+                voter set does not match its weight.
+            TransformContractError: ``row_transform_fn`` is a class, a ProfileTransform, or not
+                callable.
+            TransformContractError: ``row_transform_fn`` returns scores that cannot be stored: not
+                one non-negative number per score column. The error shows the ballot, which
+                ``where`` finds.
+        """
+        if len(self._matrix) == 0:
+            return self
+        if per_voter_probability == 0 and not isinstance(per_voter_probability, (bool, np.bool_)):
+            return self
+
+        _validate_row_transform_fn(row_transform_fn)
+        _validate_mode(mode)
+        if not callable(per_voter_probability):
+            per_voter_probability = _validate_probability(
+                per_voter_probability, "per_voter_probability"
+            )
+
+        samples_voters = callable(per_voter_probability) or per_voter_probability != 1
+        if mode == "voter" or samples_voters:
+            _validate_one_voter_per_unit_weight(self._matrix)
+
+        rng = np.random.default_rng(rng)
+        if samples_voters:
+            weight_selected = _sample_selected_weights(self._matrix, per_voter_probability, rng)
+            selected_matrix, unselected_matrix = self._matrix._apply_bin_mask(
+                weight_selected, rng=rng
+            )
+        else:
+            selected_matrix, unselected_matrix = self._matrix, None
+
+        if mode == "voter":
+            # only the selected voters are split, so each gets its own call of row_transform_fn
+            selected_matrix = _split_per_voter(selected_matrix)
+        transformed_matrix = _map_matrix(row_transform_fn, selected_matrix, rng)
+
+        result = self._combine_perturbed(unselected_matrix, transformed_matrix)
+        if group_ballots:
+            return result.group_ballots()
+        return result
+
+    def transform(
+        self,
+        profile_transform: ProfileTransform[ScoreMatrix],
+        per_voter_probability: float | Callable[[ScoresRow], float] = 1.0,
+        *,
+        group_ballots: bool = True,
+        rng: int | np.random.Generator | None = None,
+    ) -> ScoreProfile:
+        """
+        Apply a ProfileTransform to the matrix of some or all voters at once.
+
+        ``profile_transform.transform_matrix(matrix, rng)`` receives the ScoreMatrix of the
+        selected rows, each weighted by its number of selected voters and grouped as in the
+        profile. It may use matrix operations, which makes it the fast path for large profiles.
+        See ``ProfileTransform``.
+
+        ``per_voter_probability`` selects the voters to transform, as in ``map``. A probability of
+        exactly 0 returns the profile itself, without checking the other arguments, and exactly 1
+        transforms every row without sampling, so non-integral weights are supported unless the
+        transform itself acts per voter. Any other probability, or a probability function, samples
+        voters and requires integral weights.
+
+        The result only has to be a valid ScoreMatrix. Its weights, voter sets, and score columns
+        are not checked; built-in transforms check their own rules. The returned matrix is the
+        truth for the score columns: the result's columns are the union of both parts', with NaN
+        where a part lacks a column, so at probability 1 they are the returned matrix's columns.
+        Candidates in the result's candidates that the profile lacks are appended to the profile's
+        candidates. Candidates no longer scored stay in the candidates. An empty profile is
+        returned as is, without checking any arguments.
+
+        Args:
+            profile_transform (ProfileTransform[ScoreMatrix]): Transform applied to the matrix
+                of selected rows.
+            per_voter_probability (float | Callable[[NDArray], float], optional): Probability
+                that each voter is transformed. See ``map``. Defaults to 1.0.
+            group_ballots (bool, optional): Whether to group the output ballots by scores,
+                summing weights and joining voter sets, to show how the distribution of ballots
+                changed. Defaults to True.
+            rng (int | np.random.Generator, optional): Seed or generator for voter selection,
+                voter set sampling, and ``profile_transform``. Defaults to None, which creates an
+                unseeded generator.
+
+        Returns:
+            ScoreProfile: The new profile, including unselected voters.
+
+        Raises:
+            TypeError: A probability is not a real number.
+            ValueError: A probability lies outside [0, 1].
+            ValueError: Voters are sampled and the profile has non-integral weights.
+            ProfileError: Voters are sampled and a row's non-empty voter set does not match its
+                weight.
+            TransformContractError: ``profile_transform`` is a class or not a ProfileTransform,
+                or does
+                not return a ScoreMatrix.
+        """
+        if len(self._matrix) == 0:
+            return self
+        if per_voter_probability == 0 and not isinstance(per_voter_probability, (bool, np.bool_)):
+            return self
+
+        _validate_profile_transform(profile_transform)
+        if not callable(per_voter_probability):
+            per_voter_probability = _validate_probability(
+                per_voter_probability, "per_voter_probability"
+            )
+
+        samples_voters = callable(per_voter_probability) or per_voter_probability != 1
+        if samples_voters:
+            _validate_one_voter_per_unit_weight(self._matrix)
+
+        rng = np.random.default_rng(rng)
+        if samples_voters:
+            weight_selected = _sample_selected_weights(self._matrix, per_voter_probability, rng)
+            selected_matrix, unselected_matrix = self._matrix._apply_bin_mask(
+                weight_selected, rng=rng
+            )
+        else:
+            selected_matrix, unselected_matrix = self._matrix, None
+        transformed_matrix = _apply_profile_transform(profile_transform, selected_matrix, rng)
+
+        result = self._combine_perturbed(unselected_matrix, transformed_matrix)
+        if group_ballots:
+            return result.group_ballots()
+        return result
+
+    def _combine_perturbed(
+        self, unselected_matrix: ScoreMatrix | None, transformed_matrix: ScoreMatrix
+    ) -> ScoreProfile:
+        """
+        Builds the result profile from the transformed rows and any unselected rows.
+
+        When some voters were not selected, the transformed rows are stacked under the unselected
+        rows. When every voter was selected, ``unselected_matrix`` is None and there is nothing to
+        stack: only the transformed rows are fitted to the profile. See ``_combine_score_matrices``.
+
+        The transformed rows may come back with float weights, so for a profile with Fraction
+        weights they are converted to Fractions first, exactly, to keep one weight kind.
+
+        Args:
+            unselected_matrix (ScoreMatrix | None): Unselected voters, or None if every voter was
+                selected.
+            transformed_matrix (ScoreMatrix): Transformed voters.
+
+        Returns:
+            ScoreProfile: The result profile.
+        """
+        if self._matrix.voter_weight_data.weight_kind is WeightKind.FRACTION:
+            transformed_matrix = _as_fraction_weights(transformed_matrix)
+
+        result_matrix = _combine_score_matrices(
+            unselected_matrix, transformed_matrix, self.candidates
+        )
+        return ScoreProfile._from_matrix(result_matrix)
+
+    def where(self, row: pd.Series) -> pd.Index:
+        """
+        Find the ballots with given scores, by their Ballot Index.
+
+        Args:
+            row (pd.Series): A row of ``to_df()``, or any mapping from the score columns to
+                scores, with NaN for unscored. Other entries, such as Weight and Voter Set, are
+                ignored.
+
+        Returns:
+            pd.Index: Ballot Index of each ballot with exactly these scores, in profile order.
+                NaN matches NaN.
+
+        Raises:
+            KeyError: ``row`` lacks one of the profile's score columns.
+        """
+        scores = np.array([row[column] for column in self._matrix.score_columns], dtype=float)
+        row_idxs = self._matrix.where(scores)
+
+        ballot_index = self._matrix.voter_weight_data.ballot_index
+        labels = row_idxs if ballot_index is None else ballot_index[row_idxs]
+        return pd.Index(labels, name=BALLOT_INDEX_NAME)
 
     def group_ballots(self) -> ScoreProfile:
         """

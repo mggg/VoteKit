@@ -277,25 +277,61 @@ class RankMatrix:
                 key=lambda col: int(col.removeprefix(RANKING_COLUMN_PREFIX)),
             )
         )
-        cells = df[list(ranking_columns)].to_numpy()
+        return cls.from_array(
+            df[list(ranking_columns)].to_numpy(),
+            voter_weight_data=ProfileVoterWeightData.from_df(df),
+            ranking_columns=ranking_columns,
+            candidates=candidates,
+        )
 
+    @classmethod
+    def from_array(
+        cls,
+        cand_set_array: NDArray[np.object_],
+        *,
+        voter_weight_data: ProfileVoterWeightData,
+        ranking_columns: Sequence[str],
+        candidates: Sequence[Candidate],
+    ) -> Self:
+        """
+        Encode a two-dimensional array of candidate sets as ranking IDs.
+
+        Real IDs are assigned in order of first appearance, scanning ballots top to bottom and
+        ranking positions left to right.
+
+        Args:
+            cand_set_array (NDArray[np.object_]): Two-dimensional array of frozenset candidate
+                names, one row per ballot and one column per ranking position. Tilde sets pad the
+                end of a ranking. Names must already be normalized.
+            voter_weight_data (ProfileVoterWeightData): Shared data with one entry per ballot.
+            ranking_columns (Sequence[str]): Ranking_i labels, one per column of the array.
+            candidates (Sequence[Candidate]): Profile candidate universe in declared order.
+
+        Returns:
+            Self: Matrix with an owned ranking array and dense candidate-set lookup table.
+
+        Raises:
+            TypeError: Array cells are unhashable or candidate sets contain unsupported types.
+            ValueError: The array is not two-dimensional, or ranking labels, candidate sets, or
+                sentinel placement are invalid, as checked by the constructor.
+        """
         cand_set_to_id: dict[frozenset[Candidate], int] = {
             EMPTY_CANDIDATE_SET: EMPTY_SET_ID,
             END_OF_RANKING_SET: END_OF_RANKING_ID,
         }
-        for cand_set in cells.ravel():
+        for cand_set in cand_set_array.ravel():
             if cand_set not in cand_set_to_id:
                 cand_set_to_id[cand_set] = len(cand_set_to_id) + EMPTY_SET_ID
 
-        rankings = np.vectorize(cand_set_to_id.__getitem__, otypes=[int])(cells).reshape(
-            cells.shape
+        rankings = np.vectorize(cand_set_to_id.__getitem__, otypes=[int])(cand_set_array).reshape(
+            cand_set_array.shape
         )
 
         return cls(
-            voter_weight_data=ProfileVoterWeightData.from_df(df),
+            voter_weight_data=voter_weight_data,
             rankings=rankings,
             cand_sets=tuple(cand_set_to_id),  # insertion order is ID order
-            ranking_columns=ranking_columns,
+            ranking_columns=tuple(ranking_columns),
             candidates=tuple(candidates),
         )
 
@@ -401,6 +437,26 @@ class RankMatrix:
             for set_id in self.rankings[row]
             if set_id != END_OF_RANKING_ID
         )
+
+    def get_ranking_array(self, rows: NDArray[np.intp] | None = None) -> NDArray[np.object_]:
+        """
+        Decode rankings into an array of candidate sets.
+
+        Includes trailing tilde padding and preserves empty ranking positions.
+
+        Args:
+            rows (NDArray[np.intp], optional): Rows to decode, repeats allowed. Defaults to None,
+                which decodes every row.
+
+        Returns:
+            NDArray[np.object_]: One row of frozensets per decoded ballot, one column per ranking
+                position.
+        """
+        lookup = np.empty(len(self.cand_sets), dtype=object)
+        lookup[:] = self.cand_sets
+        rankings = self.rankings if rows is None else self.rankings[rows]
+
+        return lookup[rankings - EMPTY_SET_ID]
 
     def max_candidates_ranked(self) -> int:
         """
@@ -586,6 +642,90 @@ class RankMatrix:
         object.__setattr__(matrix, "rankings", rankings)
 
         return matrix
+
+    def _apply_bin_mask(
+        self,
+        bin_mask: NDArray[np.intp],
+        *,
+        split_voters: bool = True,
+        rng: np.random.Generator | None = None,
+    ) -> tuple[RankMatrix, RankMatrix]:
+        """
+        Masks each row's weight based on the bin mask, returning the selected and unselected rows.
+
+        The selected matrix has a row for each row with a positive weight in the bin_mask. The
+        unselected matrix has a row for each row with weight leftover and keeps rows of weight 0.
+        Each row repeats its source row's ranking and keeps its source index label. A selection of
+        validated rows remains valid, so construction is bypassed.
+
+        Args:
+            bin_mask (NDArray[np.intp]): Non-negative integer weight to mask out of each row, capped
+                at the row's weight.
+            split_voters (bool, optional): Whether to split a row's voters between the parts, one
+                voter per unit of weight, rather than share them. Defaults to True.
+            rng (np.random.Generator, optional): Generator for choosing the selected voters.
+                Defaults to None, which selects the first voters in sorted order.
+
+        Returns:
+            tuple[RankMatrix, RankMatrix]: The selected rows and the unselected rows.
+
+        Raises:
+            TypeError: bin_mask is not an integer array.
+            ValueError: bin_mask does not have one entry per row or has a negative entry, or a
+                split row's voter set does not have one voter per unit of weight.
+        """
+        selected_data, selected_rows, unselected_data, unselected_rows = (
+            self.voter_weight_data._apply_bin_mask(bin_mask, split_voters=split_voters, rng=rng)
+        )
+
+        selected_rankings = self.rankings[selected_rows]
+        selected_rankings.setflags(write=False)
+        selected_matrix = shallow_copy(self)
+        object.__setattr__(selected_matrix, "voter_weight_data", selected_data)
+        object.__setattr__(selected_matrix, "rankings", selected_rankings)
+
+        unselected_rankings = self.rankings[unselected_rows]
+        unselected_rankings.setflags(write=False)
+        unselected_matrix = shallow_copy(self)
+        object.__setattr__(unselected_matrix, "voter_weight_data", unselected_data)
+        object.__setattr__(unselected_matrix, "rankings", unselected_rankings)
+
+        return selected_matrix, unselected_matrix
+
+    def where(self, ranking: NDArray[np.object_]) -> NDArray[np.intp]:
+        """
+        Find the rows holding exactly the given ranking.
+
+        Args:
+            ranking (NDArray[np.object_]): One set or frozenset of candidates per ranking position,
+                including trailing ``frozenset({"~"})`` padding, as in a row of
+                ``get_ranking_array()``.
+
+        Returns:
+            NDArray[np.intp]: Row index of each matching row, in row order. Empty if no row
+                matches.
+
+        Raises:
+            TypeError: An entry is not a set or frozenset.
+            ValueError: The ranking does not have one entry per ranking position.
+        """
+        ranking = np.asarray(ranking, dtype=object)
+        if ranking.shape != (self.num_ranking_positions,):
+            raise ValueError(
+                f"ranking must have one entry per ranking position, {self.num_ranking_positions},"
+                f" received shape {ranking.shape}."
+            )
+        if any(not isinstance(cand_set, (set, frozenset)) for cand_set in ranking):
+            raise TypeError("ranking entries must be sets or frozensets of candidates.")
+
+        cand_set_to_id = {
+            cand_set: cand_set_id for cand_set_id, cand_set in self.iter_candidate_sets()
+        }
+        ranking_ids = [cand_set_to_id.get(frozenset(cand_set)) for cand_set in ranking]
+        if None in ranking_ids:
+            return np.empty(0, dtype=np.intp)
+
+        return np.flatnonzero(np.all(self.rankings == np.array(ranking_ids, dtype=np.intp), axis=1))
 
 
 def _group_ranking_rows(rankings: NDArray[np.intp]) -> tuple[NDArray[np.intp], NDArray[np.intp]]:
