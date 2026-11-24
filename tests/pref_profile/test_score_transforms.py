@@ -21,9 +21,9 @@ def test_jitter_moves_exactly_one_score_by_one_step():
         ballots=[ScoreBallot(scores={"A": 2, "B": 1}, weight=200)], candidates=["A", "B"]
     )
 
-    perturbed = profile.perturb(JitterScores(rng_seed=0))
+    transformed = profile.transform(JitterScores(), rng=0)
 
-    assert set(score_weights(perturbed)) == {(3.0, 1.0), (1.0, 1.0), (2.0, 2.0), (2.0, 0.0)}
+    assert set(score_weights(transformed)) == {(3.0, 1.0), (1.0, 1.0), (2.0, 2.0), (2.0, 0.0)}
 
 
 def test_jitter_draws_each_move_with_equal_probability():
@@ -31,9 +31,9 @@ def test_jitter_draws_each_move_with_equal_probability():
         ballots=[ScoreBallot(scores={"A": 2, "B": 1}, weight=1200)], candidates=["A", "B"]
     )
 
-    perturbed = profile.perturb(JitterScores(rng_seed=0))
+    transformed = profile.transform(JitterScores(), rng=0)
 
-    weights = score_weights(perturbed)
+    weights = score_weights(transformed)
     for scores in [(3.0, 1.0), (1.0, 1.0), (2.0, 2.0), (2.0, 0.0)]:
         assert weights[scores] / 1200 == pytest.approx(1 / 4, abs=0.05)
 
@@ -44,9 +44,9 @@ def test_jitter_keeps_an_unscored_candidate_unscored_and_stops_at_zero():
         ballots=[ScoreBallot(scores={"B": 0}, weight=200)], candidates=["A", "B"]
     )
 
-    perturbed = profile.perturb(JitterScores(rng_seed=0))
+    transformed = profile.transform(JitterScores(), rng=0)
 
-    assert set(score_weights(perturbed)) == {(None, 0.0), (None, 1.0)}
+    assert set(score_weights(transformed)) == {(None, 0.0), (None, 1.0)}
 
 
 def test_jitter_stops_at_max_score():
@@ -54,9 +54,9 @@ def test_jitter_stops_at_max_score():
         ballots=[ScoreBallot(scores={"A": 3, "B": 3}, weight=200)], candidates=["A", "B"]
     )
 
-    perturbed = profile.perturb(JitterScores(rng_seed=0, max_score=3.0))
+    transformed = profile.transform(JitterScores(max_score=3.0), rng=0)
 
-    assert set(score_weights(perturbed)) == {(3.0, 3.0), (2.0, 3.0), (3.0, 2.0)}
+    assert set(score_weights(transformed)) == {(3.0, 3.0), (2.0, 3.0), (3.0, 2.0)}
 
 
 def test_jitter_never_changes_an_undeclared_column():
@@ -67,16 +67,16 @@ def test_jitter_never_changes_an_undeclared_column():
     df.index.name = "Ballot Index"
     profile = ScoreProfile(df=df, candidates=["A", "B"])
 
-    perturbed = profile.perturb(JitterScores(rng_seed=0))
+    transformed = profile.transform(JitterScores(), rng=0)
 
-    assert perturbed.to_df()["Z"].isna().all()
+    assert transformed.to_df()["Z"].isna().all()
 
 
 def test_jitter_rejects_a_score_already_above_max_score():
     profile = ScoreProfile(ballots=[ScoreBallot(scores={"A": 4, "B": 1})], candidates=["A", "B"])
 
     with pytest.raises(ValueError, match="max_score 3.0 is below max score given in the matrix"):
-        profile.perturb(JitterScores(rng_seed=0, max_score=3.0))
+        profile.transform(JitterScores(max_score=3.0), rng=0)
 
 
 def test_jitter_rejects_a_non_positive_step():
@@ -104,14 +104,17 @@ def test_jitter_rejects_a_non_finite_max_score():
         JitterScores(max_score=float("inf"))
 
 
-def test_jitter_is_reproducible_and_a_reused_transform_continues_its_stream():
+def test_jitter_is_reproducible_and_a_shared_generator_continues_its_stream():
     profile = ScoreProfile(
         ballots=[ScoreBallot(scores={"A": 2, "B": 1}, weight=50)], candidates=["A", "B"]
     )
 
-    first = score_weights(profile.perturb(JitterScores(rng_seed=1)))
-    again = score_weights(profile.perturb(JitterScores(rng_seed=1)))
+    first = score_weights(profile.transform(JitterScores(), rng=1))
+    again = score_weights(profile.transform(JitterScores(), rng=1))
     assert first == again
 
-    reused = JitterScores(rng_seed=1)
-    assert score_weights(profile.perturb(reused)) != score_weights(profile.perturb(reused))
+    generator = np.random.default_rng(1)
+    first_draw = score_weights(profile.transform(JitterScores(), rng=generator))
+    next_draw = score_weights(profile.transform(JitterScores(), rng=generator))
+    assert first_draw == first
+    assert next_draw != first_draw

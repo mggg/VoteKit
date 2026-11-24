@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -7,9 +7,10 @@ from votekit.constants import (
     END_OF_RANKING_ID,
 )
 from votekit.pref_profile.profile_matrix import RankMatrix
+from votekit.pref_profile.profile_matrix.shared_data import _concatenate_voter_weight_data
 from votekit.pref_profile.profile_transform.transform_utils import (
-    _ballot_label,
-    _expand_to_unit_weights,
+    _int_weights,
+    _validate_one_voter_per_unit_weight,
 )
 from votekit.types import Candidate
 
@@ -38,12 +39,12 @@ class SwapCandidates:
     candidate_a: Candidate
     candidate_b: Candidate
 
-    def transform_matrix(self, matrix: RankMatrix) -> RankMatrix:
+    def transform_matrix(self, matrix: RankMatrix, rng: np.random.Generator) -> RankMatrix:
         undeclared_cands = {self.candidate_a, self.candidate_b} - set(matrix.candidates)
         if undeclared_cands:
             raise ValueError(
                 f"SwapCandidates got candidates {undeclared_cands} not in the profile's"
-                f" candidates {matrix.candidates}. Declare them before perturbing."
+                f" candidates {matrix.candidates}. Declare them before transforming."
             )
 
         cand_sets = matrix.cand_sets
@@ -58,9 +59,8 @@ class SwapCandidates:
         if np.any(repeated):
             row_idx = int(np.flatnonzero(repeated)[0])
             raise ValueError(
-                f"Cannot swap {self.candidate_a} and {self.candidate_b}: Ballot Index"
-                f" {_ballot_label(matrix.voter_weight_data, row_idx)} ranks one of them in more"
-                " than one position."
+                f"Cannot swap {self.candidate_a} and {self.candidate_b}: the ballot"
+                f" {matrix.get_ranking(row_idx)} ranks one of them in more than one position."
             )
 
         # identity map from each candidate-set ID to its swapped ID; only sets holding exactly
@@ -86,56 +86,67 @@ class SwapCandidates:
 @dataclass
 class SwapAdjacentRankPositions:
     """
-    ProfileTransform class to swap one random pair of adjacent ranking positions on each ballot.
+    ProfileTransform class to swap one random pair of adjacent ranking positions for each voter.
 
-    For each ballot, a position is drawn uniformly from the profile's ranking positions and a
+    For each voter, a position is drawn uniformly from the profile's ranking positions and a
     direction, left or right, is drawn uniformly. The ballot's candidate sets at that position and
     its neighbor are swapped. If the neighbor falls off either end of the ranking positions, or
     either position is unranked padding, the ballot is unchanged. An empty ranking position is
     swapped like any other position.
 
-    Use with ``perturb``, whose ``per_voter_probability`` selects the ballots to jitter. Each
-    selected voter receives its own swap, so rows are split into one row per unit of weight.
+    Rather than drawing for each voter, one multinomial per row draws how many of its voters make
+    each of the 2m moves (a position and a direction) for m ranking positions. The moves are
+    binned by the adjacent pair they swap, and moves off either end or into padding are no-ops.
+    Each pair's voters are binned out of the row in turn, subtracting them from the voters left,
+    and the voters left at the end keep their ballot. A row's voters are assigned to its outcomes
+    at random.
 
-    The generator is created once from ``rng_seed``, so repeated calls, such as repeated
-    ``perturb`` runs with the same transform, continue its random stream instead of repeating
-    the same swaps.
+    Use with ``transform``, whose ``per_voter_probability`` selects the voters to swap. The swaps
+    are drawn from the generator ``transform`` passes in, so its ``rng`` reproduces them.
 
-    Attributes:
-        rng_seed (int, optional): Seed for sampling the positions and directions. Pass a seed for
-            reproducible swaps. Defaults to None, which creates an unseeded generator.
+    Raises:
+        ValueError: The matrix has non-integral weights, so its voters cannot be counted.
+        ProfileError: A row's non-empty voter set does not have one voter per unit of weight.
     """
 
-    rng_seed: int | None = None
-    _rng: np.random.Generator = field(init=False, repr=False)
+    def transform_matrix(self, matrix: RankMatrix, rng: np.random.Generator) -> RankMatrix:
+        _validate_one_voter_per_unit_weight(matrix)
+        num_positions = matrix.num_ranking_positions
+        if len(matrix) == 0 or num_positions < 2:
+            return matrix
 
-    def __post_init__(self) -> None:
-        self._rng = np.random.default_rng(self.rng_seed)
+        weights = _int_weights(matrix.voter_weight_data)
+        move_probabilities = np.full(2 * num_positions, 1 / (2 * num_positions))
+        moves = rng.multinomial(weights, move_probabilities).reshape(len(matrix), num_positions, 2)
+        moves_left, moves_right = moves[:, :, 0], moves[:, :, 1]
 
-    def transform_matrix(self, matrix: RankMatrix) -> RankMatrix:
-        unit_rows, unit_data = _expand_to_unit_weights(matrix)
-        ranking_arr = matrix.rankings[unit_rows]
-        num_rows, num_positions = ranking_arr.shape
+        swap_counts = moves_right[:, :-1] + moves_left[:, 1:]
+        is_ranked = matrix.rankings != END_OF_RANKING_ID
+        swap_counts[~(is_ranked[:, :-1] & is_ranked[:, 1:])] = 0
 
-        row_idxs = np.arange(num_rows)
-        positions = self._rng.integers(0, max(num_positions, 1), size=num_rows)
-        neighbors = positions + self._rng.choice([-1, 1], size=num_rows)
+        unswapped_matrix = matrix
+        swapped_rankings, swapped_voter_data = [], []
+        for left in range(num_positions - 1):
+            pair_counts = swap_counts[:, left]
+            swapped_matrix, unswapped_matrix = unswapped_matrix._apply_bin_mask(
+                pair_counts, rng=rng
+            )
 
-        in_range = (neighbors >= 0) & (neighbors < num_positions)
-        row_idxs, positions, neighbors = (
-            row_idxs[in_range],
-            positions[in_range],
-            neighbors[in_range],
+            swapped_columns = np.arange(num_positions)
+            swapped_columns[[left, left + 1]] = [left + 1, left]
+            swapped_rankings.append(swapped_matrix.rankings[:, swapped_columns])
+            swapped_voter_data.append(swapped_matrix.voter_weight_data)
+
+            weights = weights - pair_counts
+            still_unswapped = (weights > 0) | (pair_counts == 0)
+            weights, swap_counts = weights[still_unswapped], swap_counts[still_unswapped]
+
+        return RankMatrix(
+            voter_weight_data=_concatenate_voter_weight_data(
+                [unswapped_matrix.voter_weight_data, *swapped_voter_data]
+            ),
+            rankings=np.concatenate([unswapped_matrix.rankings, *swapped_rankings]),
+            cand_sets=matrix.cand_sets,
+            ranking_columns=matrix.ranking_columns,
+            candidates=matrix.candidates,
         )
-
-        ranked = (ranking_arr[row_idxs, positions] != END_OF_RANKING_ID) & (
-            ranking_arr[row_idxs, neighbors] != END_OF_RANKING_ID
-        )
-        row_idxs, positions, neighbors = row_idxs[ranked], positions[ranked], neighbors[ranked]
-
-        ranking_arr[row_idxs, positions], ranking_arr[row_idxs, neighbors] = (
-            ranking_arr[row_idxs, neighbors],
-            ranking_arr[row_idxs, positions],
-        )
-
-        return replace(matrix, voter_weight_data=unit_data, rankings=ranking_arr)

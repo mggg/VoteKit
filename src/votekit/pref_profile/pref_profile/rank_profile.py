@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from functools import cached_property
 from os import PathLike
 from pathlib import Path
-from typing import Any, Self, cast
+from typing import Self, cast
 
 import numpy as np
 import pandas as pd
@@ -32,16 +32,26 @@ from votekit.pref_profile.pref_profile._candidate_names import (
 )
 from votekit.pref_profile.pref_profile.preference_profile import PreferenceProfile
 from votekit.pref_profile.profile_matrix import RankMatrix, WeightKind
-from votekit.pref_profile.profile_matrix.rank_matrix import _concatenate_rank_matrices
-from votekit.pref_profile.profile_transform.perturb import (
-    _as_fraction_weights,
-    _perturb_matrix,
-    _validate_perturbed_rankings,
-)
 from votekit.pref_profile.profile_transform.protocol import (
     ProfileTransform,
     RankingRow,
-    _lift_to_profile_transform,
+    RankRowTransformFn,
+)
+from votekit.pref_profile.profile_transform.transform import (
+    MapMode,
+    _apply_profile_transform,
+    _as_fraction_weights,
+    _combine_rank_matrices,
+    _map_matrix,
+    _sample_selected_weights,
+    _validate_mode,
+    _validate_probability,
+    _validate_profile_transform,
+    _validate_row_transform_fn,
+)
+from votekit.pref_profile.profile_transform.transform_utils import (
+    _split_per_voter,
+    _validate_one_voter_per_unit_weight,
 )
 from votekit.pref_profile.utils import _subtract_rank_profiles, _sum_rank_profiles
 from votekit.types import Candidate
@@ -579,103 +589,249 @@ class RankProfile(PreferenceProfile[RankMatrix, RankBallot]):
         """
         return _subtract_rank_profiles(self, other)
 
-    def perturb(
+    def map(
         self,
-        transform_fn: ProfileTransform[RankMatrix] | Callable[[RankingRow], Any],
+        row_transform_fn: RankRowTransformFn,
         per_voter_probability: float | Callable[[RankingRow], float] = 1.0,
         *,
-        group_ballots: bool = False,
-        rng_seed: int | None = None,
+        mode: MapMode = "row",
+        group_ballots: bool = True,
+        rng: int | np.random.Generator | None = None,
     ) -> RankProfile:
         """
-        Perturb voters in the profile, each independently with some probability.
+        Apply a function to each ranking within the profile, for some or all voters.
 
-        Each unit of ballot weight is treated as one voter and is selected independently with
-        probability p, so a row of weight w has Binomial(w, p) of its weight perturbed. A row with
-        only part of its weight selected is split into an unperturbed row with the remaining
-        weight and a selected row with the selected weight. Set ``group_ballots`` to regroup the
-        output by ranking. An empty profile is returned unchanged, without checking
-        ``transform_fn`` or ``per_voter_probability``.
+        ``row_transform_fn`` receives one ranking as a writeable 1D array copy, with one frozenset
+        of candidates per ranking position, as in the ranking columns of ``to_df()``:
+        ``frozenset()`` marks an explicit empty position and ``frozenset({"~"})`` marks trailing
+        unranked positions. It may modify the array in place and return it, or return a new 1D array
+        or sequence of frozensets or sets of candidates.
 
-        A ``ProfileTransform`` receives the RankMatrix of selected rows, each weighted by its
-        number of selected voters. A per-voter transform function is called once per selected
-        voter, so any randomness in it is independent across voters, and each selected voter
-        becomes its own row of weight 1.
+        ``row_transform_fn`` is called as ``row_transform_fn(row, rng)``, by position. ``row`` is
+        a ranking as a writeable 1D array copy, with one frozenset of candidates per ranking
+        position, as in the ranking columns of ``to_df()``. It may modify the array in place and
+        return it, or return a new 1D array or sequence of frozensets or sets of candidates.
+        ``rng`` is the generator made from this call's ``rng``, which also samples the voters, so
+        one seed reproduces the whole result. Passing the same ``np.random.Generator`` to several
+        calls continues one random stream. A deterministic function still accepts ``rng`` and
+        ignores it. To pass extra arguments to the ``row_transform_fn``, curry them first, e.g.
+        ``functools.partial(fn, candidate="A")``.
 
-        A per-voter transform function receives one voter's ranking as a writeable 1D array copy,
-        with one frozenset of candidates per ranking position, as in the ranking columns of
-        ``to_df()``: ``frozenset()`` marks an explicit empty position and ``frozenset({"~"})``
-        marks trailing unranked positions. It may modify the array in place and return it, or
-        return a new 1D array, list, or tuple of the same length. Frozensets cannot be edited in
-        place, so replace an entry to change it; a replacement may be a set or frozenset. A
-        function that shortens a ranking writes ``frozenset({"~"})`` into the positions it frees.
+        In "row" mode, ``row_transform_fn`` is called once per row of the profile and each row keeps
+        its weight and voter set. In "voter" mode, the function is called once per voter: each unit
+        of weight becomes its own row of weight 1. The weights must be integral to be split into
+        unit weight.
 
-        Perturbed rankings may only use the profile's candidates. To add a candidate, such as a
-        spoiler, declare it in the profile's candidates before perturbing.
+        ``per_voter_probability`` selects the voters to map; the others are unchanged. Each unit of
+        ballot weight is treated as one voter and is selected independently with probability p, so a
+        row of weight w has Binomial(w, p) of its weight selected. A probability of exactly 0
+        returns the profile itself, without checking the other arguments, and exactly 1 maps
+        every row, without sampling. Any other probability, or a probability function, samples
+        voters and requires integral weights. If a row's voter set is non-empty, the selected voters
+        are sampled without replacement from the row's voter set, whose size must equal the row's
+        weight.
 
-        User functions only receive the ballot, not its weight or row index. To pass extra
-        arguments, curry them first, e.g. ``functools.partial(fn, candidate="A")``. A per-voter
-        transform function, a ``ProfileTransform``, or a probability function that is random owns
-        its randomness: create its generator once rather than re-seeding on each call, which
-        would give every voter the same outcome. ``rng_seed`` only seeds voter selection and voter
-        set sampling. A per-voter transform function should not depend on the order of its calls:
-        a row's selected voters are assigned to its calls in sorted order.
-
-        If a row has a non-empty voter set, its size must equal the row's weight. Selected voters
-        are sampled without replacement from the row's voter set, and the remaining voters stay
-        with the unperturbed row.
+        Returned rankings only need to form a valid profile. The result is as wide as the longest
+        ranking, so ``max_ranking_length`` follows the returned rankings: at probability 1, rankings
+        that are all shorter shorten the profile, and a longer ranking or a tie of more candidates
+        than fit widens it. When some voters are unselected, their rankings keep the profile's
+        width and shorter rankings are padded with ``frozenset({"~"})``. A candidate the profile
+        lacks is appended to its candidates, so ``result.candidates[len(candidates):]`` are the
+        added candidates. Candidates no longer ranked stay in the candidates.
 
         Args:
-            transform_fn (ProfileTransform[RankMatrix] | Callable[[NDArray], NDArray]): A
-                ``ProfileTransform`` operates on the matrix of all selected rows at once and is
-                the fast path for large profiles. A per-voter transform function takes one
-                voter's ranking and returns the perturbed ranking; it is called once per selected
-                voter.
-            per_voter_probability (float | Callable[[NDArray], float], optional): Probability
-                that each voter is perturbed. A float applies to all voters. A callable is
-                evaluated once per row on a read-only array of that row's ballot, in the same form
-                a per-voter transform function receives. If the callable is random, the drawn
-                probability is shared by all voters in that row, so results can depend on how the
-                profile is grouped. Values must lie in [0, 1]. Defaults to 1.0.
-            group_ballots (bool, optional): Whether to group the output ballots by ranking, summing
-                weights and joining voter sets. Defaults to False.
-            rng_seed (int, optional): Seed for voter selection and voter set sampling. Defaults to
-                None.
+            row_transform_fn (RankRowTransformFn): Function applied on each ranking of the profile.
+            per_voter_probability (float | Callable[[NDArray], float], optional): Probability that
+                each voter is mapped. A float applies to all voters. A callable is evaluated once
+                per row in the same form ``row_transform_fn`` receives. Defaults to 1.0.
+            mode (str, optional): "row" to call ``row_transform_fn`` once per row, or "voter" to
+                call it once per voter. Defaults to "row".
+            group_ballots (bool, optional): Whether to group the output ballots by ballot type.
+                Defaults to True.
+            rng (int | np.random.Generator, optional): Seed or generator for voter selection,
+                voter set sampling, and ``row_transform_fn``. Defaults to None.
 
         Returns:
-            RankProfile: The perturbed profile, including unperturbed voters.
+            RankProfile: The new profile, including unselected voters.
+
+        Raises:
+            TypeError: A probability is not a real number.
+            ValueError: A probability lies outside [0, 1], or ``mode`` is not "row" or "voter".
+            ValueError: Voters are sampled, or ``mode`` is "voter", and the profile has
+                non-integral weights.
+            ProfileError: Voters are sampled, or ``mode`` is "voter", and a row's non-empty
+                voter set does not match its weight.
+            TransformContractError: ``row_transform_fn`` is a class, a ProfileTransform, or not
+                callable.
+            TransformContractError: ``row_transform_fn`` returns a ranking that cannot be stored:
+                not a 1D array of sets or frozensets, "~" inside a candidate set, or padding before
+                a ranked position. The error shows the ballot, which ``where`` finds.
+        """
+        if len(self._matrix) == 0:
+            return self
+        if per_voter_probability == 0 and not isinstance(per_voter_probability, (bool, np.bool_)):
+            return self
+
+        _validate_row_transform_fn(row_transform_fn)
+        _validate_mode(mode)
+        if not callable(per_voter_probability):
+            per_voter_probability = _validate_probability(
+                per_voter_probability, "per_voter_probability"
+            )
+
+        samples_voters = callable(per_voter_probability) or per_voter_probability != 1
+        if mode == "voter" or samples_voters:
+            _validate_one_voter_per_unit_weight(self._matrix)
+
+        rng = np.random.default_rng(rng)
+        if samples_voters:
+            weight_selected = _sample_selected_weights(self._matrix, per_voter_probability, rng)
+            selected_matrix, unselected_matrix = self._matrix._apply_bin_mask(
+                weight_selected, rng=rng
+            )
+        else:
+            selected_matrix, unselected_matrix = self._matrix, None
+
+        if mode == "voter":
+            # only the selected voters are split, so each gets its own call of row_transform_fn
+            selected_matrix = _split_per_voter(selected_matrix)
+        transformed_matrix = _map_matrix(row_transform_fn, selected_matrix, rng)
+
+        result = self._combine_perturbed(unselected_matrix, transformed_matrix)
+        if group_ballots:
+            return result.group_ballots()
+        return result
+
+    def transform(
+        self,
+        profile_transform: ProfileTransform[RankMatrix],
+        per_voter_probability: float | Callable[[RankingRow], float] = 1.0,
+        *,
+        group_ballots: bool = True,
+        rng: int | np.random.Generator | None = None,
+    ) -> RankProfile:
+        """
+        Apply a ProfileTransform to the matrix of some or all voters at once.
+
+        ``profile_transform.transform_matrix(matrix, rng)`` receives the RankMatrix of the
+        selected rows, each weighted by its number of selected voters and grouped as in the
+        profile.
+
+        ``per_voter_probability`` selects the voters to transform. A probability of
+        exactly 0 returns the profile itself and exactly 1
+        transforms every row without sampling, so non-integral weights are supported. Any other
+        probability, or a probability function, samples voters and requires integral weights.
+
+        The result only has to be a valid RankMatrix. Its weights, voter sets, and ranking columns
+        are not checked; built-in transforms check their own rules. The returned matrix is the
+        truth for the max_ranking_length. Candidates in the result's candidates that the profile
+        lacks are added to the profile's candidates.
+
+        Args:
+            profile_transform (ProfileTransform[RankMatrix]): Transform applied to the matrix
+                of selected rows.
+            per_voter_probability (float | Callable[[NDArray], float], optional): Probability
+                that each voter is transformed. Defaults to 1.0.
+            group_ballots (bool, optional): Whether to group the output ballots by ballot type.
+                Defaults to True.
+            rng (int | np.random.Generator, optional): Seed or generator for voter selection,
+                voter set sampling, and ``profile_transform``. Defaults to None.
+
+        Returns:
+            RankProfile: The transformed profile.
 
         Raises:
             TypeError: A probability is not a real number.
             ValueError: A probability lies outside [0, 1].
-            ValueError: The profile has non-integral weights.
-            ProfileError: A row's non-empty voter set does not match its weight.
-            TransformContractError: ``transform_fn`` is a class, or neither callable nor a
-                ``ProfileTransform``.
-            TransformContractError: The transformation returns an invalid ranking, ranks a
-                candidate not declared on the profile or more candidates than
-                max_ranking_length allows, does not conserve weight, or changes the ranking
-                columns.
+            ValueError: Voters are sampled and the profile has non-integral weights.
+            ProfileError: Voters are sampled and a row's non-empty voter set does not match its
+                weight.
+            TransformContractError: ``profile_transform`` is a class or not a ProfileTransform,
+                or does not return a RankMatrix.
         """
         if len(self._matrix) == 0:
             return self
+        if per_voter_probability == 0 and not isinstance(per_voter_probability, (bool, np.bool_)):
+            return self
 
-        transform = _lift_to_profile_transform(transform_fn)
+        _validate_profile_transform(profile_transform)
+        if not callable(per_voter_probability):
+            per_voter_probability = _validate_probability(
+                per_voter_probability, "per_voter_probability"
+            )
 
-        unperturbed_matrix, perturbed_matrix = _perturb_matrix(
-            self._matrix, transform, per_voter_probability, rng_seed
-        )
-        _validate_perturbed_rankings(perturbed_matrix, self.max_ranking_length, self.candidates)
-        result_matrix = _concatenate_rank_matrices(
-            [unperturbed_matrix, perturbed_matrix], self.candidates, self.max_ranking_length
-        )
+        samples_voters = callable(per_voter_probability) or per_voter_probability != 1
+        if samples_voters:
+            _validate_one_voter_per_unit_weight(self._matrix)
+
+        rng = np.random.default_rng(rng)
+        if samples_voters:
+            weight_selected = _sample_selected_weights(self._matrix, per_voter_probability, rng)
+            selected_matrix, unselected_matrix = self._matrix._apply_bin_mask(
+                weight_selected, rng=rng
+            )
+        else:
+            selected_matrix, unselected_matrix = self._matrix, None
+        transformed_matrix = _apply_profile_transform(profile_transform, selected_matrix, rng)
+
+        result = self._combine_perturbed(unselected_matrix, transformed_matrix)
         if group_ballots:
-            result_matrix = result_matrix.group_ballots()
+            return result.group_ballots()
+        return result
 
+    def _combine_perturbed(
+        self, unselected_matrix: RankMatrix | None, transformed_matrix: RankMatrix
+    ) -> RankProfile:
+        """
+        Builds the result profile from the transformed rows and any unselected rows.
+
+        When some voters were not selected, the transformed rows are stacked under the unselected
+        rows. When every voter was selected, only the transformed rows are fitted to the profile.
+
+        The transformed rows may come back with float weights, so for a profile with Fraction
+        weights they are converted to Fractions first, exactly, to keep one weight kind.
+
+        Args:
+            unselected_matrix (RankMatrix | None): Unselected voters, or None if every voter was
+                selected.
+            transformed_matrix (RankMatrix): Transformed voters.
+
+        Returns:
+            RankProfile: The result profile.
+        """
         if self._matrix.voter_weight_data.weight_kind is WeightKind.FRACTION:
-            result_matrix = _as_fraction_weights(result_matrix)
+            transformed_matrix = _as_fraction_weights(transformed_matrix)
 
-        return RankProfile._from_matrix(result_matrix, max_ranking_length=self.max_ranking_length)
+        result_matrix = _combine_rank_matrices(
+            unselected_matrix, transformed_matrix, self.candidates
+        )
+        return RankProfile._from_matrix(
+            result_matrix, max_ranking_length=result_matrix.num_ranking_positions
+        )
+
+    def where(self, row: pd.Series) -> pd.Index:
+        """
+        Find the ballots with a ranking, by their Ballot Index.
+
+        Args:
+            row (pd.Series): A row of ``to_df()``, or any mapping from the ranking columns to sets
+                or frozensets of candidates, including trailing ``frozenset({"~"})`` padding. Other
+                entries, such as Weight and Voter Set, are ignored.
+
+        Returns:
+            pd.Index: Ballot Index of each ballot with exactly this ranking, in profile order.
+
+        Raises:
+            KeyError: ``row`` lacks one of the profile's ranking columns.
+            TypeError: A ranking entry is not a set or frozenset.
+        """
+        ranking = np.empty(self._matrix.num_ranking_positions, dtype=object)
+        ranking[:] = [row[column] for column in self._matrix.ranking_columns]
+        row_idxs = self._matrix.where(ranking)
+
+        ballot_index = self._matrix.voter_weight_data.ballot_index
+        labels = row_idxs if ballot_index is None else ballot_index[row_idxs]
+        return pd.Index(labels, name=BALLOT_INDEX_NAME)
 
     def group_ballots(self) -> RankProfile:
         """
